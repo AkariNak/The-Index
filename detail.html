@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Index — Show</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead detail-masthead">
+    <div class="masthead-top">
+      <a href="index.html" class="back-link">← Back to The Index</a>
+      <span class="rule"></span>
+    </div>
+  </header>
+
+  <main id="detailMain" class="detail-main">
+    <div class="detail-loading">Loading…</div>
+  </main>
+
+  <section id="recommendationsSection" class="recs-section" hidden>
+    <h2 class="recs-heading">You might also like</h2>
+    <div id="recsGrid" class="poster-grid"></div>
+  </section>
+
+  <footer class="site-foot">
+    <span id="year"></span>
+    <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
+  </footer>
+</div>
+
+<dialog id="adminDialog" class="admin-dialog">
+  <form id="adminLoginForm" method="dialog" class="admin-login">
+    <h3>Admin access</h3>
+    <input id="adminPasswordInput" type="password" placeholder="Password" autocomplete="off" required>
+    <p id="adminError" class="admin-error" hidden>Incorrect password.</p>
+    <div class="admin-actions">
+      <button type="button" id="adminCancelButton" class="btn btn-outline btn-small">Cancel</button>
+      <button type="submit" class="btn btn-solid btn-small">Unlock</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="playerDialog" class="player-dialog">
+  <div class="modal-head">
+    <h3 id="playerTitle"></h3>
+    <button id="closePlayer" type="button" aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <video id="playerVideo" controls playsinline></video>
+  </div>
+</dialog>
+
+<script src="core.js"></script>
+<script src="detail.js"></script>
+</body>
+</html>
