@@ -355,6 +355,67 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(x => x.group);
 }
 
+// ---------- AniList API (for banner images) ----------
+const ANILIST_URL = 'https://graphql.anilist.co';
+
+async function fetchAniListBanner(query) {
+  if (!query) return null;
+  const cacheKey = 'anilist:' + slug(query);
+  if (AppState.jikanCache[cacheKey] !== undefined) return AppState.jikanCache[cacheKey];
+
+  const gqlQuery = `
+    query ($search: String) {
+      Media(search: $search, type: ANIME) {
+        bannerImage
+        coverImage { extraLarge large }
+        title { english romaji }
+      }
+    }
+  `;
+
+  try {
+    const res = await fetch(ANILIST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ query: gqlQuery, variables: { search: query } })
+    });
+    if (!res.ok) throw new Error(`AniList ${res.status}`);
+    const data = await res.json();
+    const media = data?.data?.Media;
+    const result = media ? {
+      banner: media.bannerImage || '',
+      cover: media.coverImage?.extraLarge || media.coverImage?.large || ''
+    } : null;
+    AppState.jikanCache[cacheKey] = result;
+    return result;
+  } catch (err) {
+    console.warn('AniList banner fetch failed:', err);
+    AppState.jikanCache[cacheKey] = null;
+    return null;
+  }
+}
+
+// Custom banner overrides (admin can set these per show)
+const BANNER_OVERRIDE_KEY = 'the-index-banner-override';
+function loadBannerOverrides() {
+  try {
+    AppState.bannerOverrides = JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}');
+  } catch { AppState.bannerOverrides = {}; }
+}
+function saveBannerOverrides() {
+  try { localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(AppState.bannerOverrides)); }
+  catch (e) { console.warn('banner override save failed:', e); }
+}
+function setBannerOverride(collectionName, url) {
+  if (!AppState.bannerOverrides) AppState.bannerOverrides = {};
+  if (url) AppState.bannerOverrides[slug(collectionName)] = url;
+  else delete AppState.bannerOverrides[slug(collectionName)];
+  saveBannerOverrides();
+}
+function getBannerOverride(collectionName) {
+  return AppState.bannerOverrides?.[slug(collectionName)] || null;
+}
+
 // ---------- Theme (light / dark) ----------
 const THEME_KEY = 'the-index-theme';
 
@@ -410,6 +471,7 @@ async function coreInit() {
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
+  loadBannerOverrides();
   await loadBaseVideos();
   syncVideos();
 }
