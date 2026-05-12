@@ -472,4 +472,5 @@ function wireAll() {
   buildFilters();
   render();
   wireAll();
+  wireThemeToggle();
 })();
