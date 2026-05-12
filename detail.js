@@ -26,6 +26,7 @@ let currentGroup = null;
 let currentJikan = null;
 let episodeFilter = '';
 let activeSeason = null; // null = all seasons
+let currentPlayingVideo = null;
 
 // ---------- URL handling ----------
 function getShowSlugFromUrl() {
@@ -123,34 +124,82 @@ function renderDetail() {
   if (currentJikan?.episodes) meta.push(`${currentJikan.episodes} eps`);
   if (currentJikan?.score) meta.push(`★ ${currentJikan.score}`);
 
+  // Find the currently-playing episode (if any) — used to highlight
+  const playingTitle = currentPlayingVideo ? currentPlayingVideo.title : null;
+
   detailMain.innerHTML = `
-    <div class="detail-hero">
-      <div class="detail-cover" id="detailCover">${cover}</div>
-      <div class="detail-info">
+    <section class="watch-area">
+      <div class="watch-player" id="watchPlayer">
+        ${currentPlayingVideo
+          ? `<video id="embeddedVideo" controls autoplay playsinline></video>
+             <div class="embed-controls">
+               <button type="button" class="embed-btn" id="cinemaModeButton" title="Cinema mode">⛶</button>
+               <button type="button" class="embed-btn" id="closeEmbedButton" title="Stop">×</button>
+             </div>
+             <div class="now-playing">${escapeHtml(currentPlayingVideo.title)}</div>`
+          : `<div class="watch-placeholder">
+              ${g.firstCover ? `<img src="${escapeHtml(g.firstCover)}" alt="">` : ''}
+              <div class="watch-placeholder-overlay">
+                <div class="watch-placeholder-icon">▶</div>
+                <div class="watch-placeholder-text">Select an episode</div>
+              </div>
+             </div>`
+        }
+      </div>
+      <aside class="watch-episodes">
+        <div class="watch-episodes-head">
+          <h3>Episodes</h3>
+          <input id="episodeSearch" type="search" placeholder="Filter…" value="${escapeHtml(episodeFilter)}">
+        </div>
+        ${seasonTabsHtml}
+        <div class="watch-episode-list">
+          ${displayedEps.length
+            ? displayedEps.map(v => watchEpisodeButtonHtml(v, playingTitle)).join('')
+            : '<div class="empty">No episodes match.</div>'}
+        </div>
+      </aside>
+    </section>
+
+    <section class="show-info">
+      <div class="info-left">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
+      </div>
+      <div class="info-right">
+        <div class="info-section-label">Tags</div>
         <div class="tag-list">${tagsHtml}</div>
         ${adminAddTag}
       </div>
-    </div>
+    </section>
 
     ${continueBanner}
-
-    <section class="episodes-section">
-      <div class="episodes-head">
-        <h2>Episodes <span class="episodes-count">${displayedEps.length}</span></h2>
-        <input id="episodeSearch" type="search" placeholder="Filter episodes…" value="${escapeHtml(episodeFilter)}">
-      </div>
-      ${seasonTabsHtml}
-      <div class="episode-list">
-        ${displayedEps.length ? displayedEps.map(episodeRowHtml).join('') : '<div class="empty">No episodes match.</div>'}
-      </div>
-    </section>
   `;
 
   wireDetailEvents();
+}
+
+function watchEpisodeButtonHtml(video, playingTitle) {
+  const ep = video.episode || '?';
+  const idx = AppState.videos.indexOf(video);
+  const isPlaying = video.title === playingTitle;
+  const adminControls = isAdminUnlocked() ? `
+    <span class="watch-ep-admin">
+      <button class="watch-ep-edit" type="button" title="Edit">✎</button>
+      <button class="watch-ep-delete" type="button" title="Delete">🗑</button>
+    </span>
+  ` : '';
+  return `
+    <button type="button" class="watch-ep ${isPlaying ? 'playing' : ''}" data-idx="${idx}">
+      <span class="watch-ep-num">${escapeHtml(ep)}</span>
+      <span class="watch-ep-info">
+        <span class="watch-ep-title">${escapeHtml(video.title)}</span>
+        <span class="watch-ep-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)}</span>
+      </span>
+      ${adminControls}
+    </button>
+  `;
 }
 
 function episodeRowHtml(video) {
@@ -184,9 +233,7 @@ function wireDetailEvents() {
   if (searchInput) {
     searchInput.addEventListener('input', e => {
       episodeFilter = e.target.value;
-      // Lightweight re-render of episodes only would be nicer but full re-render is fine here
       renderDetail();
-      // Restore focus + cursor position
       const newInput = document.getElementById('episodeSearch');
       if (newInput) {
         newInput.focus();
@@ -204,28 +251,23 @@ function wireDetailEvents() {
     });
   });
 
-  // Play
-  document.querySelectorAll('.episode-row .play-btn').forEach(btn => {
-    const row = btn.closest('.episode-row');
-    const idx = Number(row.dataset.idx);
+  // Episode buttons (click to play)
+  document.querySelectorAll('.watch-ep').forEach(btn => {
+    const idx = Number(btn.dataset.idx);
     const video = AppState.videos[idx];
-    if (video) btn.addEventListener('click', () => openPlayer(video));
-  });
+    if (!video) return;
 
-  // Edit (admin)
-  document.querySelectorAll('.episode-row .edit-btn').forEach(btn => {
-    const row = btn.closest('.episode-row');
-    const idx = Number(row.dataset.idx);
-    const video = AppState.videos[idx];
-    if (video) btn.addEventListener('click', () => simpleEditPrompt(video));
-  });
+    btn.addEventListener('click', e => {
+      // Don't trigger play when clicking edit/delete buttons inside
+      if (e.target.closest('.watch-ep-admin')) return;
+      openPlayer(video);
+    });
 
-  // Delete (admin)
-  document.querySelectorAll('.episode-row .delete-btn').forEach(btn => {
-    const row = btn.closest('.episode-row');
-    const idx = Number(row.dataset.idx);
-    const video = AppState.videos[idx];
-    if (video) btn.addEventListener('click', () => simpleDelete(video));
+    // Admin controls
+    const editBtn = btn.querySelector('.watch-ep-edit');
+    const delBtn = btn.querySelector('.watch-ep-delete');
+    if (editBtn) editBtn.addEventListener('click', e => { e.stopPropagation(); simpleEditPrompt(video); });
+    if (delBtn) delBtn.addEventListener('click', e => { e.stopPropagation(); simpleDelete(video); });
   });
 
   // Continue
@@ -259,6 +301,30 @@ function wireDetailEvents() {
     };
     addTagBtn.addEventListener('click', submit);
     newTagInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+  }
+
+  // If we're currently playing, wire up the embedded video controls
+  if (currentPlayingVideo) {
+    const embedded = document.getElementById('embeddedVideo');
+    const cinemaBtn = document.getElementById('cinemaModeButton');
+    const closeBtn = document.getElementById('closeEmbedButton');
+
+    if (embedded) {
+      embedded.src = currentPlayingVideo.downloadUrl;
+      embedded.setAttribute('controlsList', 'nodownload noremoteplayback');
+      embedded.addEventListener('contextmenu', e => e.preventDefault());
+      embedded.addEventListener('error', () => {
+        alert(`Could not load "${currentPlayingVideo.title}".`);
+        stopPlayback();
+      }, { once: true });
+      embedded.play().catch(() => {});
+    }
+    if (cinemaBtn) cinemaBtn.addEventListener('click', () => {
+      const video = currentPlayingVideo;
+      stopPlayback();
+      openCinemaMode(video);
+    });
+    if (closeBtn) closeBtn.addEventListener('click', stopPlayback);
   }
 }
 
@@ -331,14 +397,6 @@ function simpleDelete(video) {
 }
 
 function openPlayer(video) {
-  // Default to embedded inline. Cinema mode is opt-in via the button.
-  openEmbedded(video);
-}
-
-function openEmbedded(video) {
-  const cover = document.getElementById('detailCover');
-  if (!cover) return;
-
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) {
     alert(`"${video.title}" has no real video URL.`);
@@ -349,50 +407,22 @@ function openEmbedded(video) {
     return;
   }
 
-  cover.classList.add('playing');
-  cover.innerHTML = `
-    <video id="embeddedVideo" controls autoplay playsinline></video>
-    <div class="embed-controls">
-      <button type="button" class="embed-btn" id="cinemaModeButton" title="Cinema mode">⛶</button>
-      <button type="button" class="embed-btn" id="closeEmbedButton" title="Close">×</button>
-    </div>
-  `;
-
-  const embedded = document.getElementById('embeddedVideo');
-  embedded.src = url;
-  embedded.setAttribute('controlsList', 'nodownload noremoteplayback');
-  embedded.addEventListener('contextmenu', e => e.preventDefault());
-  embedded.addEventListener('error', () => {
-    alert(`Could not load "${video.title}".`);
-    closeEmbedded();
-  }, { once: true });
-  embedded.play().catch(() => {});
-
-  document.getElementById('cinemaModeButton').addEventListener('click', () => {
-    closeEmbedded();
-    openCinemaMode(video);
-  });
-  document.getElementById('closeEmbedButton').addEventListener('click', closeEmbedded);
-
+  currentPlayingVideo = video;
   markEpisodeProgress(video);
+  renderDetail();
+
+  // Scroll player into view
+  setTimeout(() => {
+    const player = document.getElementById('watchPlayer');
+    if (player) player.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
 }
 
-function closeEmbedded() {
-  const cover = document.getElementById('detailCover');
-  if (!cover) return;
-  const video = document.getElementById('embeddedVideo');
-  if (video) {
-    video.pause();
-    video.removeAttribute('src');
-    video.load();
-  }
-  cover.classList.remove('playing');
-  // Restore original cover image
-  if (currentGroup) {
-    cover.innerHTML = currentGroup.firstCover
-      ? `<img src="${escapeHtml(currentGroup.firstCover)}" alt="${escapeHtml(currentGroup.title)} cover">`
-      : `<div class="cover-placeholder">${escapeHtml(currentGroup.title.charAt(0).toUpperCase())}</div>`;
-  }
+function stopPlayback() {
+  const v = document.getElementById('embeddedVideo');
+  if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+  currentPlayingVideo = null;
+  renderDetail();
 }
 
 function openCinemaMode(video) {
