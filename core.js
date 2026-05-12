@@ -355,8 +355,58 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(x => x.group);
 }
 
+// ---------- Theme (light / dark) ----------
+const THEME_KEY = 'the-index-theme';
+
+function getStoredTheme() {
+  return localStorage.getItem(THEME_KEY);
+}
+
+function getEffectiveTheme() {
+  const stored = getStoredTheme();
+  if (stored === 'light' || stored === 'dark') return stored;
+  // Auto-detect OS preference
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+}
+
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.body.setAttribute('data-theme', 'dark');
+  } else {
+    document.body.removeAttribute('data-theme');
+  }
+}
+
+function toggleTheme() {
+  const current = getEffectiveTheme();
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+function initTheme() {
+  applyTheme(getEffectiveTheme());
+
+  // Listen for OS preference changes — only follow them if user hasn't explicitly set a theme
+  if (window.matchMedia) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', () => {
+      if (!getStoredTheme()) applyTheme(getEffectiveTheme());
+    });
+  }
+}
+
+function wireThemeToggle() {
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.addEventListener('click', toggleTheme);
+}
+
 // ---------- Init helper (shared bootstrap) ----------
 async function coreInit() {
+  initTheme();
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
