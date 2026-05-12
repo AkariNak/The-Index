@@ -139,6 +139,30 @@ body[data-theme="dark"] .admin-login input:focus {
 .banner-override-input:focus { border-color: var(--accent); }
 .banner-override-actions { display: flex; gap: 6px; }
 
+.danger-zone {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+.btn-danger {
+  background: transparent;
+  color: #c43030;
+  border: 1px solid #c43030;
+  font-size: 11px;
+}
+.btn-danger:hover {
+  background: #c43030;
+  color: #fff;
+}
+body[data-theme="dark"] .btn-danger {
+  color: #ff7575;
+  border-color: #ff7575;
+}
+body[data-theme="dark"] .btn-danger:hover {
+  background: #ff7575;
+  color: #15171c;
+}
+
 /* ============ FOCUS MODE ============ */
 body.focus-mode {
   background: #000 !important;
