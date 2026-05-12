@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Player — The Index</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Lora:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* ── Player page layout ── */
+    .player-page {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 24px 32px 80px;
+    }
+
+    .player-nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .player-nav a {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color .15s;
+    }
+    .player-nav a:hover { color: var(--accent); }
+    .player-nav .nav-divider {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--line);
+    }
+    .player-nav .nav-show {
+      font-family: var(--serif-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Main two-column layout ── */
+    .player-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 28px;
+      align-items: start;
+    }
+
+    /* ── Left column: video + info ── */
+    .player-main {}
+
+    .video-wrap {
+      width: 100%;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.28);
+      margin-bottom: 20px;
+    }
+    .video-wrap video {
+      width: 100%;
+      display: block;
+      max-height: 72vh;
+      background: #000;
+    }
+
+    .player-info {
+      padding: 0 2px;
+    }
+    .player-ep-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 8px;
+    }
+    .player-title {
+      font-family: var(--serif-display);
+      font-size: clamp(18px, 2.2vw, 26px);
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+    .player-desc {
+      font-family: var(--serif-body);
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+      margin: 0 0 20px;
+    }
+
+    /* ── Show info block (below description) ── */
+    .show-info-block {
+      border-top: 1px dashed var(--line);
+      padding-top: 20px;
+      margin-top: 4px;
+    }
+    .show-info-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin-bottom: 6px;
+    }
+    #showTitle {
+      font-family: var(--serif-display);
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: var(--ink);
+    }
+    #showMeta {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--ink-soft);
+      margin-bottom: 12px;
+    }
+    #showSynopsis {
+      font-family: var(--serif-body);
+      font-size: 14px;
+      color: var(--ink-soft);
+      line-height: 1.6;
+      margin: 0 0 14px;
+    }
+    #tagList {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 0;
+    }
+
+    /* ── Recommendations block ── */
+    #recsSection {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+    #recsSection h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      margin: 0 0 16px;
+      font-weight: 500;
+    }
+    #recsGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Right column: episode sidebar ── */
+    .player-sidebar {
+      position: sticky;
+      top: 24px;
+    }
+    .sidebar-head {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 2px;
+    }
+    #episodeSidebar {
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--line) transparent;
+    }
+    #episodeSidebar::-webkit-scrollbar { width: 4px; }
+    #episodeSidebar::-webkit-scrollbar-track { background: transparent; }
+    #episodeSidebar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+    .sidebar-ep {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 12px 14px;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+      color: var(--ink);
+      transition: background .12s;
+    }
+    .sidebar-ep:hover { background: var(--paper-2); }
+    .sidebar-ep.active {
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .sidebar-ep.active .sidebar-ep-num { color: var(--paper); opacity: 0.6; }
+    .sidebar-ep-num {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      transition: color .12s;
+    }
+    .sidebar-ep-title {
+      font-family: var(--serif-body);
+      font-size: 13px;
+      line-height: 1.3;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .player-page { padding: 16px 20px 64px; }
+      .player-layout {
+        grid-template-columns: 1fr;
+      }
+      .player-sidebar {
+        position: static;
+        order: -1; /* sidebar above video on mobile doesn't make sense — keep below */
+      }
+      #episodeSidebar {
+        max-height: 320px;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .player-page { padding: 12px 14px 48px; }
+      .player-title { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="player-page">
+
+    <!-- Nav breadcrumb -->
+    <nav class="player-nav">
+      <a href="index.html">← The Index</a>
+      <span class="nav-divider">/</span>
+      <a id="backLink" href="index.html">Show page</a>
+      <span class="nav-divider">/</span>
+      <span class="nav-show" id="navShowTitle">Loading…</span>
+    </nav>
+
+    <!-- Two-column layout -->
+    <div class="player-layout">
+
+      <!-- Left: video + info -->
+      <div class="player-main">
+
+        <!-- Video -->
+        <div class="video-wrap">
+          <video
+            id="playerVideo"
+            controls
+            controlsList="nodownload noremoteplayback"
+            disablePictureInPicture
+          ></video>
+        </div>
+
+        <!-- Episode info -->
+        <div class="player-info">
+          <div class="player-ep-meta" id="playerEpMeta"></div>
+          <h1 class="player-title" id="playerTitle">Loading…</h1>
+          <p class="player-desc" id="playerDesc" hidden></p>
+        </div>
+
+        <!-- Show info -->
+        <div class="show-info-block">
+          <div class="show-info-label">From the collection</div>
+          <h2 id="showTitle"></h2>
+          <div id="showMeta" hidden></div>
+          <p id="showSynopsis" hidden></p>
+          <div id="tagList" hidden></div>
+        </div>
+
+        <!-- Recommendations -->
+        <section id="recsSection" hidden>
+          <h3>You might also like</h3>
+          <div id="recsGrid" class="poster-grid"></div>
+        </section>
+
+      </div>
+
+      <!-- Right: episode sidebar -->
+      <aside class="player-sidebar">
+        <div class="sidebar-head">Episodes</div>
+        <div id="episodeSidebar"></div>
+      </aside>
+
+    </div>
+  </div>
+
+  <script src="core.js"></script>
+  <script src="player.js"></script>
+  <script>
+    // Keep navShowTitle in sync with showTitle
+    const _showTitleEl = document.getElementById('showTitle');
+    const _navTitleEl  = document.getElementById('navShowTitle');
+    const _origSet = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
+    // Simple MutationObserver approach
+    if (_showTitleEl && _navTitleEl) {
+      new MutationObserver(() => {
+        _navTitleEl.textContent = _showTitleEl.textContent;
+      }).observe(_showTitleEl, { childList: true, subtree: true, characterData: true });
+    }
+  </script>
+</body>
+</html>
