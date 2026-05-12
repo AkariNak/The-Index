@@ -125,7 +125,7 @@ function renderDetail() {
 
   detailMain.innerHTML = `
     <div class="detail-hero">
-      <div class="detail-cover">${cover}</div>
+      <div class="detail-cover" id="detailCover">${cover}</div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
@@ -331,7 +331,14 @@ function simpleDelete(video) {
 }
 
 function openPlayer(video) {
-  if (!playerDialog || !playerVideo) return;
+  // Default to embedded inline. Cinema mode is opt-in via the button.
+  openEmbedded(video);
+}
+
+function openEmbedded(video) {
+  const cover = document.getElementById('detailCover');
+  if (!cover) return;
+
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) {
     alert(`"${video.title}" has no real video URL.`);
@@ -341,6 +348,64 @@ function openPlayer(video) {
     alert(`"${video.title}" was added as a device preview previously. Browser preview URLs don't survive a page reload.`);
     return;
   }
+
+  cover.classList.add('playing');
+  cover.innerHTML = `
+    <video id="embeddedVideo" controls autoplay playsinline></video>
+    <div class="embed-controls">
+      <button type="button" class="embed-btn" id="cinemaModeButton" title="Cinema mode">⛶</button>
+      <button type="button" class="embed-btn" id="closeEmbedButton" title="Close">×</button>
+    </div>
+  `;
+
+  const embedded = document.getElementById('embeddedVideo');
+  embedded.src = url;
+  embedded.setAttribute('controlsList', 'nodownload noremoteplayback');
+  embedded.addEventListener('contextmenu', e => e.preventDefault());
+  embedded.addEventListener('error', () => {
+    alert(`Could not load "${video.title}".`);
+    closeEmbedded();
+  }, { once: true });
+  embedded.play().catch(() => {});
+
+  document.getElementById('cinemaModeButton').addEventListener('click', () => {
+    closeEmbedded();
+    openCinemaMode(video);
+  });
+  document.getElementById('closeEmbedButton').addEventListener('click', closeEmbedded);
+
+  markEpisodeProgress(video);
+}
+
+function closeEmbedded() {
+  const cover = document.getElementById('detailCover');
+  if (!cover) return;
+  const video = document.getElementById('embeddedVideo');
+  if (video) {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  }
+  cover.classList.remove('playing');
+  // Restore original cover image
+  if (currentGroup) {
+    cover.innerHTML = currentGroup.firstCover
+      ? `<img src="${escapeHtml(currentGroup.firstCover)}" alt="${escapeHtml(currentGroup.title)} cover">`
+      : `<div class="cover-placeholder">${escapeHtml(currentGroup.title.charAt(0).toUpperCase())}</div>`;
+  }
+}
+
+function openCinemaMode(video) {
+  if (!playerDialog || !playerVideo) return;
+  const url = video.downloadUrl;
+  if (!url || url === '#' || url.includes('example.com')) {
+    alert(`"${video.title}" has no real video URL.`);
+    return;
+  }
+  if (url.startsWith('blob:') && video.temporary) {
+    alert(`"${video.title}" was added as a device preview previously.`);
+    return;
+  }
   playerVideo.src = url;
   playerTitle.textContent = video.title;
   const onError = () => { alert(`Could not load "${video.title}".`); closePlayer(); };
@@ -348,7 +413,6 @@ function openPlayer(video) {
   if (typeof playerDialog.showModal === 'function') playerDialog.showModal();
   else playerDialog.setAttribute('open', '');
   playerVideo.play().catch(() => {});
-
   markEpisodeProgress(video);
 }
 
