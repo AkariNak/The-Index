@@ -133,6 +133,7 @@ function renderDetail() {
         ${currentPlayingVideo
           ? `<video id="embeddedVideo" controls autoplay playsinline></video>
              <div class="embed-controls">
+               <button type="button" class="embed-btn" id="focusModeButton" title="Focus mode (dim surroundings)">◉</button>
                <button type="button" class="embed-btn" id="cinemaModeButton" title="Cinema mode">⛶</button>
                <button type="button" class="embed-btn" id="closeEmbedButton" title="Stop">×</button>
              </div>
@@ -325,7 +326,14 @@ function wireDetailEvents() {
       openCinemaMode(video);
     });
     if (closeBtn) closeBtn.addEventListener('click', stopPlayback);
+
+    const focusBtn = document.getElementById('focusModeButton');
+    if (focusBtn) focusBtn.addEventListener('click', toggleFocusMode);
   }
+}
+
+function toggleFocusMode() {
+  document.body.classList.toggle('focus-mode');
 }
 
 // ---------- Player ----------
@@ -422,6 +430,7 @@ function stopPlayback() {
   const v = document.getElementById('embeddedVideo');
   if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
   currentPlayingVideo = null;
+  document.body.classList.remove('focus-mode');
   renderDetail();
 }
 
@@ -633,4 +642,6 @@ function wireFogControl() {
       renderRecommendations(allGroups);
     }
   });
+
+  wireThemeToggle();
 })();
