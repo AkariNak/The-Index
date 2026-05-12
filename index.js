@@ -527,9 +527,13 @@ function renderHero() {
   if (!s) return;
 
   const isBanner = s.banner && s.banner !== s.group.firstCover;
+  const adminDelete = isAdminUnlocked()
+    ? `<button class="hero-delete" type="button" aria-label="Delete this show" title="Delete entire show">×</button>`
+    : '';
   heroSlideshow.innerHTML = `
     <div class="hero-bg ${isBanner ? '' : 'hero-bg-cover'}" style="background-image: url('${escapeHtml(s.banner)}')"></div>
     <div class="hero-gradient"></div>
+    ${adminDelete}
     <div class="hero-content">
       <div class="hero-cat">${escapeHtml((s.group.category || 'Featured').toUpperCase())}</div>
       <h2 class="hero-title">${escapeHtml(s.group.title)}</h2>
@@ -555,6 +559,55 @@ function renderHero() {
   heroSlideshow.querySelectorAll('.hero-dot').forEach(d => {
     d.addEventListener('click', () => { heroIndex = Number(d.dataset.i); renderHero(); restartHeroAuto(); });
   });
+  const delBtn = heroSlideshow.querySelector('.hero-delete');
+  if (delBtn) delBtn.addEventListener('click', () => deleteShowFromHero(s.group));
+}
+
+function deleteShowFromHero(group) {
+  const epCount = group.videos.length;
+  if (!confirm(`Delete ALL ${epCount} ${epCount === 1 ? 'entry' : 'entries'} for "${group.title}"? This cannot be undone.`)) return;
+
+  const titleLower = group.title.trim().toLowerCase();
+  let touchedBase = false;
+
+  const removeMatching = (arr) => {
+    let removed = false;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if ((arr[i].collection || '').trim().toLowerCase() === titleLower) {
+        arr.splice(i, 1);
+        removed = true;
+      }
+    }
+    return removed;
+  };
+
+  removeMatching(AppState.sessionVideos);
+  if (removeMatching(AppState.localVideos)) saveLocalVideos();
+  if (removeMatching(AppState.baseVideos)) touchedBase = true;
+
+  // Clean associated storage
+  const k = slug(group.title);
+  if (AppState.tagsOverride[k]) {
+    delete AppState.tagsOverride[k];
+    saveTagsOverride();
+  }
+  if (AppState.bannerOverrides && AppState.bannerOverrides[k]) {
+    delete AppState.bannerOverrides[k];
+    saveBannerOverrides();
+  }
+  if (AppState.progress[k]) {
+    delete AppState.progress[k];
+    saveProgress();
+  }
+
+  syncVideos();
+  if (touchedBase) {
+    alert('Show deleted from view. Some entries were from videos.json — Export the updated videos.json and replace the file in your repo to make it permanent for everyone.');
+  }
+
+  // Refresh both the hero and the grid
+  refreshArchive();
+  setupHero();
 }
 
 function navHero(dir) {
