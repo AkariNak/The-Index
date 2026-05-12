@@ -466,6 +466,117 @@ function wireAll() {
   wireTabs();
 }
 
+// ---------- Hero slideshow ----------
+const heroSlideshow = document.getElementById('heroSlideshow');
+let heroSlides = [];
+let heroIndex = 0;
+let heroAutoTimer = null;
+const HERO_AUTO_MS = 7000;
+
+function pickFeaturedGroups(allGroups) {
+  // Pick 3 most recently added shows
+  return [...allGroups]
+    .map(g => ({
+      group: g,
+      latestDate: Math.max(...g.videos.map(v => new Date(v.dateAdded || 0).getTime()))
+    }))
+    .sort((a, b) => b.latestDate - a.latestDate)
+    .slice(0, 3)
+    .map(x => x.group);
+}
+
+async function loadHeroSlides(featured) {
+  heroSlides = await Promise.all(featured.map(async g => {
+    const override = getBannerOverride(g.title);
+    let banner = override;
+    if (!banner) {
+      const result = await fetchAniListBanner(g.title);
+      banner = result?.banner || '';
+    }
+    // Try to grab synopsis from jikan if already cached
+    const jikan = AppState.jikanCache[slug(g.title)];
+    return {
+      group: g,
+      banner: banner || g.firstCover,
+      synopsis: jikan?.synopsis || '',
+      year: jikan?.year,
+      type: jikan?.type
+    };
+  }));
+
+  // Try to enrich synopses we don't have yet (fetch in background, don't block)
+  featured.forEach(g => {
+    if (!AppState.jikanCache[slug(g.title)]) {
+      fetchJikanDetails(g.title).then(d => {
+        const i = heroSlides.findIndex(s => s.group.slug === g.slug);
+        if (i >= 0 && d) {
+          heroSlides[i].synopsis = d.synopsis;
+          heroSlides[i].year = d.year;
+          heroSlides[i].type = d.type;
+          if (heroIndex === i) renderHero();
+        }
+      });
+    }
+  });
+}
+
+function renderHero() {
+  if (!heroSlides.length) { heroSlideshow.hidden = true; return; }
+  heroSlideshow.hidden = false;
+  const s = heroSlides[heroIndex];
+  if (!s) return;
+
+  const isBanner = s.banner && s.banner !== s.group.firstCover;
+  heroSlideshow.innerHTML = `
+    <div class="hero-bg ${isBanner ? '' : 'hero-bg-cover'}" style="background-image: url('${escapeHtml(s.banner)}')"></div>
+    <div class="hero-gradient"></div>
+    <div class="hero-content">
+      <div class="hero-cat">${escapeHtml((s.group.category || 'Featured').toUpperCase())}</div>
+      <h2 class="hero-title">${escapeHtml(s.group.title)}</h2>
+      <div class="hero-meta">
+        ${s.year ? `<span>${escapeHtml(String(s.year))}</span>` : ''}
+        ${s.type ? `<span class="dot">·</span><span>${escapeHtml(s.type)}</span>` : ''}
+        <span class="dot">·</span><span>${s.group.videos.length} ${s.group.videos.length === 1 ? 'entry' : 'entries'}</span>
+      </div>
+      ${s.synopsis ? `<p class="hero-synopsis">${escapeHtml(s.synopsis.slice(0, 240))}${s.synopsis.length > 240 ? '…' : ''}</p>` : ''}
+      <div class="hero-actions">
+        <a class="btn btn-solid hero-watch" href="detail.html?show=${encodeURIComponent(s.group.slug)}">▶ Watch Now</a>
+      </div>
+    </div>
+    <button class="hero-arrow hero-prev" type="button" aria-label="Previous">‹</button>
+    <button class="hero-arrow hero-next" type="button" aria-label="Next">›</button>
+    <div class="hero-dots">
+      ${heroSlides.map((_, i) => `<button type="button" class="hero-dot ${i === heroIndex ? 'active' : ''}" data-i="${i}" aria-label="Slide ${i+1}"></button>`).join('')}
+    </div>
+  `;
+
+  heroSlideshow.querySelector('.hero-prev').addEventListener('click', () => navHero(-1));
+  heroSlideshow.querySelector('.hero-next').addEventListener('click', () => navHero(1));
+  heroSlideshow.querySelectorAll('.hero-dot').forEach(d => {
+    d.addEventListener('click', () => { heroIndex = Number(d.dataset.i); renderHero(); restartHeroAuto(); });
+  });
+}
+
+function navHero(dir) {
+  heroIndex = (heroIndex + dir + heroSlides.length) % heroSlides.length;
+  renderHero();
+  restartHeroAuto();
+}
+
+function restartHeroAuto() {
+  if (heroAutoTimer) clearInterval(heroAutoTimer);
+  heroAutoTimer = setInterval(() => navHero(1), HERO_AUTO_MS);
+}
+
+async function setupHero() {
+  const allGroups = groupVideos(AppState.videos);
+  const featured = pickFeaturedGroups(allGroups);
+  if (!featured.length) return;
+  await loadHeroSlides(featured);
+  renderHero();
+  restartHeroAuto();
+}
+
 // ---------- Bootstrap ----------
 (async function init() {
   await coreInit();
@@ -473,4 +584,5 @@ function wireAll() {
   render();
   wireAll();
   wireThemeToggle();
+  setupHero();
 })();
