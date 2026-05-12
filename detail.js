@@ -181,6 +181,10 @@ function renderDetail() {
               <button id="bannerClearButton" type="button" class="btn btn-outline btn-small">Clear</button>
             </div>
           </div>
+          <div class="danger-zone">
+            <div class="info-section-label">Danger zone</div>
+            <button id="deleteShowButton" type="button" class="btn btn-danger">Delete entire show (${g.videos.length} ${g.videos.length === 1 ? 'entry' : 'entries'})</button>
+          </div>
         ` : ''}
       </div>
     </section>
@@ -202,14 +206,14 @@ function watchEpisodeButtonHtml(video, playingTitle) {
     </span>
   ` : '';
   return `
-    <button type="button" class="watch-ep ${isPlaying ? 'playing' : ''}" data-idx="${idx}">
+    <div class="watch-ep ${isPlaying ? 'playing' : ''}" data-idx="${idx}" role="button" tabindex="0">
       <span class="watch-ep-num">${escapeHtml(ep)}</span>
       <span class="watch-ep-info">
         <span class="watch-ep-title">${escapeHtml(video.title)}</span>
         <span class="watch-ep-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)}</span>
       </span>
       ${adminControls}
-    </button>
+    </div>
   `;
 }
 
@@ -262,23 +266,43 @@ function wireDetailEvents() {
     });
   });
 
-  // Episode buttons (click to play)
-  document.querySelectorAll('.watch-ep').forEach(btn => {
-    const idx = Number(btn.dataset.idx);
+  // Episode cards (click to play)
+  document.querySelectorAll('.watch-ep').forEach(card => {
+    const idx = Number(card.dataset.idx);
     const video = AppState.videos[idx];
     if (!video) return;
 
-    btn.addEventListener('click', e => {
-      // Don't trigger play when clicking edit/delete buttons inside
+    card.addEventListener('click', e => {
+      // Skip if click was on admin controls
       if (e.target.closest('.watch-ep-admin')) return;
       openPlayer(video);
     });
+    // Keyboard support
+    card.addEventListener('keydown', e => {
+      if (e.target.closest('.watch-ep-admin')) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openPlayer(video);
+      }
+    });
 
-    // Admin controls
-    const editBtn = btn.querySelector('.watch-ep-edit');
-    const delBtn = btn.querySelector('.watch-ep-delete');
-    if (editBtn) editBtn.addEventListener('click', e => { e.stopPropagation(); simpleEditPrompt(video); });
-    if (delBtn) delBtn.addEventListener('click', e => { e.stopPropagation(); simpleDelete(video); });
+    // Admin controls — stop propagation so they don't trigger the play
+    const editBtn = card.querySelector('.watch-ep-edit');
+    const delBtn = card.querySelector('.watch-ep-delete');
+    if (editBtn) {
+      editBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        simpleEditPrompt(video);
+      });
+    }
+    if (delBtn) {
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        simpleDelete(video);
+      });
+    }
   });
 
   // Continue
@@ -331,6 +355,12 @@ function wireDetailEvents() {
       bannerInput.value = '';
       alert('Banner override cleared. AniList will be used.');
     });
+  }
+
+  // Delete entire show (admin)
+  const deleteShowBtn = document.getElementById('deleteShowButton');
+  if (deleteShowBtn) {
+    deleteShowBtn.addEventListener('click', deleteEntireShow);
   }
 
   // If we're currently playing, wire up the embedded video controls
@@ -431,6 +461,53 @@ function simpleDelete(video) {
   }
   renderDetail();
   renderRecommendations(groups);
+}
+
+function deleteEntireShow() {
+  if (!currentGroup) return;
+  const epCount = currentGroup.videos.length;
+  if (!confirm(`Delete ALL ${epCount} ${epCount === 1 ? 'entry' : 'entries'} for "${currentGroup.title}"? This cannot be undone.`)) return;
+
+  // Find every video in this collection and remove from all three arrays.
+  // Also clean up tag/banner/progress storage for the show.
+  const titleLower = currentGroup.title.trim().toLowerCase();
+  let touchedBase = false;
+
+  const removeMatching = (arr) => {
+    let removed = false;
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if ((arr[i].collection || '').trim().toLowerCase() === titleLower) {
+        arr.splice(i, 1);
+        removed = true;
+      }
+    }
+    return removed;
+  };
+
+  removeMatching(AppState.sessionVideos);
+  if (removeMatching(AppState.localVideos)) saveLocalVideos();
+  if (removeMatching(AppState.baseVideos)) touchedBase = true;
+
+  // Clean associated storage
+  const k = slug(currentGroup.title);
+  if (AppState.tagsOverride[k]) {
+    delete AppState.tagsOverride[k];
+    saveTagsOverride();
+  }
+  if (AppState.bannerOverrides && AppState.bannerOverrides[k]) {
+    delete AppState.bannerOverrides[k];
+    saveBannerOverrides();
+  }
+  if (AppState.progress[k]) {
+    delete AppState.progress[k];
+    saveProgress();
+  }
+
+  syncVideos();
+  if (touchedBase) {
+    alert('Show deleted. Some entries were from videos.json — Export the updated videos.json and replace the file in your repo to make it permanent for everyone.');
+  }
+  window.location.href = 'index.html';
 }
 
 function openPlayer(video) {
