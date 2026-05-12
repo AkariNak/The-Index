@@ -13,19 +13,35 @@
   --serif-body: 'Lora', Georgia, serif;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --radius: 2px;
+  --bg-pattern-color: rgba(0,0,0,0.04);
+}
+
+body[data-theme="dark"] {
+  --paper: #15171c;
+  --paper-2: #1f2229;
+  --ink: #e8e6df;
+  --ink-mute: #6a6d75;
+  --ink-soft: #a3a39c;
+  --line: #2a2e36;
+  --line-soft: #22252c;
+  --accent: #4a9e9a;
+  --accent-dark: #2d6e6b;
+  --accent-soft: #6bb5b1;
+  --bg-pattern-color: rgba(255,255,255,0.04);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
   background-color: var(--paper);
-  background-image: radial-gradient(circle, rgba(0,0,0,0.04) 1px, transparent 1px);
+  background-image: radial-gradient(circle, var(--bg-pattern-color) 1px, transparent 1px);
   background-size: 12px 12px;
   color: var(--ink);
   font-family: var(--serif-body);
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  transition: background-color .2s ease, color .2s ease;
 }
 
 .page {
@@ -61,6 +77,69 @@ body {
   align-items: flex-end;
   border-bottom: 1px solid var(--ink);
   padding-bottom: 16px;
+  gap: 24px;
+}
+.masthead-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--ink); color: var(--paper); }
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon {
+  display: none;
+}
+body[data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+body:not([data-theme="dark"]) .theme-toggle .icon-moon { display: block; }
+
+body[data-theme="dark"] .episodes-head input[type="search"]:focus,
+body[data-theme="dark"] .field input:focus,
+body[data-theme="dark"] .field select:focus,
+body[data-theme="dark"] .field textarea:focus,
+body[data-theme="dark"] .admin-login input:focus {
+  background: #2a2e36;
+}
+
+/* ============ FOCUS MODE ============ */
+body.focus-mode {
+  background: #000 !important;
+  background-image: none !important;
+}
+body.focus-mode .page > *:not(main):not(#detailMain) {
+  opacity: 0.05;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+body.focus-mode #detailMain > *:not(.watch-area) {
+  opacity: 0.05;
+  pointer-events: none;
+  transition: opacity .3s;
+}
+body.focus-mode .recs-section {
+  opacity: 0.05;
+  pointer-events: none;
+}
+body.focus-mode .watch-area {
+  box-shadow: 0 0 80px rgba(74, 158, 154, 0.15);
+}
+body.focus-mode .watch-episodes {
+  background: #050505;
 }
 .logo {
   margin: 0;
