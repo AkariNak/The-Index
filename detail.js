@@ -172,6 +172,16 @@ function renderDetail() {
         <div class="info-section-label">Tags</div>
         <div class="tag-list">${tagsHtml}</div>
         ${adminAddTag}
+        ${isAdminUnlocked() ? `
+          <div class="banner-override-control">
+            <div class="info-section-label">Banner image override</div>
+            <input id="bannerOverrideInput" type="url" class="banner-override-input" placeholder="Custom banner URL (overrides AniList)" value="${escapeHtml(getBannerOverride(g.title) || '')}">
+            <div class="banner-override-actions">
+              <button id="bannerSaveButton" type="button" class="btn btn-outline btn-small">Save banner</button>
+              <button id="bannerClearButton" type="button" class="btn btn-outline btn-small">Clear</button>
+            </div>
+          </div>
+        ` : ''}
       </div>
     </section>
 
@@ -302,6 +312,25 @@ function wireDetailEvents() {
     };
     addTagBtn.addEventListener('click', submit);
     newTagInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+  }
+
+  // Banner override (admin)
+  const bannerInput = document.getElementById('bannerOverrideInput');
+  const bannerSave = document.getElementById('bannerSaveButton');
+  const bannerClear = document.getElementById('bannerClearButton');
+  if (bannerSave && bannerInput) {
+    bannerSave.addEventListener('click', () => {
+      const url = bannerInput.value.trim();
+      setBannerOverride(currentGroup.title, url);
+      alert(url ? 'Banner override saved.' : 'Provide a URL or use Clear.');
+    });
+  }
+  if (bannerClear && bannerInput) {
+    bannerClear.addEventListener('click', () => {
+      setBannerOverride(currentGroup.title, null);
+      bannerInput.value = '';
+      alert('Banner override cleared. AniList will be used.');
+    });
   }
 
   // If we're currently playing, wire up the embedded video controls
