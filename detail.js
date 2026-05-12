@@ -155,13 +155,17 @@ function renderDetail() {
 
 function episodeRowHtml(video) {
   const ep = video.episode || '—';
-  const idx = AppState.videos.indexOf(video);
+  const globalIdx = AppState.videos.indexOf(video);
+  const groupIdx  = currentGroup ? currentGroup.videos.indexOf(video) : -1;
+  const playerHref = currentGroup && groupIdx >= 0
+    ? `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${groupIdx}`
+    : '#';
   const adminControls = isAdminUnlocked() ? `
     <button class="btn btn-outline btn-small edit-btn" type="button">Edit</button>
     <button class="btn btn-outline btn-small delete-btn" type="button">Delete</button>
   ` : '';
   return `
-    <div class="episode-row" data-idx="${idx}">
+    <div class="episode-row" data-idx="${globalIdx}">
       <div class="episode-num">
         <small>EP</small>
         ${escapeHtml(ep)}
@@ -171,7 +175,7 @@ function episodeRowHtml(video) {
         <div class="episode-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)} · ${escapeHtml(formatDate(video.dateAdded))}${isPublicDownload(video) ? '' : ' · LOCAL PREVIEW ONLY'}</div>
       </div>
       <div class="episode-actions">
-        <button class="btn btn-outline btn-small play-btn" type="button">Play</button>
+        <a class="btn btn-outline btn-small" href="${escapeHtml(playerHref)}">Play</a>
         ${adminControls}
       </div>
     </div>
@@ -204,15 +208,8 @@ function wireDetailEvents() {
     });
   });
 
-  // Play
-  document.querySelectorAll('.episode-row .play-btn').forEach(btn => {
-    const row = btn.closest('.episode-row');
-    const idx = Number(row.dataset.idx);
-    const video = AppState.videos[idx];
-    if (video) btn.addEventListener('click', () => openPlayer(video));
-  });
-
-  // Edit (admin)
+  // Play — now handled by <a href> links in episodeRowHtml, no JS needed.
+  // Admin edit
   document.querySelectorAll('.episode-row .edit-btn').forEach(btn => {
     const row = btn.closest('.episode-row');
     const idx = Number(row.dataset.idx);
@@ -228,13 +225,15 @@ function wireDetailEvents() {
     if (video) btn.addEventListener('click', () => simpleDelete(video));
   });
 
-  // Continue
+  // Continue — navigate to player page
   const continueBtn = document.querySelector('.continue-btn');
   if (continueBtn) {
     continueBtn.addEventListener('click', () => {
       const title = continueBtn.dataset.title;
       const video = currentGroup.videos.find(v => v.title === title);
-      if (video) openPlayer(video);
+      if (!video) return;
+      const epIdx = currentGroup.videos.indexOf(video);
+      window.location.href = `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}`;
     });
   }
 
