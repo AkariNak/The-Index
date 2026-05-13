@@ -371,18 +371,15 @@ async function runCoverSearch(query) {
 }
 
 // ---------- Admin gate ----------
-const adminEmailInput = document.getElementById('adminEmailInput');
-
 function unlockAdmin() {
+  setAdminUnlocked(true);
   if (adminPanel) adminPanel.hidden = false;
-  if (adminLoginButton) adminLoginButton.textContent = 'Log out';
-  render();
+  if (adminLoginButton) adminLoginButton.textContent = 'Lock';
 }
-async function lockAdmin() {
-  await adminLogout();
+function lockAdmin() {
+  setAdminUnlocked(false);
   if (adminPanel) adminPanel.hidden = true;
   if (adminLoginButton) adminLoginButton.textContent = 'Admin';
-  render();
 }
 function openAdminDialog() {
   if (!adminDialog) return;
@@ -390,8 +387,7 @@ function openAdminDialog() {
   if (adminPasswordInput) adminPasswordInput.value = '';
   if (typeof adminDialog.showModal === 'function') adminDialog.showModal();
   else adminDialog.setAttribute('open', '');
-  if (adminEmailInput && !adminEmailInput.value) adminEmailInput.focus();
-  else if (adminPasswordInput) adminPasswordInput.focus();
+  if (adminPasswordInput) adminPasswordInput.focus();
 }
 function closeAdminDialog() {
   if (!adminDialog) return;
@@ -400,18 +396,12 @@ function closeAdminDialog() {
 }
 async function handleAdminSubmit(event) {
   event.preventDefault();
-  const email = adminEmailInput?.value?.trim() || '';
-  const password = adminPasswordInput?.value || '';
-  if (!email || !password) return;
-  try {
-    await adminLogin(email, password);
+  const hash = await sha256Hex(adminPasswordInput?.value || '');
+  if (hash === ADMIN_PASSWORD_HASH) {
     unlockAdmin();
     closeAdminDialog();
-  } catch (err) {
-    if (adminError) {
-      adminError.textContent = err.message || 'Incorrect email or password.';
-      adminError.hidden = false;
-    }
+  } else {
+    if (adminError) adminError.hidden = false;
     if (adminPasswordInput) { adminPasswordInput.value = ''; adminPasswordInput.focus(); }
   }
 }
@@ -459,6 +449,7 @@ function wireAll() {
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm) adminLoginForm.addEventListener('submit', handleAdminSubmit);
+
   // Cover search
   if (findCoverButton) {
     findCoverButton.addEventListener('click', () => {
@@ -475,176 +466,115 @@ function wireAll() {
   wireTabs();
 }
 
-// ---------- Hero slideshow ----------
-const heroSlideshow = document.getElementById('heroSlideshow');
-let heroSlides = [];
-let heroIndex = 0;
-let heroAutoTimer = null;
-const HERO_AUTO_MS = 7000;
-
-function pickFeaturedGroups(allGroups) {
-  // Pick 3 most recently added shows
-  return [...allGroups]
-    .map(g => ({
-      group: g,
-      latestDate: Math.max(...g.videos.map(v => new Date(v.dateAdded || 0).getTime()))
-    }))
-    .sort((a, b) => b.latestDate - a.latestDate)
-    .slice(0, 3)
-    .map(x => x.group);
-}
-
-async function loadHeroSlides(featured) {
-  heroSlides = await Promise.all(featured.map(async g => {
-    const override = getBannerOverride(g.title);
-    let banner = override;
-    if (!banner) {
-      const result = await fetchAniListBanner(g.title);
-      banner = result?.banner || '';
-    }
-    // Try to grab synopsis from jikan if already cached
-    const jikan = AppState.jikanCache[slug(g.title)];
-    return {
-      group: g,
-      banner: banner || g.firstCover,
-      synopsis: jikan?.synopsis || '',
-      year: jikan?.year,
-      type: jikan?.type
-    };
-  }));
-
-  // Try to enrich synopses we don't have yet (fetch in background, don't block)
-  featured.forEach(g => {
-    if (!AppState.jikanCache[slug(g.title)]) {
-      fetchJikanDetails(g.title).then(d => {
-        const i = heroSlides.findIndex(s => s.group.slug === g.slug);
-        if (i >= 0 && d) {
-          heroSlides[i].synopsis = d.synopsis;
-          heroSlides[i].year = d.year;
-          heroSlides[i].type = d.type;
-          if (heroIndex === i) renderHero();
-        }
-      });
-    }
-  });
-}
-
-function renderHero() {
-  if (!heroSlides.length) { heroSlideshow.hidden = true; return; }
-  heroSlideshow.hidden = false;
-  const s = heroSlides[heroIndex];
-  if (!s) return;
-
-  const isBanner = s.banner && s.banner !== s.group.firstCover;
-  const adminDelete = isAdminUnlocked()
-    ? `<button class="hero-delete" type="button" aria-label="Delete this show" title="Delete entire show">×</button>`
-    : '';
-  heroSlideshow.innerHTML = `
-    <div class="hero-bg ${isBanner ? '' : 'hero-bg-cover'}" style="background-image: url('${escapeHtml(s.banner)}')"></div>
-    <div class="hero-gradient"></div>
-    ${adminDelete}
-    <div class="hero-content">
-      <div class="hero-cat">${escapeHtml((s.group.category || 'Featured').toUpperCase())}</div>
-      <h2 class="hero-title">${escapeHtml(s.group.title)}</h2>
-      <div class="hero-meta">
-        ${s.year ? `<span>${escapeHtml(String(s.year))}</span>` : ''}
-        ${s.type ? `<span class="dot">·</span><span>${escapeHtml(s.type)}</span>` : ''}
-        <span class="dot">·</span><span>${s.group.videos.length} ${s.group.videos.length === 1 ? 'entry' : 'entries'}</span>
-      </div>
-      ${s.synopsis ? `<p class="hero-synopsis">${escapeHtml(s.synopsis.slice(0, 240))}${s.synopsis.length > 240 ? '…' : ''}</p>` : ''}
-      <div class="hero-actions">
-        <a class="btn btn-solid hero-watch" href="detail.html?show=${encodeURIComponent(s.group.slug)}">▶ Watch Now</a>
-      </div>
-    </div>
-    <button class="hero-arrow hero-prev" type="button" aria-label="Previous">‹</button>
-    <button class="hero-arrow hero-next" type="button" aria-label="Next">›</button>
-    <div class="hero-dots">
-      ${heroSlides.map((_, i) => `<button type="button" class="hero-dot ${i === heroIndex ? 'active' : ''}" data-i="${i}" aria-label="Slide ${i+1}"></button>`).join('')}
-    </div>
-  `;
-
-  heroSlideshow.querySelector('.hero-prev').addEventListener('click', () => navHero(-1));
-  heroSlideshow.querySelector('.hero-next').addEventListener('click', () => navHero(1));
-  heroSlideshow.querySelectorAll('.hero-dot').forEach(d => {
-    d.addEventListener('click', () => { heroIndex = Number(d.dataset.i); renderHero(); restartHeroAuto(); });
-  });
-  const delBtn = heroSlideshow.querySelector('.hero-delete');
-  if (delBtn) delBtn.addEventListener('click', () => deleteShowFromHero(s.group));
-}
-
-function deleteShowFromHero(group) {
-  const epCount = group.videos.length;
-  if (!confirm(`Delete ALL ${epCount} ${epCount === 1 ? 'entry' : 'entries'} for "${group.title}"? This cannot be undone.`)) return;
-
-  const titleLower = group.title.trim().toLowerCase();
-  let touchedBase = false;
-
-  const removeMatching = (arr) => {
-    let removed = false;
-    for (let i = arr.length - 1; i >= 0; i--) {
-      if ((arr[i].collection || '').trim().toLowerCase() === titleLower) {
-        arr.splice(i, 1);
-        removed = true;
-      }
-    }
-    return removed;
-  };
-
-  removeMatching(AppState.sessionVideos);
-  if (removeMatching(AppState.localVideos)) saveLocalVideos();
-  if (removeMatching(AppState.baseVideos)) touchedBase = true;
-
-  // Clean associated storage
-  const k = slug(group.title);
-  if (AppState.tagsOverride[k]) {
-    delete AppState.tagsOverride[k];
-    saveTagsOverride();
-  }
-  if (AppState.bannerOverrides && AppState.bannerOverrides[k]) {
-    delete AppState.bannerOverrides[k];
-    saveBannerOverrides();
-  }
-  if (AppState.progress[k]) {
-    delete AppState.progress[k];
-    saveProgress();
-  }
-
-  syncVideos();
-  if (touchedBase) {
-    alert('Show deleted from view. Some entries were from videos.json — Export the updated videos.json and replace the file in your repo to make it permanent for everyone.');
-  }
-
-  // Refresh both the hero and the grid
-  refreshArchive();
-  setupHero();
-}
-
-function navHero(dir) {
-  heroIndex = (heroIndex + dir + heroSlides.length) % heroSlides.length;
-  renderHero();
-  restartHeroAuto();
-}
-
-function restartHeroAuto() {
-  if (heroAutoTimer) clearInterval(heroAutoTimer);
-  heroAutoTimer = setInterval(() => navHero(1), HERO_AUTO_MS);
-}
-
-async function setupHero() {
-  const allGroups = groupVideos(AppState.videos);
-  const featured = pickFeaturedGroups(allGroups);
-  if (!featured.length) return;
-  await loadHeroSlides(featured);
-  renderHero();
-  restartHeroAuto();
-}
-
 // ---------- Bootstrap ----------
 (async function init() {
+  wireThemeToggle();
   await coreInit();
   buildFilters();
   render();
+  const groups = groupVideos(AppState.videos);
+  buildHero(groups);
   wireAll();
-  wireThemeToggle();
-  setupHero();
 })();
+// ---------- Theme toggle ----------
+const THEME_KEY = 'the-index-theme';
+
+function applyTheme(dark) {
+  document.body.classList.toggle('dark', dark);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = dark ? '☾' : '☀';
+}
+
+function wireThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved ? saved === 'dark' : prefersDark);
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const nowDark = !document.body.classList.contains('dark');
+      applyTheme(nowDark);
+      localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
+    });
+  }
+}
+
+// ---------- Hero slideshow ----------
+let heroIndex = 0;
+let heroTimer = null;
+const HERO_INTERVAL = 5000;
+
+function buildHero(groups) {
+  const section = document.getElementById('heroSlideshow');
+  const slidesEl = document.getElementById('heroSlides');
+  const dotsEl = document.getElementById('heroDots');
+  if (!section || !slidesEl || !dotsEl) return;
+
+  const featured = groups.filter(g => g.firstCover).slice(0, 6);
+  if (!featured.length) { section.hidden = true; return; }
+
+  section.hidden = false;
+  slidesEl.innerHTML = featured.map((g, i) => {
+    const firstVideo = g.videos[0];
+    const desc = firstVideo?.description || '';
+    return `
+      <div class="hero-slide ${i === 0 ? 'active' : ''}" data-i="${i}">
+        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(g.firstCover)}')"></div>
+        <div class="hero-slide-content">
+          <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
+          <div class="hero-slide-info">
+            <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
+            <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
+            ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
+            <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">View Collection</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  dotsEl.innerHTML = featured.map((_, i) =>
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button" aria-label="Slide ${i + 1}"></button>`
+  ).join('');
+
+  heroIndex = 0;
+  startHeroTimer(featured.length);
+
+  document.getElementById('heroPrev')?.addEventListener('click', () => {
+    stopHeroTimer();
+    heroIndex = (heroIndex - 1 + featured.length) % featured.length;
+    showHeroSlide(heroIndex);
+    startHeroTimer(featured.length);
+  });
+  document.getElementById('heroNext')?.addEventListener('click', () => {
+    stopHeroTimer();
+    heroIndex = (heroIndex + 1) % featured.length;
+    showHeroSlide(heroIndex);
+    startHeroTimer(featured.length);
+  });
+  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      stopHeroTimer();
+      heroIndex = Number(dot.dataset.i);
+      showHeroSlide(heroIndex);
+      startHeroTimer(featured.length);
+    });
+  });
+}
+
+function showHeroSlide(i) {
+  document.querySelectorAll('.hero-slide').forEach((s, idx) => s.classList.toggle('active', idx === i));
+  document.querySelectorAll('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
+}
+
+function startHeroTimer(total) {
+  stopHeroTimer();
+  heroTimer = setInterval(() => {
+    heroIndex = (heroIndex + 1) % total;
+    showHeroSlide(heroIndex);
+  }, HERO_INTERVAL);
+}
+
+function stopHeroTimer() {
+  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
+}
