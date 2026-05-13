@@ -26,13 +26,19 @@
           <strong>grouped automatically</strong>
           <span>or assigned manually</span>
         </div>
-        <button id="themeToggle" type="button" class="theme-toggle" aria-label="Toggle theme">
-          <span class="icon-sun">☀</span>
-          <span class="icon-moon">☾</span>
-        </button>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">☀</button>
       </div>
     </div>
   </header>
+
+  <section id="heroSlideshow" class="hero-slideshow" aria-label="Featured collections" hidden>
+    <div id="heroSlides" class="hero-slides"></div>
+    <div class="hero-controls">
+      <button id="heroPrev" class="hero-btn" type="button" aria-label="Previous">‹</button>
+      <div id="heroDots" class="hero-dots"></div>
+      <button id="heroNext" class="hero-btn" type="button" aria-label="Next">›</button>
+    </div>
+  </section>
 
   <nav class="tabs" aria-label="Sections">
     <button class="tab active" data-tab="collections" type="button">Collections</button>
@@ -46,8 +52,6 @@
     </div>
     <div id="filters" class="filters" aria-label="Category filters"></div>
   </section>
-
-  <section id="heroSlideshow" class="hero-slideshow" hidden></section>
 
   <p class="status-line"><span id="count">SHOWING 0 ENTRIES</span> · <span id="publicCount">0 PUBLIC DOWNLOADS</span></p>
 
@@ -163,18 +167,16 @@
 <dialog id="adminDialog" class="admin-dialog">
   <form id="adminLoginForm" method="dialog" class="admin-login">
     <h3>Admin access</h3>
-    <input id="adminEmailInput" type="email" placeholder="Email" autocomplete="username" required>
-    <input id="adminPasswordInput" type="password" placeholder="Password" autocomplete="current-password" required>
-    <p id="adminError" class="admin-error" hidden>Incorrect email or password.</p>
+    <input id="adminPasswordInput" type="password" placeholder="Password" autocomplete="off" required>
+    <p id="adminError" class="admin-error" hidden>Incorrect password.</p>
     <div class="admin-actions">
       <button type="button" id="adminCancelButton" class="btn btn-outline btn-small">Cancel</button>
-      <button type="submit" class="btn btn-solid btn-small">Sign in</button>
+      <button type="submit" class="btn btn-solid btn-small">Unlock</button>
     </div>
   </form>
 </dialog>
 
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="core.js"></script>
 <script src="index.js"></script>
 </body>
