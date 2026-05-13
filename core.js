@@ -1,9 +1,12 @@
-const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
 // ============================================================
 // The Index — Shared core
 // Used by both index.html (grid) and detail.html (show page)
 // ============================================================
+
+// ---------- Supabase client ----------
+const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---------- Constants ----------
 const LOCAL_STORAGE_KEY = 'the-index-collections-local-videos';
