@@ -371,15 +371,18 @@ async function runCoverSearch(query) {
 }
 
 // ---------- Admin gate ----------
+const adminEmailInput = document.getElementById('adminEmailInput');
+
 function unlockAdmin() {
-  setAdminUnlocked(true);
   if (adminPanel) adminPanel.hidden = false;
-  if (adminLoginButton) adminLoginButton.textContent = 'Lock';
+  if (adminLoginButton) adminLoginButton.textContent = 'Log out';
+  render();
 }
-function lockAdmin() {
-  setAdminUnlocked(false);
+async function lockAdmin() {
+  await adminLogout();
   if (adminPanel) adminPanel.hidden = true;
   if (adminLoginButton) adminLoginButton.textContent = 'Admin';
+  render();
 }
 function openAdminDialog() {
   if (!adminDialog) return;
@@ -387,7 +390,8 @@ function openAdminDialog() {
   if (adminPasswordInput) adminPasswordInput.value = '';
   if (typeof adminDialog.showModal === 'function') adminDialog.showModal();
   else adminDialog.setAttribute('open', '');
-  if (adminPasswordInput) adminPasswordInput.focus();
+  if (adminEmailInput && !adminEmailInput.value) adminEmailInput.focus();
+  else if (adminPasswordInput) adminPasswordInput.focus();
 }
 function closeAdminDialog() {
   if (!adminDialog) return;
@@ -396,12 +400,18 @@ function closeAdminDialog() {
 }
 async function handleAdminSubmit(event) {
   event.preventDefault();
-  const hash = await sha256Hex(adminPasswordInput?.value || '');
-  if (hash === ADMIN_PASSWORD_HASH) {
+  const email = adminEmailInput?.value?.trim() || '';
+  const password = adminPasswordInput?.value || '';
+  if (!email || !password) return;
+  try {
+    await adminLogin(email, password);
     unlockAdmin();
     closeAdminDialog();
-  } else {
-    if (adminError) adminError.hidden = false;
+  } catch (err) {
+    if (adminError) {
+      adminError.textContent = err.message || 'Incorrect email or password.';
+      adminError.hidden = false;
+    }
     if (adminPasswordInput) { adminPasswordInput.value = ''; adminPasswordInput.focus(); }
   }
 }
@@ -449,7 +459,6 @@ function wireAll() {
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm) adminLoginForm.addEventListener('submit', handleAdminSubmit);
-
   // Cover search
   if (findCoverButton) {
     findCoverButton.addEventListener('click', () => {
