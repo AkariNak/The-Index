@@ -1527,11 +1527,11 @@ body[data-theme="dark"] .hero-slideshow {
 .admin-login {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   padding: 28px;
 }
 .admin-login h3 {
-  margin: 0;
+  margin: 0 0 4px;
   font-family: var(--serif-display);
   font-size: 22px;
   font-weight: 700;
