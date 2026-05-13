@@ -1,7 +1,5 @@
-// ---------- Supabase client ----------
 const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================================
 // The Index — Shared core
 // Used by both index.html (grid) and detail.html (show page)
@@ -11,8 +9,6 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const LOCAL_STORAGE_KEY = 'the-index-collections-local-videos';
 const TAGS_OVERRIDE_KEY = 'the-index-tags-override';
 const PROGRESS_KEY = 'the-index-episode-progress';
-const ADMIN_SESSION_KEY = 'the-index-admin-unlocked';
-const ADMIN_PASSWORD_HASH = '7d4557bc9cae7ddf417642d6b024076e680c1cb0aa6c21942ac619c58b20c05e';
 
 // ---------- State (shared module-style globals) ----------
 window.AppState = window.AppState || {
@@ -225,20 +221,45 @@ function groupVideos(videoList) {
   }).sort((a, b) => a.title.localeCompare(b.title));
 }
 
-// ---------- Admin gate ----------
-async function sha256Hex(text) {
-  const encoded = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+// ---------- Admin auth (real, via Supabase) ----------
+// adminSession is null until checked. After init, it's either a Supabase session or false.
+let _adminSession = null;
+
+async function refreshAdminSession() {
+  try {
+    const { data } = await supabaseClient.auth.getSession();
+    _adminSession = data.session || false;
+  } catch (err) {
+    console.warn('Could not check session:', err);
+    _adminSession = false;
+  }
+  return _adminSession;
 }
 
 function isAdminUnlocked() {
-  return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
+  // Treat any logged-in Supabase user as admin (we only have one for now).
+  return Boolean(_adminSession);
 }
 
-function setAdminUnlocked(value) {
-  if (value) sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
-  else sessionStorage.removeItem(ADMIN_SESSION_KEY);
+async function adminLogin(email, password) {
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  _adminSession = data.session;
+  return data.session;
+}
+
+async function adminLogout() {
+  await supabaseClient.auth.signOut();
+  _adminSession = false;
+}
+
+// Listen for auth state changes — keeps _adminSession current if the session
+// expires or is refreshed in another tab.
+function wireAuthStateListener(onChange) {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    _adminSession = session || false;
+    if (typeof onChange === 'function') onChange(event, session);
+  });
 }
 
 // ---------- Jikan API (anime metadata) ----------
@@ -476,6 +497,7 @@ async function coreInit() {
   loadTagsOverride();
   loadProgress();
   loadBannerOverrides();
+  await refreshAdminSession();
   await loadBaseVideos();
   syncVideos();
 }
