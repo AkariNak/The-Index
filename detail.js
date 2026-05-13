@@ -602,8 +602,10 @@ function renderRecommendations(allGroups) {
 }
 
 // ---------- Admin ----------
+const adminEmailInput = document.getElementById('adminEmailInput');
+
 function refreshAdminUi() {
-  if (adminLoginButton) adminLoginButton.textContent = isAdminUnlocked() ? 'Lock' : 'Admin';
+  if (adminLoginButton) adminLoginButton.textContent = isAdminUnlocked() ? 'Log out' : 'Admin';
   renderDetail();
 }
 function openAdminDialog() {
@@ -612,7 +614,8 @@ function openAdminDialog() {
   if (adminPasswordInput) adminPasswordInput.value = '';
   if (typeof adminDialog.showModal === 'function') adminDialog.showModal();
   else adminDialog.setAttribute('open', '');
-  if (adminPasswordInput) adminPasswordInput.focus();
+  if (adminEmailInput && !adminEmailInput.value) adminEmailInput.focus();
+  else if (adminPasswordInput) adminPasswordInput.focus();
 }
 function closeAdminDialog() {
   if (typeof adminDialog.close === 'function') adminDialog.close();
@@ -620,13 +623,18 @@ function closeAdminDialog() {
 }
 async function handleAdminSubmit(event) {
   event.preventDefault();
-  const hash = await sha256Hex(adminPasswordInput?.value || '');
-  if (hash === ADMIN_PASSWORD_HASH) {
-    setAdminUnlocked(true);
+  const email = adminEmailInput?.value?.trim() || '';
+  const password = adminPasswordInput?.value || '';
+  if (!email || !password) return;
+  try {
+    await adminLogin(email, password);
     closeAdminDialog();
     refreshAdminUi();
-  } else {
-    if (adminError) adminError.hidden = false;
+  } catch (err) {
+    if (adminError) {
+      adminError.textContent = err.message || 'Incorrect email or password.';
+      adminError.hidden = false;
+    }
     if (adminPasswordInput) { adminPasswordInput.value = ''; adminPasswordInput.focus(); }
   }
 }
@@ -634,8 +642,8 @@ async function handleAdminSubmit(event) {
 function wireAdmin() {
   refreshAdminUi();
   if (adminLoginButton) {
-    adminLoginButton.addEventListener('click', () => {
-      if (isAdminUnlocked()) { setAdminUnlocked(false); refreshAdminUi(); }
+    adminLoginButton.addEventListener('click', async () => {
+      if (isAdminUnlocked()) { await adminLogout(); refreshAdminUi(); }
       else openAdminDialog();
     });
   }
