@@ -3,15 +3,12 @@
 // Used by both index.html (grid) and detail.html (show page)
 // ============================================================
 
-// ---------- Supabase client ----------
-const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 // ---------- Constants ----------
 const LOCAL_STORAGE_KEY = 'the-index-collections-local-videos';
 const TAGS_OVERRIDE_KEY = 'the-index-tags-override';
 const PROGRESS_KEY = 'the-index-episode-progress';
+const ADMIN_SESSION_KEY = 'the-index-admin-unlocked';
+const ADMIN_PASSWORD_HASH = '7d4557bc9cae7ddf417642d6b024076e680c1cb0aa6c21942ac619c58b20c05e';
 
 // ---------- State (shared module-style globals) ----------
 window.AppState = window.AppState || {
@@ -183,14 +180,21 @@ function syncVideos() {
     .sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
 }
 
+const VIDEOS_API_URL = 'https://eosnuxttjchckprpymnw.supabase.co/functions/v1/get-videos';
+
 async function loadBaseVideos() {
   try {
-    const res = await fetch('./videos.json');
-    if (!res.ok) throw new Error(`videos.json: ${res.status}`);
+    const res = await fetch(VIDEOS_API_URL, {
+      headers: {
+        'apikey': 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg',
+        'Authorization': 'Bearer sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg',
+      }
+    });
+    if (!res.ok) throw new Error(`get-videos: ${res.status}`);
     const data = await res.json();
     AppState.baseVideos = Array.isArray(data) ? data.map(normalizeVideo) : [];
   } catch (err) {
-    console.warn('Could not load videos.json:', err);
+    console.warn('Could not load videos from Supabase:', err);
     AppState.baseVideos = [];
   }
 }
@@ -224,45 +228,20 @@ function groupVideos(videoList) {
   }).sort((a, b) => a.title.localeCompare(b.title));
 }
 
-// ---------- Admin auth (real, via Supabase) ----------
-// adminSession is null until checked. After init, it's either a Supabase session or false.
-let _adminSession = null;
-
-async function refreshAdminSession() {
-  try {
-    const { data } = await supabaseClient.auth.getSession();
-    _adminSession = data.session || false;
-  } catch (err) {
-    console.warn('Could not check session:', err);
-    _adminSession = false;
-  }
-  return _adminSession;
+// ---------- Admin gate ----------
+async function sha256Hex(text) {
+  const encoded = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 function isAdminUnlocked() {
-  // Treat any logged-in Supabase user as admin (we only have one for now).
-  return Boolean(_adminSession);
+  return sessionStorage.getItem(ADMIN_SESSION_KEY) === '1';
 }
 
-async function adminLogin(email, password) {
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  _adminSession = data.session;
-  return data.session;
-}
-
-async function adminLogout() {
-  await supabaseClient.auth.signOut();
-  _adminSession = false;
-}
-
-// Listen for auth state changes — keeps _adminSession current if the session
-// expires or is refreshed in another tab.
-function wireAuthStateListener(onChange) {
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    _adminSession = session || false;
-    if (typeof onChange === 'function') onChange(event, session);
-  });
+function setAdminUnlocked(value) {
+  if (value) sessionStorage.setItem(ADMIN_SESSION_KEY, '1');
+  else sessionStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
 // ---------- Jikan API (anime metadata) ----------
@@ -383,124 +362,11 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(x => x.group);
 }
 
-// ---------- AniList API (for banner images) ----------
-const ANILIST_URL = 'https://graphql.anilist.co';
-
-async function fetchAniListBanner(query) {
-  if (!query) return null;
-  const cacheKey = 'anilist:' + slug(query);
-  if (AppState.jikanCache[cacheKey] !== undefined) return AppState.jikanCache[cacheKey];
-
-  const gqlQuery = `
-    query ($search: String) {
-      Media(search: $search, type: ANIME) {
-        bannerImage
-        coverImage { extraLarge large }
-        title { english romaji }
-      }
-    }
-  `;
-
-  try {
-    const res = await fetch(ANILIST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ query: gqlQuery, variables: { search: query } })
-    });
-    if (!res.ok) throw new Error(`AniList ${res.status}`);
-    const data = await res.json();
-    const media = data?.data?.Media;
-    const result = media ? {
-      banner: media.bannerImage || '',
-      cover: media.coverImage?.extraLarge || media.coverImage?.large || ''
-    } : null;
-    AppState.jikanCache[cacheKey] = result;
-    return result;
-  } catch (err) {
-    console.warn('AniList banner fetch failed:', err);
-    AppState.jikanCache[cacheKey] = null;
-    return null;
-  }
-}
-
-// Custom banner overrides (admin can set these per show)
-const BANNER_OVERRIDE_KEY = 'the-index-banner-override';
-function loadBannerOverrides() {
-  try {
-    AppState.bannerOverrides = JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}');
-  } catch { AppState.bannerOverrides = {}; }
-}
-function saveBannerOverrides() {
-  try { localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(AppState.bannerOverrides)); }
-  catch (e) { console.warn('banner override save failed:', e); }
-}
-function setBannerOverride(collectionName, url) {
-  if (!AppState.bannerOverrides) AppState.bannerOverrides = {};
-  if (url) AppState.bannerOverrides[slug(collectionName)] = url;
-  else delete AppState.bannerOverrides[slug(collectionName)];
-  saveBannerOverrides();
-}
-function getBannerOverride(collectionName) {
-  return AppState.bannerOverrides?.[slug(collectionName)] || null;
-}
-
-// ---------- Theme (light / dark) ----------
-const THEME_KEY = 'the-index-theme';
-
-function getStoredTheme() {
-  return localStorage.getItem(THEME_KEY);
-}
-
-function getEffectiveTheme() {
-  const stored = getStoredTheme();
-  if (stored === 'light' || stored === 'dark') return stored;
-  // Auto-detect OS preference
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
-}
-
-function applyTheme(theme) {
-  if (theme === 'dark') {
-    document.body.setAttribute('data-theme', 'dark');
-  } else {
-    document.body.removeAttribute('data-theme');
-  }
-}
-
-function toggleTheme() {
-  const current = getEffectiveTheme();
-  const next = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next);
-  applyTheme(next);
-}
-
-function initTheme() {
-  applyTheme(getEffectiveTheme());
-
-  // Listen for OS preference changes — only follow them if user hasn't explicitly set a theme
-  if (window.matchMedia) {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', () => {
-      if (!getStoredTheme()) applyTheme(getEffectiveTheme());
-    });
-  }
-}
-
-function wireThemeToggle() {
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.addEventListener('click', toggleTheme);
-}
-
 // ---------- Init helper (shared bootstrap) ----------
 async function coreInit() {
-  initTheme();
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
-  loadBannerOverrides();
-  await refreshAdminSession();
   await loadBaseVideos();
   syncVideos();
 }
