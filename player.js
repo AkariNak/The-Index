@@ -3,6 +3,13 @@
 // Depends on core.js
 // ============================================================
 
+// ---------- Theme (persist across pages) ----------
+(function initTheme() {
+  const saved       = localStorage.getItem('the-index-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.body.classList.toggle('dark', saved ? saved === 'dark' : prefersDark);
+})();
+
 // ---------- DOM refs ----------
 const playerVideoEl    = document.getElementById('playerVideo');
 const playerTitleEl    = document.getElementById('playerTitle');
@@ -30,7 +37,7 @@ function getParams() {
   const p = new URLSearchParams(window.location.search);
   return {
     show: p.get('show'),
-    ep:   p.get('ep')   // index into currentGroup.videos
+    ep:   p.get('ep')
   };
 }
 
@@ -72,14 +79,11 @@ function loadVideo(video) {
     playerEpMetaEl.textContent = parts.join(' · ');
   }
 
-  // Mark progress
-  if (currentGroup) {
-    markEpisodeWatched(currentGroup.title, video.title);
-  }
+  if (currentGroup) markEpisodeWatched(currentGroup.title, video.title);
 
   // Update URL without reloading
   if (currentGroup) {
-    const epIdx = currentGroup.videos.indexOf(video);
+    const epIdx  = currentGroup.videos.indexOf(video);
     const newUrl = `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}`;
     history.replaceState(null, '', newUrl);
   }
@@ -89,11 +93,9 @@ function loadVideo(video) {
     episodeSidebar.querySelectorAll('.sidebar-ep').forEach(row => {
       row.classList.toggle('active', row.dataset.title === video.title);
     });
+    const activeRow = episodeSidebar.querySelector('.sidebar-ep.active');
+    if (activeRow) activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
-
-  // Scroll active episode into view in sidebar
-  const activeRow = episodeSidebar?.querySelector('.sidebar-ep.active');
-  if (activeRow) activeRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 // ---------- Render episode sidebar ----------
@@ -125,18 +127,16 @@ function renderSidebar(group) {
 
 // ---------- Render show info ----------
 function renderShowInfo(group, jikan) {
-  if (backLink) {
-    backLink.href = `detail.html?show=${encodeURIComponent(group.slug)}`;
-  }
+  if (backLink) backLink.href = `detail.html?show=${encodeURIComponent(group.slug)}`;
 
   if (showTitleEl) showTitleEl.textContent = group.title;
 
   if (showMetaEl) {
     const parts = [];
-    if (jikan?.year) parts.push(jikan.year);
-    if (jikan?.type) parts.push(jikan.type);
+    if (jikan?.year)     parts.push(jikan.year);
+    if (jikan?.type)     parts.push(jikan.type);
     if (jikan?.episodes) parts.push(`${jikan.episodes} eps`);
-    if (jikan?.score) parts.push(`★ ${jikan.score}`);
+    if (jikan?.score)    parts.push(`★ ${jikan.score}`);
     showMetaEl.textContent = parts.join(' · ');
     showMetaEl.hidden = !parts.length;
   }
@@ -160,14 +160,11 @@ function renderRecommendations(allGroups) {
   if (!recsGrid || !recsSection || !currentGroup) return;
 
   const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
-  const recs = getRecommendationsForCollection(
+  const recs  = getRecommendationsForCollection(
     currentGroup.title, currentGroup.category, allGroups, tags
   );
 
-  if (!recs.length) {
-    recsSection.hidden = true;
-    return;
-  }
+  if (!recs.length) { recsSection.hidden = true; return; }
 
   recsSection.hidden = false;
   recsGrid.innerHTML = recs.map(g => `
@@ -176,14 +173,13 @@ function renderRecommendations(allGroups) {
         <div class="poster-cover">
           ${g.firstCover
             ? `<img src="${escapeHtml(g.firstCover)}" alt="" loading="lazy">`
-            : `<div class="cover-placeholder">${escapeHtml(g.title.charAt(0).toUpperCase())}</div>`
-          }
+            : `<div class="cover-placeholder">${escapeHtml(g.title.charAt(0).toUpperCase())}</div>`}
           <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
         </div>
         <div class="poster-info">
           <div class="poster-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
           <h3 class="poster-title">${escapeHtml(g.title)}</h3>
-          <div class="poster-count">${g.videos.length} ${g.videos.length === 1 ? 'eposode' : 'eposodes'}</div>
+          <div class="poster-count">${g.videos.length} ${g.videos.length === 1 ? 'episode' : 'episodes'}</div>
         </div>
       </a>
     </article>
@@ -193,10 +189,9 @@ function renderRecommendations(allGroups) {
 // ---------- Auto-advance ----------
 function wireAutoAdvance(group) {
   if (!playerVideoEl || !group) return;
-
   playerVideoEl.addEventListener('ended', () => {
     if (!currentVideo) return;
-    const idx = group.videos.indexOf(currentVideo);
+    const idx  = group.videos.indexOf(currentVideo);
     const next = group.videos[idx + 1];
     if (next) loadVideo(next);
   });
@@ -214,7 +209,7 @@ function wireAutoAdvance(group) {
   }
 
   const allGroups = groupVideos(AppState.videos);
-  currentGroup = allGroups.find(g => g.slug === showSlug);
+  currentGroup    = allGroups.find(g => g.slug === showSlug);
 
   if (!currentGroup || !currentGroup.videos.length) {
     if (playerTitleEl) playerTitleEl.textContent = 'Show not found.';
@@ -223,24 +218,17 @@ function wireAutoAdvance(group) {
 
   document.title = `${currentGroup.title} — The Index`;
 
-  // Determine which episode to open:
-  // 1. ep= param if valid
-  // 2. last-watched episode (continue watching)
-  // 3. first episode
+  // Determine starting episode: ep= param → last watched → first
   let startVideo = null;
-
-  const epIdx = parseInt(epParam, 10);
+  const epIdx    = parseInt(epParam, 10);
   if (!Number.isNaN(epIdx) && currentGroup.videos[epIdx]) {
     startVideo = currentGroup.videos[epIdx];
   } else {
     const progress = getLastWatched(currentGroup.title);
-    if (progress) {
-      startVideo = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
-    }
+    if (progress) startVideo = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
     if (!startVideo) startVideo = currentGroup.videos[0];
   }
 
-  // Initial render
   renderShowInfo(currentGroup, null);
   loadVideo(startVideo);
   renderSidebar(currentGroup);
