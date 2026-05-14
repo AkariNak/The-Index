@@ -183,7 +183,7 @@ function renderRecommendations(allGroups) {
         <div class="poster-info">
           <div class="poster-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
           <h3 class="poster-title">${escapeHtml(g.title)}</h3>
-          <div class="poster-count">${g.videos.length} ${g.videos.length === 1 ? 'entry' : 'entries'}</div>
+          <div class="poster-count">${g.videos.length} ${g.videos.length === 1 ? 'eposode' : 'eposodes'}</div>
         </div>
       </a>
     </article>
