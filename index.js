@@ -1,3 +1,106 @@
+// ---------- Theme toggle ----------
+const THEME_KEY = 'the-index-theme';
+
+function applyTheme(dark) {
+  document.body.classList.toggle('dark', dark);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = dark ? '☾' : '☀';
+}
+
+function wireThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved ? saved === 'dark' : prefersDark);
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const nowDark = !document.body.classList.contains('dark');
+      applyTheme(nowDark);
+      localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
+    });
+  }
+}
+
+// ---------- Hero slideshow ----------
+let heroIndex = 0;
+let heroTimer = null;
+const HERO_INTERVAL = 5000;
+
+function buildHero(groups) {
+  const section = document.getElementById('heroSlideshow');
+  const slidesEl = document.getElementById('heroSlides');
+  const dotsEl = document.getElementById('heroDots');
+  if (!section || !slidesEl || !dotsEl) return;
+
+  const featured = groups.filter(g => g.firstCover).slice(0, 6);
+  if (!featured.length) { section.hidden = true; return; }
+
+  section.hidden = false;
+  slidesEl.innerHTML = featured.map((g, i) => {
+    const firstVideo = g.videos[0];
+    const desc = firstVideo?.description || '';
+    return `
+      <div class="hero-slide ${i === 0 ? 'active' : ''}" data-i="${i}">
+        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(g.firstCover)}')"></div>
+        <div class="hero-slide-content">
+          <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
+          <div class="hero-slide-info">
+            <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
+            <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
+            ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
+            <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">View Collection</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  dotsEl.innerHTML = featured.map((_, i) =>
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button" aria-label="Slide ${i + 1}"></button>`
+  ).join('');
+
+  heroIndex = 0;
+  startHeroTimer(featured.length);
+
+  document.getElementById('heroPrev')?.addEventListener('click', () => {
+    stopHeroTimer();
+    heroIndex = (heroIndex - 1 + featured.length) % featured.length;
+    showHeroSlide(heroIndex);
+    startHeroTimer(featured.length);
+  });
+  document.getElementById('heroNext')?.addEventListener('click', () => {
+    stopHeroTimer();
+    heroIndex = (heroIndex + 1) % featured.length;
+    showHeroSlide(heroIndex);
+    startHeroTimer(featured.length);
+  });
+  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => {
+      stopHeroTimer();
+      heroIndex = Number(dot.dataset.i);
+      showHeroSlide(heroIndex);
+      startHeroTimer(featured.length);
+    });
+  });
+}
+
+function showHeroSlide(i) {
+  document.querySelectorAll('.hero-slide').forEach((s, idx) => s.classList.toggle('active', idx === i));
+  document.querySelectorAll('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
+}
+
+function startHeroTimer(total) {
+  stopHeroTimer();
+  heroTimer = setInterval(() => {
+    heroIndex = (heroIndex + 1) % total;
+    showHeroSlide(heroIndex);
+  }, HERO_INTERVAL);
+}
+
+function stopHeroTimer() {
+  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
+}
+
 // ============================================================
 // index.html — poster grid + add-video form
 // Depends on core.js
@@ -476,105 +579,3 @@ function wireAll() {
   buildHero(groups);
   wireAll();
 })();
-// ---------- Theme toggle ----------
-const THEME_KEY = 'the-index-theme';
-
-function applyTheme(dark) {
-  document.body.classList.toggle('dark', dark);
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = dark ? '☾' : '☀';
-}
-
-function wireThemeToggle() {
-  const saved = localStorage.getItem(THEME_KEY);
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  applyTheme(saved ? saved === 'dark' : prefersDark);
-  const btn = document.getElementById('themeToggle');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      const nowDark = !document.body.classList.contains('dark');
-      applyTheme(nowDark);
-      localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
-    });
-  }
-}
-
-// ---------- Hero slideshow ----------
-let heroIndex = 0;
-let heroTimer = null;
-const HERO_INTERVAL = 5000;
-
-function buildHero(groups) {
-  const section = document.getElementById('heroSlideshow');
-  const slidesEl = document.getElementById('heroSlides');
-  const dotsEl = document.getElementById('heroDots');
-  if (!section || !slidesEl || !dotsEl) return;
-
-  const featured = groups.filter(g => g.firstCover).slice(0, 6);
-  if (!featured.length) { section.hidden = true; return; }
-
-  section.hidden = false;
-  slidesEl.innerHTML = featured.map((g, i) => {
-    const firstVideo = g.videos[0];
-    const desc = firstVideo?.description || '';
-    return `
-      <div class="hero-slide ${i === 0 ? 'active' : ''}" data-i="${i}">
-        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(g.firstCover)}')"></div>
-        <div class="hero-slide-content">
-          <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
-          <div class="hero-slide-info">
-            <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-            <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
-            ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
-            <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">View Collection</a>
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  dotsEl.innerHTML = featured.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button" aria-label="Slide ${i + 1}"></button>`
-  ).join('');
-
-  heroIndex = 0;
-  startHeroTimer(featured.length);
-
-  document.getElementById('heroPrev')?.addEventListener('click', () => {
-    stopHeroTimer();
-    heroIndex = (heroIndex - 1 + featured.length) % featured.length;
-    showHeroSlide(heroIndex);
-    startHeroTimer(featured.length);
-  });
-  document.getElementById('heroNext')?.addEventListener('click', () => {
-    stopHeroTimer();
-    heroIndex = (heroIndex + 1) % featured.length;
-    showHeroSlide(heroIndex);
-    startHeroTimer(featured.length);
-  });
-  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      stopHeroTimer();
-      heroIndex = Number(dot.dataset.i);
-      showHeroSlide(heroIndex);
-      startHeroTimer(featured.length);
-    });
-  });
-}
-
-function showHeroSlide(i) {
-  document.querySelectorAll('.hero-slide').forEach((s, idx) => s.classList.toggle('active', idx === i));
-  document.querySelectorAll('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
-}
-
-function startHeroTimer(total) {
-  stopHeroTimer();
-  heroTimer = setInterval(() => {
-    heroIndex = (heroIndex + 1) % total;
-    showHeroSlide(heroIndex);
-  }, HERO_INTERVAL);
-}
-
-function stopHeroTimer() {
-  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
-}
