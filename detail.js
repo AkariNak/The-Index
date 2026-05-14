@@ -6,10 +6,6 @@
 const detailMain             = document.getElementById('detailMain');
 const recommendationsSection = document.getElementById('recommendationsSection');
 const recsGrid               = document.getElementById('recsGrid');
-const playerDialog           = document.getElementById('playerDialog');
-const playerVideo            = document.getElementById('playerVideo');
-const playerTitle            = document.getElementById('playerTitle');
-const closePlayerButton      = document.getElementById('closePlayer');
 
 // Admin
 const adminDialog        = document.getElementById('adminDialog');
@@ -380,7 +376,6 @@ async function simpleDelete(video) {
 
 // ---------- Player ----------
 function openPlayer(video) {
-  if (!playerDialog || !playerVideo) return;
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) {
     alert(`"${video.title}" has no real video URL.`);
@@ -390,23 +385,9 @@ function openPlayer(video) {
     alert(`"${video.title}" was added as a device preview. Browser preview URLs don't survive a page reload.`);
     return;
   }
-  playerVideo.src = url;
-  if (playerTitle) playerTitle.textContent = video.title;
-  const onError = () => { alert(`Could not load "${video.title}".`); closePlayer(); };
-  playerVideo.addEventListener('error', onError, { once: true });
-  if (typeof playerDialog.showModal === 'function') playerDialog.showModal();
-  else playerDialog.setAttribute('open', '');
-  playerVideo.play().catch(() => {});
   markEpisodeWatched(currentGroup.title, video.title);
-}
-
-function closePlayer() {
-  if (!playerDialog || !playerVideo) return;
-  playerVideo.pause();
-  playerVideo.removeAttribute('src');
-  playerVideo.load();
-  if (typeof playerDialog.close === 'function') playerDialog.close();
-  else playerDialog.removeAttribute('open');
+  const epIdx = currentGroup.videos.indexOf(video);
+  window.location.href = `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}`;
 }
 
 // ---------- Recommendations ----------
@@ -543,13 +524,19 @@ function wireAdmin() {
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
-  if (closePlayerButton) closePlayerButton.addEventListener('click', closePlayer);
-  if (playerVideo) {
-    playerVideo.addEventListener('contextmenu', e => e.preventDefault());
-    playerVideo.setAttribute('controlsList', 'nodownload noremoteplayback');
-  }
   wireFogControl();
 }
+
+// ---------- Theme (persist across pages) ----------
+function applyTheme(dark) {
+  document.body.classList.toggle('dark', dark);
+}
+
+(function initTheme() {
+  const saved       = localStorage.getItem('the-index-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved ? saved === 'dark' : prefersDark);
+})();
 
 // ---------- Bootstrap ----------
 (async function init() {
