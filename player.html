@@ -60,9 +60,6 @@
       align-items: start;
     }
 
-    /* ── Left column: video + info ── */
-    .player-main {}
-
     .video-wrap {
       width: 100%;
       background: #000;
@@ -78,9 +75,7 @@
       background: #000;
     }
 
-    .player-info {
-      padding: 0 2px;
-    }
+    .player-info { padding: 0 2px; }
     .player-ep-meta {
       font-family: var(--mono);
       font-size: 10px;
@@ -105,7 +100,6 @@
       margin: 0 0 20px;
     }
 
-    /* ── Show info block (below description) ── */
     .show-info-block {
       border-top: 1px dashed var(--line);
       padding-top: 20px;
@@ -147,7 +141,6 @@
       margin-bottom: 0;
     }
 
-    /* ── Recommendations block ── */
     #recsSection {
       margin-top: 32px;
       padding-top: 20px;
@@ -168,7 +161,7 @@
       gap: 16px;
     }
 
-    /* ── Right column: episode sidebar ── */
+    /* ── Episode sidebar ── */
     .player-sidebar {
       position: sticky;
       top: 24px;
@@ -210,10 +203,7 @@
       transition: background .12s;
     }
     .sidebar-ep:hover { background: var(--paper-2); }
-    .sidebar-ep.active {
-      background: var(--ink);
-      color: var(--paper);
-    }
+    .sidebar-ep.active { background: var(--ink); color: var(--paper); }
     .sidebar-ep.active .sidebar-ep-num { color: var(--paper); opacity: 0.6; }
     .sidebar-ep-num {
       font-family: var(--mono);
@@ -234,21 +224,11 @@
       overflow: hidden;
     }
 
-    /* ── Responsive ── */
     @media (max-width: 900px) {
       .player-page { padding: 16px 20px 64px; }
-      .player-layout {
-        grid-template-columns: 1fr;
-      }
-      .player-sidebar {
-        position: static;
-        order: -1; /* sidebar above video on mobile doesn't make sense — keep below */
-      }
-      #episodeSidebar {
-        max-height: 320px;
-      }
+      .player-layout { grid-template-columns: 1fr; }
+      #episodeSidebar { max-height: 320px; }
     }
-
     @media (max-width: 540px) {
       .player-page { padding: 12px 14px 48px; }
       .player-title { font-size: 17px; }
@@ -258,7 +238,6 @@
 <body>
   <div class="player-page">
 
-    <!-- Nav breadcrumb -->
     <nav class="player-nav">
       <a href="index.html">← The Index</a>
       <span class="nav-divider">/</span>
@@ -267,13 +246,9 @@
       <span class="nav-show" id="navShowTitle">Loading…</span>
     </nav>
 
-    <!-- Two-column layout -->
     <div class="player-layout">
 
-      <!-- Left: video + info -->
       <div class="player-main">
-
-        <!-- Video -->
         <div class="video-wrap">
           <video
             id="playerVideo"
@@ -283,14 +258,12 @@
           ></video>
         </div>
 
-        <!-- Episode info -->
         <div class="player-info">
           <div class="player-ep-meta" id="playerEpMeta"></div>
           <h1 class="player-title" id="playerTitle">Loading…</h1>
           <p class="player-desc" id="playerDesc" hidden></p>
         </div>
 
-        <!-- Show info -->
         <div class="show-info-block">
           <div class="show-info-label">From the collection</div>
           <h2 id="showTitle"></h2>
@@ -299,15 +272,12 @@
           <div id="tagList" hidden></div>
         </div>
 
-        <!-- Recommendations -->
         <section id="recsSection" hidden>
           <h3>You might also like</h3>
           <div id="recsGrid" class="poster-grid"></div>
         </section>
-
       </div>
 
-      <!-- Right: episode sidebar -->
       <aside class="player-sidebar">
         <div class="sidebar-head">Episodes</div>
         <div id="episodeSidebar"></div>
@@ -316,14 +286,12 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="core.js"></script>
   <script src="player.js"></script>
   <script>
-    // Keep navShowTitle in sync with showTitle
     const _showTitleEl = document.getElementById('showTitle');
     const _navTitleEl  = document.getElementById('navShowTitle');
-    const _origSet = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
-    // Simple MutationObserver approach
     if (_showTitleEl && _navTitleEl) {
       new MutationObserver(() => {
         _navTitleEl.textContent = _showTitleEl.textContent;
