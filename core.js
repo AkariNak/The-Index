@@ -183,6 +183,7 @@ function syncVideos() {
 const VIDEOS_API_URL = 'https://eosnuxttjchckprpymnw.supabase.co/functions/v1/get-videos';
 
 async function loadBaseVideos() {
+  // Try Supabase first, fall back to videos.json
   try {
     const res = await fetch(VIDEOS_API_URL, {
       headers: {
@@ -192,9 +193,20 @@ async function loadBaseVideos() {
     });
     if (!res.ok) throw new Error(`get-videos: ${res.status}`);
     const data = await res.json();
+    if (Array.isArray(data) && data.length) {
+      AppState.baseVideos = data.map(normalizeVideo);
+      return;
+    }
+  } catch (err) {
+    console.warn('Supabase fetch failed, trying videos.json:', err);
+  }
+  try {
+    const res = await fetch('./videos.json');
+    if (!res.ok) throw new Error(`videos.json: ${res.status}`);
+    const data = await res.json();
     AppState.baseVideos = Array.isArray(data) ? data.map(normalizeVideo) : [];
   } catch (err) {
-    console.warn('Could not load videos from Supabase:', err);
+    console.warn('Could not load videos.json either:', err);
     AppState.baseVideos = [];
   }
 }
