@@ -471,7 +471,7 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
       return { group: g, score };
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 8)
+    .slice(0, 6)
     .map(x => x.group);
 }
 
