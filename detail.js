@@ -527,15 +527,13 @@ function wireAdmin() {
   wireFogControl();
 }
 
-// ---------- Theme (persist across pages) ----------
-function applyTheme(dark) {
-  document.body.classList.toggle('dark', dark);
+// ---------- Theme (dark by default) ----------
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
 }
 
 (function initTheme() {
-  const saved       = localStorage.getItem('the-index-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  applyTheme(saved ? saved === 'dark' : prefersDark);
+  applyTheme(localStorage.getItem('the-index-theme') === 'light');
 })();
 
 // ---------- Bootstrap ----------
