@@ -3,11 +3,9 @@
 // Depends on core.js
 // ============================================================
 
-// ---------- Theme ----------
+// ---------- Theme (dark by default) ----------
 (function initTheme() {
-  const saved       = localStorage.getItem('the-index-theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.body.classList.toggle('dark', saved ? saved === 'dark' : prefersDark);
+  document.body.classList.toggle('light', localStorage.getItem('the-index-theme') === 'light');
 })();
 
 // ---------- DOM refs ----------
