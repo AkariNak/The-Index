@@ -571,7 +571,7 @@ function buildHero(groups) {
       ? `<button class="hero-delete-show btn btn-outline btn-small" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>`
       : '';
     return `
-      <div class="hero-slide ${i === 0 ? 'active' : ''}" data-i="${i}" data-slug="${escapeHtml(g.slug)}">
+      <div class="hero-slide" data-i="${i}" data-slug="${escapeHtml(g.slug)}">
         <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl || g.firstCover)}')"></div>
         <div class="hero-slide-content">
           <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
@@ -595,6 +595,13 @@ function buildHero(groups) {
   ).join('');
 
   heroIndex = 0;
+  // Show first slide immediately (no transition on first load)
+  const firstSlide = slidesEl.querySelector('.hero-slide');
+  if (firstSlide) {
+    firstSlide.style.transition = 'none';
+    firstSlide.classList.add('active');
+    requestAnimationFrame(() => { firstSlide.style.transition = ''; });
+  }
   startHeroTimer(featured.length);
 
   document.getElementById('heroPrev')?.addEventListener('click', () => {
@@ -658,8 +665,22 @@ function buildHero(groups) {
 }
 
 function showHeroSlide(i) {
-  document.querySelectorAll('.hero-slide').forEach((s, idx) => s.classList.toggle('active', idx === i));
-  document.querySelectorAll('.hero-dot').forEach((d, idx) => d.classList.toggle('active', idx === i));
+  const slides = document.querySelectorAll('.hero-slide');
+  const dots   = document.querySelectorAll('.hero-dot');
+  slides.forEach((s, idx) => {
+    if (idx === i) {
+      // Force a repaint before adding active so the transition triggers
+      s.classList.remove('active');
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          s.classList.add('active');
+        });
+      });
+    } else {
+      s.classList.remove('active');
+    }
+  });
+  dots.forEach((d, idx) => d.classList.toggle('active', idx === i));
 }
 
 function startHeroTimer(total) {
