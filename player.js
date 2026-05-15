@@ -79,7 +79,15 @@ function loadVideo(video) {
     playerEpMetaEl.textContent = parts.join(' · ');
   }
 
-  if (currentGroup) markEpisodeWatched(currentGroup.title, video.title);
+  if (currentGroup) markEpisodeWatched(currentGroup.title, video.title, 0);
+
+  // Restore saved timestamp
+  const progress = getLastWatched(currentGroup?.title);
+  if (progress && progress.lastEpisodeTitle === video.title && progress.timestamp > 5) {
+    playerVideoEl.addEventListener('loadedmetadata', () => {
+      playerVideoEl.currentTime = progress.timestamp;
+    }, { once: true });
+  }
 
   // Update URL without reloading
   if (currentGroup) {
@@ -186,10 +194,28 @@ function renderRecommendations(allGroups) {
   `).join('');
 }
 
-// ---------- Auto-advance ----------
+// ---------- Auto-advance + timestamp saving ----------
+let _timestampInterval = null;
+
+function startTimestampSaving() {
+  stopTimestampSaving();
+  _timestampInterval = setInterval(() => {
+    if (!playerVideoEl || !currentVideo || !currentGroup) return;
+    if (playerVideoEl.paused || playerVideoEl.ended) return;
+    saveTimestamp(currentGroup.title, currentVideo.title, Math.floor(playerVideoEl.currentTime));
+  }, 5000);
+}
+
+function stopTimestampSaving() {
+  if (_timestampInterval) { clearInterval(_timestampInterval); _timestampInterval = null; }
+}
+
 function wireAutoAdvance(group) {
   if (!playerVideoEl || !group) return;
+  playerVideoEl.addEventListener('play',  startTimestampSaving);
+  playerVideoEl.addEventListener('pause', stopTimestampSaving);
   playerVideoEl.addEventListener('ended', () => {
+    stopTimestampSaving();
     if (!currentVideo) return;
     const idx  = group.videos.indexOf(currentVideo);
     const next = group.videos[idx + 1];
