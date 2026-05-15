@@ -535,18 +535,23 @@ function buildHero(groups) {
   const featured = groups.filter(g => g.firstCover).slice(0, 6);
   if (!featured.length) { section.hidden = true; return; }
 
-  const overrides = loadBannerOverrides();
-  section.hidden  = false;
+  section.hidden = false;
+  heroIndex = 0;
+  stopHeroTimer();
 
-  slidesEl.innerHTML = featured.map((g, i) => {
-    const desc       = g.videos[0]?.description || '';
-    const bannerUrl  = overrides[g.slug] || g.firstCover;
-    const adminBtns  = isAdminUnlocked() ? `
+  const overrides = loadBannerOverrides();
+
+  function renderSlide(idx) {
+    const g         = featured[idx];
+    const bannerUrl = overrides[g.slug] || g.firstCover;
+    const desc      = g.videos[0]?.description || '';
+    const adminBtns = isAdminUnlocked() ? `
       <button class="hero-banner-override btn btn-small" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
       <button class="hero-delete-show btn btn-small danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
     ` : '';
-    return `
-      <div class="hero-slide" data-i="${i}" data-slug="${escapeHtml(g.slug)}" style="opacity:${i === 0 ? '1' : '0'}">
+
+    slidesEl.innerHTML = `
+      <div class="hero-slide" data-slug="${escapeHtml(g.slug)}" style="opacity:1">
         <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
         <div class="hero-slide-gradient"></div>
         <div class="hero-slide-content">
@@ -563,108 +568,82 @@ function buildHero(groups) {
         </div>
       </div>
     `;
-  }).join('');
 
-  dotsEl.innerHTML = featured.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
-  ).join('');
-
-  heroIndex = 0;
-  requestAnimationFrame(() => {
-    document.querySelectorAll('.hero-slide').forEach((s, i) => {
-      s.style.pointerEvents = i === 0 ? 'auto' : 'none';
-    });
-  });
-  startHeroTimer(featured.length);
-
-  document.getElementById('heroPrev')?.addEventListener('click', () => {
-    stopHeroTimer();
-    fadeToSlide((heroIndex - 1 + featured.length) % featured.length);
-    startHeroTimer(featured.length);
-  });
-  document.getElementById('heroNext')?.addEventListener('click', () => {
-    stopHeroTimer();
-    fadeToSlide((heroIndex + 1) % featured.length);
-    startHeroTimer(featured.length);
-  });
-  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => {
-      stopHeroTimer();
-      fadeToSlide(Number(dot.dataset.i));
-      startHeroTimer(featured.length);
-    });
-  });
-
-  document.querySelectorAll('.hero-banner-override').forEach(btn => {
-    btn.addEventListener('click', () => {
+    // Wire admin buttons for this slide
+    slidesEl.querySelector('.hero-banner-override')?.addEventListener('click', () => {
       const url = prompt('Enter a banner image URL (wide crop, ~1900×500):');
       if (!url) return;
-      saveBannerOverride(btn.dataset.slug, url.trim());
-      const slide = btn.closest('.hero-slide');
-      if (slide) slide.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
+      saveBannerOverride(g.slug, url.trim());
+      slidesEl.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
     });
-  });
-
-  document.querySelectorAll('.hero-delete-show').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const name = btn.dataset.collection;
-      if (!confirm(`Delete ALL videos in "${name}" from Supabase? This cannot be undone.`)) return;
+    slidesEl.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
+      if (!confirm(`Delete ALL videos in "${g.title}" from Supabase? This cannot be undone.`)) return;
       try {
-        await supabaseDeleteCollection(name);
-        AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== name);
+        await supabaseDeleteCollection(g.title);
+        AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== g.title);
         refreshArchive();
       } catch (err) { alert(`Delete failed: ${err.message}`); }
     });
-  });
 
-  // Fetch AniList banners in background
-  featured.forEach(g => {
-    if (overrides[g.slug]) return;
-    fetchAniListBanner(g.title).then(result => {
-      if (!result?.banner) return;
-      const slide = slidesEl.querySelector(`.hero-slide[data-slug="${g.slug}"]`);
-      if (slide) slide.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(result.banner)}')`;
-    });
-  });
-}
-
-function fadeToSlide(targetIdx) {
-  const slides = [...document.querySelectorAll('.hero-slide')];
-  const dots   = document.querySelectorAll('.hero-dot');
-  if (!slides.length || targetIdx === heroIndex) return;
-
-  dots.forEach((d, i) => d.classList.toggle('active', i === targetIdx));
-
-  const fromSlide = slides[heroIndex];
-  const toSlide   = slides[targetIdx];
-  if (!fromSlide || !toSlide) return;
-
-  // Disable clicks on outgoing, enable on incoming immediately
-  fromSlide.style.pointerEvents = 'none';
-  toSlide.style.pointerEvents   = 'auto';
-
-  let start = null;
-  const DURATION = 700;
-
-  function step(ts) {
-    if (!start) start = ts;
-    const p = Math.min((ts - start) / DURATION, 1);
-    fromSlide.style.opacity = String(1 - p);
-    toSlide.style.opacity   = String(p);
-    if (p < 1) {
-      requestAnimationFrame(step);
-    } else {
-      fromSlide.style.opacity = '0';
-      toSlide.style.opacity   = '1';
-      heroIndex = targetIdx;
+    // Fetch AniList banner in background if no override
+    if (!overrides[g.slug]) {
+      fetchAniListBanner(g.title).then(result => {
+        if (!result?.banner) return;
+        const bg = slidesEl.querySelector('.hero-slide-bg');
+        if (bg && heroIndex === idx) bg.style.backgroundImage = `url('${escapeHtml(result.banner)}')`;
+      });
     }
   }
-  requestAnimationFrame(step);
-}
 
-function startHeroTimer(total) {
-  stopHeroTimer();
-  heroTimer = setInterval(() => fadeToSlide((heroIndex + 1) % total), HERO_INTERVAL);
+  function goToSlide(idx) {
+    heroIndex = idx;
+    dotsEl.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+
+    // Fade out, swap content, fade in
+    const slide = slidesEl.querySelector('.hero-slide');
+    if (!slide) { renderSlide(idx); return; }
+    slide.style.transition = 'opacity 0.35s ease';
+    slide.style.opacity    = '0';
+    setTimeout(() => {
+      renderSlide(idx);
+      const newSlide = slidesEl.querySelector('.hero-slide');
+      if (newSlide) {
+        newSlide.style.transition = 'opacity 0.35s ease';
+        newSlide.style.opacity    = '0';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => { newSlide.style.opacity = '1'; });
+        });
+      }
+    }, 350);
+  }
+
+  // Build dots
+  dotsEl.innerHTML = featured.map((_, i) =>
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
+  ).join('');
+  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
+  });
+
+  document.getElementById('heroPrev')?.addEventListener('click', () => {
+    stopHeroTimer();
+    goToSlide((heroIndex - 1 + featured.length) % featured.length);
+    startHeroTimer();
+  });
+  document.getElementById('heroNext')?.addEventListener('click', () => {
+    stopHeroTimer();
+    goToSlide((heroIndex + 1) % featured.length);
+    startHeroTimer();
+  });
+
+  // Render first slide
+  renderSlide(0);
+
+  function startHeroTimer() {
+    stopHeroTimer();
+    heroTimer = setInterval(() => goToSlide((heroIndex + 1) % featured.length), HERO_INTERVAL);
+  }
+  startHeroTimer();
 }
 
 function stopHeroTimer() {
