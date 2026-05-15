@@ -391,6 +391,7 @@ body.light .topnav {
   display: block;
   overflow: hidden;
   will-change: opacity;
+  pointer-events: none;
 }
 .hero-slide-bg {
   position: absolute;
