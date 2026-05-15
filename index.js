@@ -1,6 +1,6 @@
 // ============================================================
 // index.html — poster grid + add-video form
-// Depends on core.js (and the Supabase CDN loaded before it)
+// Depends on core.js
 // ============================================================
 
 // ---------- DOM refs ----------
@@ -26,7 +26,6 @@ const frameGrid         = document.getElementById('frameGrid');
 const regenerateFramesButton = document.getElementById('regenerateFramesButton');
 const downloadIndexPanel     = document.getElementById('downloadIndexPanel');
 
-// Form inputs
 const titleInput       = document.getElementById('titleInput');
 const collectionInput  = document.getElementById('collectionInput');
 const episodeInput     = document.getElementById('episodeInput');
@@ -36,7 +35,6 @@ const fileSizeInput    = document.getElementById('fileSizeInput');
 const descriptionInput = document.getElementById('descriptionInput');
 const hostedUrlInput   = document.getElementById('hostedUrlInput');
 
-// Admin
 const adminPanel         = document.getElementById('adminPanel');
 const adminDialog        = document.getElementById('adminDialog');
 const adminLoginForm     = document.getElementById('adminLoginForm');
@@ -46,7 +44,6 @@ const adminEmailInput    = document.getElementById('adminEmailInput');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
 const adminError         = document.getElementById('adminError');
 
-// Cover search
 const findCoverButton    = document.getElementById('findCoverButton');
 const coverSearchPanel   = document.getElementById('coverSearchPanel');
 const coverSearchStatus  = document.getElementById('coverSearchStatus');
@@ -56,11 +53,33 @@ const yearEl = document.getElementById('year');
 if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
 // ---------- Local state ----------
-let activeCategory = 'all';
-let activeTab      = 'collections';
+let activeCategory  = 'all';
+let activeTab       = 'collections';
 let selectedVideoUrl  = '';
 let selectedCoverUrl  = '';
 let generatedFrames   = [];
+
+// ---------- Theme (dark by default) ----------
+const THEME_KEY = 'the-index-theme';
+
+function applyTheme(light) {
+  document.body.classList.toggle('light', light);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = light ? '☀' : '☾';
+}
+
+function wireThemeToggle() {
+  const saved = localStorage.getItem(THEME_KEY);
+  applyTheme(saved === 'light');
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      applyTheme(nowLight);
+      localStorage.setItem(THEME_KEY, nowLight ? 'light' : 'dark');
+    });
+  }
+}
 
 // ---------- Filter / render ----------
 function getFilteredVideos() {
@@ -95,17 +114,19 @@ function posterCardHtml(group) {
     ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)} cover" loading="lazy">`
     : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0).toUpperCase())}</div>`;
 
+  const epCount = group.videos.length;
+
   return `
     <article class="poster-card" data-collection="${escapeHtml(group.title)}">
       <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(group.slug)}">
         <div class="poster-cover">
           ${cover}
           <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
+          <span class="poster-ep-badge">${epCount} ${epCount === 1 ? 'episode' : 'episodes'}</span>
         </div>
         <div class="poster-info">
           <div class="poster-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
           <h3 class="poster-title">${escapeHtml(group.title)}</h3>
-          <div class="poster-count">${group.videos.length} ${group.videos.length === 1 ? 'entry' : 'entries'}</div>
         </div>
       </a>
     </article>
@@ -114,7 +135,7 @@ function posterCardHtml(group) {
 
 function render() {
   if (!collectionGrid) return;
-  const filtered       = getFilteredVideos();
+  const filtered        = getFilteredVideos();
   const publicDownloads = filtered.filter(isPublicDownload).length;
 
   if (count)       count.textContent       = `SHOWING ${filtered.length} ${filtered.length === 1 ? 'ENTRY' : 'ENTRIES'}`;
@@ -122,7 +143,7 @@ function render() {
 
   const groups = groupVideos(filtered);
   if (!groups.length) {
-    collectionGrid.innerHTML = '<div class="empty">Nothing here yet. Add a video below to get started.</div>';
+    collectionGrid.innerHTML = '<div class="empty">Nothing here yet. Add a video to get started.</div>';
   } else {
     collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
   }
@@ -213,15 +234,12 @@ function handleVideoFileSelect(file) {
   if (selectedVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedVideoUrl);
   selectedVideoUrl = URL.createObjectURL(file);
   if (selectedFileText) selectedFileText.textContent = `${file.name} · ${formatBytes(file.size)}`;
-
   const parsed = parseEpisodeInfo(file.name);
   if (titleInput      && !titleInput.value)      titleInput.value      = parsed.title;
   if (collectionInput && !collectionInput.value)  collectionInput.value = parsed.collection;
   if (episodeInput    && !episodeInput.value)      episodeInput.value    = parsed.episode;
   if (fileSizeInput   && !fileSizeInput.value)     fileSizeInput.value   = formatBytes(file.size);
-  if (fileTypeInput   && !fileTypeInput.value) {
-    fileTypeInput.value = (file.name.split('.').pop() || 'MP4').toUpperCase();
-  }
+  if (fileTypeInput   && !fileTypeInput.value)     fileTypeInput.value   = (file.name.split('.').pop() || 'MP4').toUpperCase();
   if (autoGroupText) autoGroupText.textContent = `Auto-grouped under "${parsed.collection}".`;
   generateCoverFrames(selectedVideoUrl);
 }
@@ -281,12 +299,10 @@ async function handleFormSubmit(event) {
     return;
   }
 
-  // Blob URLs can't go to Supabase — keep those as session-only
   if (isTemporary) {
     AppState.sessionVideos.push(newVideo);
     if (formStatus) formStatus.textContent = 'Added as a device preview. Provide a hosted URL to publish it.';
   } else if (isAdminUnlocked()) {
-    // Persist to Supabase
     try {
       if (formStatus) formStatus.textContent = 'Saving…';
       const saved = await supabaseInsert(newVideo);
@@ -298,10 +314,9 @@ async function handleFormSubmit(event) {
       return;
     }
   } else {
-    // Logged-out fallback: local storage only
     AppState.localVideos.push(newVideo);
     saveLocalVideos();
-    if (formStatus) formStatus.textContent = 'Saved locally (not published — log in as admin to publish).';
+    if (formStatus) formStatus.textContent = 'Saved locally (log in as admin to publish).';
   }
 
   resetForm();
@@ -390,15 +405,15 @@ async function runCoverSearch(query) {
 // ---------- Admin ----------
 function updateAdminUi() {
   const unlocked = isAdminUnlocked();
-  if (adminPanel)       adminPanel.hidden          = !unlocked;
+  if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
 }
 
 function openAdminDialog() {
   if (!adminDialog) return;
-  if (adminError)         adminError.hidden         = true;
-  if (adminEmailInput)    adminEmailInput.value      = '';
-  if (adminPasswordInput) adminPasswordInput.value   = '';
+  if (adminError)         adminError.hidden        = true;
+  if (adminEmailInput)    adminEmailInput.value     = '';
+  if (adminPasswordInput) adminPasswordInput.value  = '';
   if (typeof adminDialog.showModal === 'function') adminDialog.showModal();
   else adminDialog.setAttribute('open', '');
   if (adminEmailInput) adminEmailInput.focus();
@@ -415,20 +430,15 @@ async function handleAdminSubmit(event) {
   const email    = adminEmailInput?.value?.trim()    || '';
   const password = adminPasswordInput?.value?.trim() || '';
   if (!email || !password) return;
-
   const submitBtn = adminLoginForm?.querySelector('[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
   if (adminError) adminError.hidden = true;
-
   try {
     await supabaseSignIn(email, password);
     closeAdminDialog();
     updateAdminUi();
   } catch (err) {
-    if (adminError) {
-      adminError.textContent = err.message || 'Sign-in failed.';
-      adminError.hidden = false;
-    }
+    if (adminError) { adminError.textContent = err.message || 'Sign-in failed.'; adminError.hidden = false; }
     if (adminPasswordInput) { adminPasswordInput.value = ''; adminPasswordInput.focus(); }
   } finally {
     if (submitBtn) submitBtn.disabled = false;
@@ -447,14 +457,11 @@ function wireTabs() {
       activeTab = tab.dataset.tab;
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
       if (activeTab === 'download-index') {
-        if (collectionGrid)    collectionGrid.style.display    = 'none';
-        if (downloadIndexPanel) {
-          downloadIndexPanel.style.display = 'block';
-          downloadIndexPanel.setAttribute('open', '');
-        }
+        if (collectionGrid)     collectionGrid.style.display     = 'none';
+        if (downloadIndexPanel) { downloadIndexPanel.style.display = 'block'; downloadIndexPanel.setAttribute('open', ''); }
       } else {
-        if (collectionGrid)    collectionGrid.style.display    = '';
-        if (downloadIndexPanel) downloadIndexPanel.style.display = '';
+        if (collectionGrid)     collectionGrid.style.display     = '';
+        if (downloadIndexPanel) downloadIndexPanel.style.display  = '';
       }
     });
   });
@@ -473,15 +480,12 @@ function wireAll() {
     coverFileInput.addEventListener('change', e => handleCoverFileSelect(e.target.files?.[0]));
   }
   if (regenerateFramesButton) {
-    regenerateFramesButton.addEventListener('click', () => {
-      if (selectedVideoUrl) generateCoverFrames(selectedVideoUrl);
-    });
+    regenerateFramesButton.addEventListener('click', () => { if (selectedVideoUrl) generateCoverFrames(selectedVideoUrl); });
   }
   if (addVideoForm)     addVideoForm.addEventListener('submit', handleFormSubmit);
   if (exportJsonButton) exportJsonButton.addEventListener('click', handleExportJson);
   if (clearLocalButton) clearLocalButton.addEventListener('click', handleClearLocal);
 
-  // Admin
   updateAdminUi();
   if (adminLoginButton) {
     adminLoginButton.addEventListener('click', () => {
@@ -492,7 +496,6 @@ function wireAll() {
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
 
-  // Cover search
   if (findCoverButton) {
     findCoverButton.addEventListener('click', () => {
       runCoverSearch(bestSearchQuery(titleInput?.value || '', collectionInput?.value || ''));
@@ -508,44 +511,19 @@ function wireAll() {
   wireTabs();
 }
 
-// ---------- Theme toggle ----------
-const THEME_KEY = 'the-index-theme';
-
-function applyTheme(dark) {
-  document.body.classList.toggle('dark', dark);
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = dark ? '☾' : '☀';
-}
-
-function wireThemeToggle() {
-  const saved       = localStorage.getItem(THEME_KEY);
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  applyTheme(saved ? saved === 'dark' : prefersDark);
-  const btn = document.getElementById('themeToggle');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      const nowDark = !document.body.classList.contains('dark');
-      applyTheme(nowDark);
-      localStorage.setItem(THEME_KEY, nowDark ? 'dark' : 'light');
-    });
-  }
-}
-
-// ---------- Hero slideshow (with AniList banners) ----------
+// ---------- Hero slideshow ----------
 let heroIndex = 0;
 let heroTimer = null;
-const HERO_INTERVAL = 5000;
+const HERO_INTERVAL = 6000;
 
-// Banner override storage: { collectionSlug: bannerUrl }
 const BANNER_OVERRIDE_KEY = 'the-index-banner-overrides';
 function loadBannerOverrides() {
   try { return JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'); }
   catch { return {}; }
 }
-function saveBannerOverride(slug, url) {
-  const overrides = loadBannerOverrides();
-  overrides[slug] = url;
-  localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(overrides));
+function saveBannerOverride(collSlug, url) {
+  const o = loadBannerOverrides(); o[collSlug] = url;
+  localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(o));
 }
 
 function buildHero(groups) {
@@ -561,18 +539,16 @@ function buildHero(groups) {
   section.hidden  = false;
 
   slidesEl.innerHTML = featured.map((g, i) => {
-    const firstVideo  = g.videos[0];
-    const desc        = firstVideo?.description || '';
-    const bannerUrl   = overrides[g.slug] || '';   // filled async below
-    const adminOverrideBtn = isAdminUnlocked()
-      ? `<button class="hero-banner-override btn btn-outline btn-small" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>`
-      : '';
-    const deleteShowBtn = isAdminUnlocked()
-      ? `<button class="hero-delete-show btn btn-outline btn-small" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>`
-      : '';
+    const desc       = g.videos[0]?.description || '';
+    const bannerUrl  = overrides[g.slug] || g.firstCover;
+    const adminBtns  = isAdminUnlocked() ? `
+      <button class="hero-banner-override btn btn-small" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
+      <button class="hero-delete-show btn btn-small danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
+    ` : '';
     return `
-      <div class="hero-slide" data-i="${i}" data-slug="${escapeHtml(g.slug)}">
-        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl || g.firstCover)}')"></div>
+      <div class="hero-slide" data-i="${i}" data-slug="${escapeHtml(g.slug)}" style="opacity:${i === 0 ? '1' : '0'}">
+        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
+        <div class="hero-slide-gradient"></div>
         <div class="hero-slide-content">
           <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
           <div class="hero-slide-info">
@@ -580,9 +556,8 @@ function buildHero(groups) {
             <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
             ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
             <div class="hero-slide-actions">
-              <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">View Collection</a>
-              ${adminOverrideBtn}
-              ${deleteShowBtn}
+              <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
+              ${adminBtns}
             </div>
           </div>
         </div>
@@ -591,69 +566,53 @@ function buildHero(groups) {
   }).join('');
 
   dotsEl.innerHTML = featured.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button" aria-label="Slide ${i + 1}"></button>`
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
   ).join('');
 
   heroIndex = 0;
-  // Set initial opacity — first slide visible, rest hidden
-  requestAnimationFrame(() => {
-    document.querySelectorAll('.hero-slide').forEach((s, i) => {
-      s.style.display  = 'block';
-      s.style.opacity  = i === 0 ? '1' : '0';
-    });
-  });
   startHeroTimer(featured.length);
 
   document.getElementById('heroPrev')?.addEventListener('click', () => {
     stopHeroTimer();
-    heroIndex = (heroIndex - 1 + featured.length) % featured.length;
-    showHeroSlide(heroIndex);
+    fadeToSlide((heroIndex - 1 + featured.length) % featured.length);
     startHeroTimer(featured.length);
   });
   document.getElementById('heroNext')?.addEventListener('click', () => {
     stopHeroTimer();
-    heroIndex = (heroIndex + 1) % featured.length;
-    showHeroSlide(heroIndex);
+    fadeToSlide((heroIndex + 1) % featured.length);
     startHeroTimer(featured.length);
   });
   dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
     dot.addEventListener('click', () => {
       stopHeroTimer();
-      heroIndex = Number(dot.dataset.i);
-      showHeroSlide(heroIndex);
+      fadeToSlide(Number(dot.dataset.i));
       startHeroTimer(featured.length);
     });
   });
 
-  // Banner override buttons
   document.querySelectorAll('.hero-banner-override').forEach(btn => {
     btn.addEventListener('click', () => {
-      const collSlug = btn.dataset.slug;
-      const url = prompt('Enter a banner image URL (wide crop, ~1900×400):');
+      const url = prompt('Enter a banner image URL (wide crop, ~1900×500):');
       if (!url) return;
-      saveBannerOverride(collSlug, url.trim());
+      saveBannerOverride(btn.dataset.slug, url.trim());
       const slide = btn.closest('.hero-slide');
       if (slide) slide.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
     });
   });
 
-  // Delete show buttons
   document.querySelectorAll('.hero-delete-show').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const collectionName = btn.dataset.collection;
-      if (!confirm(`Delete ALL videos in "${collectionName}" from Supabase? This cannot be undone.`)) return;
+      const name = btn.dataset.collection;
+      if (!confirm(`Delete ALL videos in "${name}" from Supabase? This cannot be undone.`)) return;
       try {
-        await supabaseDeleteCollection(collectionName);
-        // Remove from local state
-        AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== collectionName);
+        await supabaseDeleteCollection(name);
+        AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== name);
         refreshArchive();
-      } catch (err) {
-        alert(`Delete failed: ${err.message}`);
-      }
+      } catch (err) { alert(`Delete failed: ${err.message}`); }
     });
   });
 
-  // Fetch AniList banners in the background for slides that don't have an override
+  // Fetch AniList banners in background
   featured.forEach(g => {
     if (overrides[g.slug]) return;
     fetchAniListBanner(g.title).then(result => {
@@ -667,45 +626,36 @@ function buildHero(groups) {
 function fadeToSlide(targetIdx) {
   const slides = [...document.querySelectorAll('.hero-slide')];
   const dots   = document.querySelectorAll('.hero-dot');
-  if (!slides.length) return;
-
-  const current = slides.find(s => parseFloat(s.style.opacity || '0') > 0.5);
-  const next    = slides[targetIdx];
-  if (!next || next === current) return;
+  if (!slides.length || targetIdx === heroIndex) return;
 
   dots.forEach((d, i) => d.classList.toggle('active', i === targetIdx));
 
-  // Ensure all slides are positioned and visible to the compositor
-  slides.forEach(s => { s.style.display = 'block'; });
+  const fromSlide = slides[heroIndex];
+  const toSlide   = slides[targetIdx];
+  if (!fromSlide || !toSlide) return;
 
   let start = null;
-  const DURATION = 600;
+  const DURATION = 700;
 
   function step(ts) {
     if (!start) start = ts;
     const p = Math.min((ts - start) / DURATION, 1);
-    if (current) current.style.opacity = String(1 - p);
-    next.style.opacity = String(p);
-    if (p < 1) requestAnimationFrame(step);
-    else {
-      slides.forEach((s, i) => {
-        s.style.opacity = i === targetIdx ? '1' : '0';
-      });
+    fromSlide.style.opacity = String(1 - p);
+    toSlide.style.opacity   = String(p);
+    if (p < 1) {
+      requestAnimationFrame(step);
+    } else {
+      fromSlide.style.opacity = '0';
+      toSlide.style.opacity   = '1';
       heroIndex = targetIdx;
     }
   }
   requestAnimationFrame(step);
 }
 
-function showHeroSlide(i) {
-  fadeToSlide(i);
-}
-
 function startHeroTimer(total) {
   stopHeroTimer();
-  heroTimer = setInterval(() => {
-    fadeToSlide((heroIndex + 1) % total);
-  }, HERO_INTERVAL);
+  heroTimer = setInterval(() => fadeToSlide((heroIndex + 1) % total), HERO_INTERVAL);
 }
 
 function stopHeroTimer() {
