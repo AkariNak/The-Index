@@ -95,16 +95,12 @@ function posterCardHtml(group) {
     ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)} cover" loading="lazy">`
     : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0).toUpperCase())}</div>`;
 
-  const progress     = getLastWatched(group.title);
-  const continueBadge = progress ? `<span class="poster-continue">Continue</span>` : '';
-
   return `
     <article class="poster-card" data-collection="${escapeHtml(group.title)}">
       <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(group.slug)}">
         <div class="poster-cover">
           ${cover}
           <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
-          ${continueBadge}
         </div>
         <div class="poster-info">
           <div class="poster-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
