@@ -1285,13 +1285,9 @@ body.dark {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity .6s ease;
-  pointer-events: none;
+  display: block;
   overflow: hidden;
-}
-.hero-slide.active {
-  opacity: 1;
-  pointer-events: auto;
+  will-change: opacity;
 }
 .hero-slide-bg {
   position: absolute;
