@@ -240,6 +240,35 @@ function renderRecommendations(allGroups) {
   `).join('');
 }
 
+// ---------- Fog / cinema mode ----------
+const FOG_KEY = 'aurum-fog-color';
+
+function applyFog(color) {
+  const page   = document.querySelector('.player-page');
+  const swatch = document.getElementById('fogSwatch');
+  if (!page || !swatch) return;
+  if (!color || color === 'off') {
+    page.style.removeProperty('--fog-color');
+    swatch.classList.remove('active');
+    swatch.style.removeProperty('--fog-swatch-color');
+    swatch.style.setProperty('--fog-swatch-show', 'none');
+    return;
+  }
+  page.style.setProperty('--fog-color', color);
+  swatch.classList.add('active');
+  swatch.style.setProperty('--fog-swatch-color', color);
+  swatch.style.setProperty('--fog-swatch-show', 'block');
+}
+
+function wireFog() {
+  const input  = document.getElementById('fogInput');
+  const offBtn = document.getElementById('fogOffButton');
+  const saved  = localStorage.getItem(FOG_KEY);
+  if (saved && saved !== 'off') { if (input) input.value = saved; applyFog(saved); }
+  if (input)  input.addEventListener('input',  e => { applyFog(e.target.value); localStorage.setItem(FOG_KEY, e.target.value); });
+  if (offBtn) offBtn.addEventListener('click', () => { applyFog('off'); localStorage.setItem(FOG_KEY, 'off'); });
+}
+
 // ---------- Auto-advance ----------
 function wireAutoAdvance(group) {
   if (!playerVideoEl || !group) return;
@@ -271,7 +300,7 @@ function wireAutoAdvance(group) {
     return;
   }
 
-  document.title = `${currentGroup.title} — The Index`;
+  document.title = `${currentGroup.title} — Aurum`;
 
   // Determine starting episode
   let startVideo = null;
@@ -287,6 +316,7 @@ function wireAutoAdvance(group) {
   renderShowInfo(currentGroup, null);
   renderSidebar(currentGroup);
   wireAutoAdvance(currentGroup);
+  wireFog();
   loadVideo(startVideo);
 
   fetchJikanDetails(currentGroup.title).then(details => {
