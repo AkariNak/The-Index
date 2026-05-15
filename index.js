@@ -595,13 +595,13 @@ function buildHero(groups) {
   ).join('');
 
   heroIndex = 0;
-  // Show first slide immediately (no transition on first load)
-  const firstSlide = slidesEl.querySelector('.hero-slide');
-  if (firstSlide) {
-    firstSlide.style.transition = 'none';
-    firstSlide.classList.add('active');
-    requestAnimationFrame(() => { firstSlide.style.transition = ''; });
-  }
+  // Set initial opacity — first slide visible, rest hidden
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.hero-slide').forEach((s, i) => {
+      s.style.display  = 'block';
+      s.style.opacity  = i === 0 ? '1' : '0';
+    });
+  });
   startHeroTimer(featured.length);
 
   document.getElementById('heroPrev')?.addEventListener('click', () => {
@@ -664,30 +664,47 @@ function buildHero(groups) {
   });
 }
 
-function showHeroSlide(i) {
-  const slides = document.querySelectorAll('.hero-slide');
+function fadeToSlide(targetIdx) {
+  const slides = [...document.querySelectorAll('.hero-slide')];
   const dots   = document.querySelectorAll('.hero-dot');
-  slides.forEach((s, idx) => {
-    if (idx === i) {
-      // Force a repaint before adding active so the transition triggers
-      s.classList.remove('active');
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          s.classList.add('active');
-        });
+  if (!slides.length) return;
+
+  const current = slides.find(s => parseFloat(s.style.opacity || '0') > 0.5);
+  const next    = slides[targetIdx];
+  if (!next || next === current) return;
+
+  dots.forEach((d, i) => d.classList.toggle('active', i === targetIdx));
+
+  // Ensure all slides are positioned and visible to the compositor
+  slides.forEach(s => { s.style.display = 'block'; });
+
+  let start = null;
+  const DURATION = 600;
+
+  function step(ts) {
+    if (!start) start = ts;
+    const p = Math.min((ts - start) / DURATION, 1);
+    if (current) current.style.opacity = String(1 - p);
+    next.style.opacity = String(p);
+    if (p < 1) requestAnimationFrame(step);
+    else {
+      slides.forEach((s, i) => {
+        s.style.opacity = i === targetIdx ? '1' : '0';
       });
-    } else {
-      s.classList.remove('active');
+      heroIndex = targetIdx;
     }
-  });
-  dots.forEach((d, idx) => d.classList.toggle('active', idx === i));
+  }
+  requestAnimationFrame(step);
+}
+
+function showHeroSlide(i) {
+  fadeToSlide(i);
 }
 
 function startHeroTimer(total) {
   stopHeroTimer();
   heroTimer = setInterval(() => {
-    heroIndex = (heroIndex + 1) % total;
-    showHeroSlide(heroIndex);
+    fadeToSlide((heroIndex + 1) % total);
   }, HERO_INTERVAL);
 }
 
