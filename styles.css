@@ -382,16 +382,16 @@ body.light .topnav {
   background: var(--paper-2);
 }
 .hero-slideshow[hidden] { display: none; }
-.hero-slides { position: relative; height: 500px; }
-
+.hero-slides {
+  position: relative;
+  height: 500px;
+  overflow: hidden;
+}
 .hero-slide {
   position: absolute;
   inset: 0;
-  opacity: 0;
-  display: block;
   overflow: hidden;
   will-change: opacity;
-  pointer-events: none;
 }
 .hero-slide-bg {
   position: absolute;
