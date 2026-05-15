@@ -79,13 +79,18 @@ function loadVideo(video) {
     playerEpMetaEl.textContent = parts.join(' · ');
   }
 
-  if (currentGroup) markEpisodeWatched(currentGroup.title, video.title, 0);
+  // Read saved progress BEFORE marking watched (so we don't clobber the timestamp)
+  const progress = getLastWatched(currentGroup?.title);
+  const savedTimestamp = (progress && progress.lastEpisodeTitle === video.title && progress.timestamp > 5)
+    ? progress.timestamp
+    : 0;
+
+  if (currentGroup) markEpisodeWatched(currentGroup.title, video.title, savedTimestamp);
 
   // Restore saved timestamp
-  const progress = getLastWatched(currentGroup?.title);
-  if (progress && progress.lastEpisodeTitle === video.title && progress.timestamp > 5) {
+  if (savedTimestamp > 0) {
     playerVideoEl.addEventListener('loadedmetadata', () => {
-      playerVideoEl.currentTime = progress.timestamp;
+      playerVideoEl.currentTime = savedTimestamp;
     }, { once: true });
   }
 
