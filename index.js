@@ -570,6 +570,11 @@ function buildHero(groups) {
   ).join('');
 
   heroIndex = 0;
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.hero-slide').forEach((s, i) => {
+      s.style.pointerEvents = i === 0 ? 'auto' : 'none';
+    });
+  });
   startHeroTimer(featured.length);
 
   document.getElementById('heroPrev')?.addEventListener('click', () => {
@@ -633,6 +638,10 @@ function fadeToSlide(targetIdx) {
   const fromSlide = slides[heroIndex];
   const toSlide   = slides[targetIdx];
   if (!fromSlide || !toSlide) return;
+
+  // Disable clicks on outgoing, enable on incoming immediately
+  fromSlide.style.pointerEvents = 'none';
+  toSlide.style.pointerEvents   = 'auto';
 
   let start = null;
   const DURATION = 700;
