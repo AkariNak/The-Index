@@ -175,9 +175,22 @@ function loadProgress() {
   } catch { AppState.progress = {}; }
 }
 
-function markEpisodeWatched(collectionName, videoTitle) {
+function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
   const k = slug(collectionName);
-  AppState.progress[k] = { lastEpisodeTitle: videoTitle, lastWatched: new Date().toISOString() };
+  AppState.progress[k] = {
+    lastEpisodeTitle: videoTitle,
+    lastWatched: new Date().toISOString(),
+    timestamp
+  };
+  saveProgress();
+}
+
+function saveTimestamp(collectionName, videoTitle, timestamp) {
+  const k = slug(collectionName);
+  const existing = AppState.progress[k] || {};
+  if (existing.lastEpisodeTitle !== videoTitle) return;
+  existing.timestamp = timestamp;
+  AppState.progress[k] = existing;
   saveProgress();
 }
 
@@ -471,7 +484,7 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
       return { group: g, score };
     })
     .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
+    .slice(0, 8)
     .map(x => x.group);
 }
 
