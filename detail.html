@@ -3,21 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The Index — Show</title>
+<title>Aurum — Show</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html">AURUM</a>
+  <div class="topnav-right">
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+    <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
+  </div>
+</nav>
+
 <div class="page">
 
-  <header class="masthead detail-masthead">
-    <div class="masthead-top">
-      <a href="index.html" class="back-link">← Back to The Index</a>
-      <span class="rule"></span>
-    </div>
+  <header class="detail-masthead">
+    <a href="index.html" class="back-link">← Back to Aurum</a>
   </header>
 
   <main id="detailMain" class="detail-main">
@@ -25,19 +30,20 @@
   </main>
 
   <section id="recommendationsSection" class="recs-section" hidden>
-    <h2 class="recs-heading">You might also like</h2>
+    <h2 class="recs-heading">You Might Also Like</h2>
     <div id="recsGrid" class="poster-grid"></div>
   </section>
 
   <footer class="site-foot">
     <span id="year"></span>
-    <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
+    <span>Aurum</span>
   </footer>
+
 </div>
 
 <dialog id="adminDialog" class="admin-dialog">
   <form id="adminLoginForm" method="dialog" class="admin-login">
-    <h3>Admin access</h3>
+    <h3>Admin Access</h3>
     <input id="adminEmailInput" type="email" placeholder="Email" autocomplete="username" required>
     <input id="adminPasswordInput" type="password" placeholder="Password" autocomplete="current-password" required>
     <p id="adminError" class="admin-error" hidden>Incorrect email or password.</p>
@@ -46,23 +52,6 @@
       <button type="submit" class="btn btn-solid btn-small">Sign In</button>
     </div>
   </form>
-</dialog>
-
-<dialog id="playerDialog" class="player-dialog">
-  <div class="modal-head">
-    <h3 id="playerTitle"></h3>
-    <div class="fog-control">
-      <span class="fog-label">Fog</span>
-      <label class="fog-swatch" id="fogSwatch" title="Pick fog color">
-        <input type="color" id="fogInput" class="fog-input" value="#000000">
-      </label>
-      <button type="button" id="fogOffButton" class="fog-off-btn">Off</button>
-    </div>
-    <button id="closePlayer" type="button" class="close-btn" aria-label="Close">×</button>
-  </div>
-  <div class="modal-body">
-    <video id="playerVideo" controls playsinline></video>
-  </div>
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
