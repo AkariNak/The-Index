@@ -3,33 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The Index — Collections Archive</title>
+<title>Aurum</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<div class="page">
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html">AURUM</a>
+  <div class="topnav-search">
+    <span class="topnav-search-icon">⌕</span>
+    <input id="search" type="search" placeholder="Search titles, collections, categories…" autocomplete="off">
+  </div>
+  <div class="topnav-right">
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+    <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
+  </div>
+</nav>
 
-  <header class="masthead">
-    <div class="masthead-top">
-      <span class="vol">Vol. 02 — Collections Archive</span>
-      <span class="rule"></span>
-    </div>
-    <div class="masthead-main">
-      <h1 class="logo"><span class="logo-the">The</span> <span class="logo-index">Index</span></h1>
-      <div class="masthead-right">
-        <div class="masthead-note">
-          <span>Shows are</span>
-          <strong>grouped automatically</strong>
-          <span>or assigned manually</span>
-        </div>
-        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">☀</button>
-      </div>
-    </div>
-  </header>
+<div class="page">
 
   <section id="heroSlideshow" class="hero-slideshow" aria-label="Featured collections" hidden>
     <div id="heroSlides" class="hero-slides"></div>
@@ -45,13 +39,7 @@
     <button class="tab" data-tab="download-index" type="button">Download Index</button>
   </nav>
 
-  <section class="searchbar" aria-label="Search and filters">
-    <div class="search-wrap">
-      <span class="search-icon" aria-hidden="true">⌕</span>
-      <input id="search" type="search" placeholder="Search by title, collection, description, or category…" autocomplete="off">
-    </div>
-    <div id="filters" class="filters" aria-label="Category filters"></div>
-  </section>
+  <div class="filters-bar" id="filters" aria-label="Category filters"></div>
 
   <p class="status-line"><span id="count">SHOWING 0 ENTRIES</span> · <span id="publicCount">0 PUBLIC DOWNLOADS</span></p>
 
@@ -63,11 +51,10 @@
   </details>
 
   <section id="adminPanel" class="add-panel" hidden>
-    <h2 class="add-title">Add a video</h2>
-    <p class="add-sub">Choose a local file to preview it here. For public one-click downloads, paste a hosted URL such as an Internet Archive file URL. The collection field groups episodes into the same show.</p>
+    <h2 class="add-title">Add a Video</h2>
+    <p class="add-sub">Choose a local file to preview it here. For public downloads, paste a hosted URL. The collection field groups episodes into the same show.</p>
 
     <form id="addVideoForm" class="add-form">
-
       <div class="form-grid">
         <label class="field">
           <span class="field-label">Episode Title</span>
@@ -116,7 +103,7 @@
         <button id="chooseVideoButton" type="button" class="btn btn-solid btn-block">Add Video</button>
       </label>
       <p id="selectedFileText" class="file-note">No file selected.</p>
-      <p id="autoGroupText" class="file-note muted">Auto-grouping watches for names like Show Name S01E02, Show Name Episode 2, or Show Name 1x02.</p>
+      <p id="autoGroupText" class="file-note muted">Auto-grouping watches for names like Show Name S01E02.</p>
 
       <label class="field">
         <span class="field-label">Cover Image <span class="optional">Optional</span></span>
@@ -126,7 +113,7 @@
           <button id="findCoverButton" type="button" class="btn btn-outline">Find Cover Online</button>
         </div>
       </label>
-      <p id="selectedCoverText" class="file-note">No cover selected. Choosing an image overrides the generated frame.</p>
+      <p id="selectedCoverText" class="file-note">No cover selected.</p>
 
       <div id="coverSearchPanel" class="cover-search-panel" hidden>
         <div class="frame-picker-head">
@@ -150,8 +137,8 @@
 
       <div class="form-actions">
         <button type="submit" class="btn btn-solid">Save to Archive</button>
-        <button id="exportJsonButton" type="button" class="btn btn-outline">Export videos.json</button>
-        <button id="clearLocalButton" type="button" class="btn btn-outline">Clear Browser Additions</button>
+        <button id="exportJsonButton" type="button" class="btn btn-outline">Export JSON</button>
+        <button id="clearLocalButton" type="button" class="btn btn-outline">Clear Local</button>
         <p id="formStatus" class="form-status">Add a hosted URL to make it public.</p>
       </div>
     </form>
@@ -159,14 +146,14 @@
 
   <footer class="site-foot">
     <span id="year"></span>
-    <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
+    <span>Aurum</span>
   </footer>
 
 </div>
 
 <dialog id="adminDialog" class="admin-dialog">
   <form id="adminLoginForm" method="dialog" class="admin-login">
-    <h3>Admin access</h3>
+    <h3>Admin Access</h3>
     <input id="adminEmailInput" type="email" placeholder="Email" autocomplete="username" required>
     <input id="adminPasswordInput" type="password" placeholder="Password" autocomplete="current-password" required>
     <p id="adminError" class="admin-error" hidden>Incorrect email or password.</p>
@@ -176,7 +163,6 @@
     </div>
   </form>
 </dialog>
-
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="core.js"></script>
