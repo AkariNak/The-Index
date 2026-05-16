@@ -488,6 +488,201 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(x => x.group);
 }
 
+// ---------- Current user helpers ----------
+async function getCurrentUser() {
+  const session = await getSession();
+  return session?.user || null;
+}
+
+async function getCurrentProfile() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const sb = getSupabase();
+  const { data } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
+  return data || null;
+}
+
+// ---------- Sign up ----------
+async function supabaseSignUp(email, password, username) {
+  const sb = getSupabase();
+
+  // Check username availability first
+  const { data: existing } = await sb
+    .from('user_profiles')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle();
+  if (existing) throw new Error('Username is already taken.');
+
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) throw error;
+
+  // Create profile
+  const { error: profileError } = await sb.from('user_profiles').insert({
+    id:       data.user.id,
+    username,
+    avatar_url: null
+  });
+  if (profileError) throw profileError;
+
+  return data;
+}
+
+// ---------- Username availability check ----------
+async function checkUsernameAvailable(username) {
+  if (!username || username.length < 3) return false;
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('user_profiles')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle();
+  return !data;
+}
+
+// ---------- Avatar upload (compressed to ~50KB) ----------
+async function uploadAvatar(file) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+
+  // Compress image to ~50KB in browser
+  const compressed = await compressImage(file, 50);
+  const ext        = 'jpg';
+  const path       = `${user.id}/avatar.${ext}`;
+
+  const sb = getSupabase();
+  const { error } = await sb.storage.from('avatars').upload(path, compressed, {
+    upsert:      true,
+    contentType: 'image/jpeg'
+  });
+  if (error) throw error;
+
+  const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`; // bust cache
+
+  // Save to profile
+  await sb.from('user_profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
+  return avatarUrl;
+}
+
+function compressImage(file, targetKB) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas  = document.createElement('canvas');
+      const maxDim  = 256;
+      const scale   = Math.min(maxDim / img.width, maxDim / img.height, 1);
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Binary search for quality that hits target size
+      let lo = 0.1, hi = 0.95, quality = 0.8;
+      for (let i = 0; i < 8; i++) {
+        const mid      = (lo + hi) / 2;
+        const dataUrl  = canvas.toDataURL('image/jpeg', mid);
+        const kb       = Math.round((dataUrl.length * 3) / 4 / 1024);
+        if (kb > targetKB) hi = mid; else { lo = mid; quality = mid; }
+      }
+
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Compression failed'));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = url;
+  });
+}
+
+// ---------- Update username ----------
+async function updateUsername(newUsername) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const available = await checkUsernameAvailable(newUsername);
+  if (!available) throw new Error('Username is already taken.');
+  const sb = getSupabase();
+  const { error } = await sb.from('user_profiles').update({ username: newUsername }).eq('id', user.id);
+  if (error) throw error;
+}
+
+// ---------- Watch status ----------
+async function getWatchStatus(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('watch_status')
+    .select('status')
+    .eq('user_id', user.id)
+    .eq('collection', collectionName)
+    .maybeSingle();
+  return data?.status || null;
+}
+
+async function setWatchStatus(collectionName, status) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const sb = getSupabase();
+  await sb.from('watch_status').upsert({
+    user_id:    user.id,
+    collection: collectionName,
+    status,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,collection' });
+}
+
+async function getUserWatchList() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('watch_status')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+  return data || [];
+}
+
+// ---------- Comments ----------
+async function getComments(collectionName, episodeTitle) {
+  const sb = getSupabase();
+  const { data, error } = await sb
+    .from('comments')
+    .select('*')
+    .eq('collection', collectionName)
+    .eq('episode_title', episodeTitle)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function postComment(collectionName, episodeTitle, content) {
+  const user    = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error('No profile found.');
+  const sb = getSupabase();
+  const { data, error } = await sb.from('comments').insert({
+    user_id:       user.id,
+    username:      profile.username,
+    avatar_url:    profile.avatar_url || null,
+    collection:    collectionName,
+    episode_title: episodeTitle,
+    content:       content.trim()
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteComment(commentId) {
+  const sb = getSupabase();
+  const { error } = await sb.from('comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
 // ---------- Init helper (shared bootstrap) ----------
 async function coreInit() {
   loadLocalVideos();
