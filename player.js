@@ -90,6 +90,12 @@ function loadVideo(video) {
   // Mark watched, preserving the timestamp we just read
   if (currentGroup) {
     markEpisodeWatched(currentGroup.title, video.title, savedTimestamp);
+    // Auto-set watch status to Watching for logged-in users
+    getCurrentUser().then(user => {
+      if (user) getWatchStatus(currentGroup.title).then(status => {
+        if (!status) setWatchStatus(currentGroup.title, 'watching');
+      });
+    });
   }
 
   // Update UI
