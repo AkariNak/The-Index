@@ -440,7 +440,12 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
 }
 .hero-slideshow[hidden] { display: none; }
 .hero-slides { position: relative; height: 500px; overflow: hidden; }
-.hero-slide { position: absolute; inset: 0; overflow: hidden; will-change: opacity; }
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  will-change: transform;
+}
 .hero-slide-bg {
   position: absolute;
   inset: -4px;
@@ -957,6 +962,76 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
 }
 .comment-input-inner textarea:focus { border-color: var(--accent); }
 .comment-signin-prompt { padding: 8px 0; }
+
+/* ============ SERIES CARDS (seasons/movies) ============ */
+#seriesGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.series-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 80px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  transition: border-color var(--transition), transform var(--transition);
+  flex-shrink: 0;
+}
+.series-card:hover { border-color: var(--accent); transform: translateX(4px); }
+.series-card-active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.series-card-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(6px) brightness(0.35);
+  transform: scale(1.08);
+}
+
+.series-card-info {
+  position: relative;
+  z-index: 1;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.series-card-label {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.04em;
+}
+.series-card-eps {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+}
+
+.series-card-now {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(201,150,58,0.12);
+  border: 1px solid rgba(201,150,58,0.3);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
 
 /* ============ USERNAME AVAILABILITY ============ */
 .username-availability { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
