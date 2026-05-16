@@ -527,6 +527,75 @@ function wireNavAuth() {
 }
 
 // ---------- Wire everything ----------
+// ---------- Jikan episode name lookup ----------
+const episodeCache = {}; // { malId: [{ mal_id, title, title_romanji }] }
+
+async function fetchEpisodeList(malId) {
+  if (episodeCache[malId]) return episodeCache[malId];
+  const episodes = [];
+  let page = 1;
+  try {
+    while (true) {
+      const wait = Date.now() - (window._lastJikan || 0);
+      if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
+      window._lastJikan = Date.now();
+      const res  = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${page}`);
+      if (!res.ok) break;
+      const data = await res.json();
+      const items = data.data || [];
+      episodes.push(...items);
+      if (!data.pagination?.has_next_page) break;
+      page++;
+    }
+  } catch (err) { console.warn('Episode fetch failed:', err); }
+  episodeCache[malId] = episodes;
+  return episodes;
+}
+
+async function autoFillEpisodeTitle() {
+  const col = collectionInput?.value?.trim();
+  const ep  = episodeInput?.value?.trim();
+  if (!col || !ep) return;
+
+  const epNum = parseInt(ep, 10);
+  if (Number.isNaN(epNum) || epNum < 1) return;
+
+  // Find the MAL id from the Jikan cache
+  const cacheKey = col.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const cached   = AppState.jikanCache[cacheKey];
+  let malId      = cached?.malId;
+
+  if (!malId) {
+    // Search for it
+    try {
+      const wait = Date.now() - (window._lastJikan || 0);
+      if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
+      window._lastJikan = Date.now();
+      const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(col)}&limit=1&sfw=true`);
+      const data = await res.json();
+      malId = data.data?.[0]?.mal_id;
+      if (malId && data.data?.[0]) {
+        AppState.jikanCache[cacheKey] = {
+          malId,
+          title: data.data[0].title_english || data.data[0].title
+        };
+      }
+    } catch (err) { console.warn('MAL search failed:', err); return; }
+  }
+
+  if (!malId) return;
+
+  const episodes = await fetchEpisodeList(malId);
+  const match    = episodes.find(e => e.mal_id === epNum);
+  if (!match) return;
+
+  const epTitle = match.title || match.title_romanji || '';
+  if (!epTitle) return;
+
+  // Set title as "Collection - Episode Name"
+  if (titleInput) titleInput.value = `${col} - ${epTitle}`;
+}
+
 function wireAll() {
   if (search) search.addEventListener('input', render);
 
@@ -586,7 +655,27 @@ function wireAll() {
   if (findCoverButton) findCoverButton.addEventListener('click', () => runCoverSearch(bestSearchQuery(titleInput?.value || '', collectionInput?.value || '')));
   const debounced = debounce(() => { const q = bestSearchQuery(titleInput?.value || '', collectionInput?.value || ''); if (q.length >= 3) runCoverSearch(q); }, 800);
   if (titleInput)      titleInput.addEventListener('input', debounced);
-  if (collectionInput) collectionInput.addEventListener('input', debounced);
+  if (collectionInput) {
+    collectionInput.addEventListener('input', () => {
+      debounced();
+      const col = collectionInput.value.trim();
+      if (!col) return;
+      const prefix  = `${col} - `;
+      const current = titleInput?.value || '';
+      if (!current || /^.+ - /.test(current)) {
+        const episodePart = current.replace(/^.+ - /, '');
+        if (titleInput) titleInput.value = prefix + (episodePart === current ? '' : episodePart);
+      }
+      // Re-run episode lookup if episode number already filled
+      if (episodeInput?.value?.trim()) autoFillEpisodeTitle();
+    });
+  }
+
+  // Auto-fill title from Jikan when episode number is entered
+  if (episodeInput) {
+    episodeInput.addEventListener('change', () => autoFillEpisodeTitle());
+    episodeInput.addEventListener('blur',   () => autoFillEpisodeTitle());
+  }
 
   wireThemeToggle();
   wireTabs();
