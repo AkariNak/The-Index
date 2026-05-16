@@ -267,6 +267,9 @@ async function supabaseSignUp(email, password, username) {
   const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
   if (signInError) throw new Error('Account created. Please sign in.');
 
+  // Brief pause to let the session fully establish
+  await new Promise(r => setTimeout(r, 500));
+
   // Update the auto-created profile with the chosen username
   const { error: updateError } = await sb.from('user_profiles')
     .update({ username })
