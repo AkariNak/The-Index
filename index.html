@@ -15,14 +15,12 @@
   <a class="topnav-brand" href="index.html">AURUM</a>
   <div class="topnav-search">
     <span class="topnav-search-icon">⌕</span>
-    <input id="search" type="search" placeholder="Search titles, collections, categories…" autocomplete="off">
+    <input id="search" type="search" placeholder="Search collections…" autocomplete="off">
   </div>
   <div class="topnav-right">
-    <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn" aria-label="Support on Ko-fi">
-      ☕ Support
-    </a>
+    <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn" aria-label="Support on Ko-fi">☕ <span>Support</span></a>
     <a id="accountLink" href="account.html" class="btn btn-outline btn-small" hidden>Account</a>
-    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small">Sign In</button>
+    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small" style="display:none">Sign In</button>
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
     <button id="adminLoginButton" type="button" class="admin-trigger">Admin</button>
   </div>
@@ -46,9 +44,11 @@
 
   <div class="filters-bar" id="filters" aria-label="Category filters"></div>
 
-  <p class="status-line"><span id="count">SHOWING 0 ENTRIES</span> · <span id="publicCount">0 PUBLIC DOWNLOADS</span></p>
+  <p class="status-line"><span id="count">Loading…</span></p>
 
-  <main id="collectionGrid" class="collections" aria-label="Collections"></main>
+  <main id="collectionGrid" class="collections" aria-label="Collections">
+    <div class="poster-grid-skeleton" id="skeletonGrid"></div>
+  </main>
 
   <details id="downloadIndexPanel" class="archive">
     <summary>Full archive list</summary>
@@ -58,7 +58,6 @@
   <section id="adminPanel" class="add-panel" hidden>
     <h2 class="add-title">Add a Video</h2>
     <p class="add-sub">Choose a local file to preview it here. For public downloads, paste a hosted URL. The collection field groups episodes into the same show.</p>
-
     <form id="addVideoForm" class="add-form">
       <div class="form-grid">
         <label class="field">
@@ -67,10 +66,9 @@
         </label>
         <label class="field">
           <span class="field-label">Collection / Show</span>
-          <input id="collectionInput" type="text" placeholder="Auto-filled from title or set manually">
+          <input id="collectionInput" type="text" placeholder="Auto-filled or set manually">
         </label>
       </div>
-
       <div class="form-grid form-grid-3">
         <label class="field">
           <span class="field-label">Episode</span>
@@ -91,17 +89,14 @@
           <input id="fileTypeInput" type="text" placeholder="MP4">
         </label>
       </div>
-
       <label class="field">
         <span class="field-label">Size</span>
         <input id="fileSizeInput" type="text" placeholder="120 MB">
       </label>
-
       <label class="field">
         <span class="field-label">Description</span>
-        <textarea id="descriptionInput" rows="2" placeholder="Short description of the episode or collection."></textarea>
+        <textarea id="descriptionInput" rows="2" placeholder="Short description."></textarea>
       </label>
-
       <label class="field">
         <span class="field-label">Video File</span>
         <input id="videoFileInput" type="file" accept="video/*" hidden>
@@ -109,24 +104,21 @@
       </label>
       <p id="selectedFileText" class="file-note">No file selected.</p>
       <p id="autoGroupText" class="file-note muted">Auto-grouping watches for names like Show Name S01E02.</p>
-
       <label class="field">
         <span class="field-label">Cover Image <span class="optional">Optional</span></span>
         <input id="coverFileInput" type="file" accept="image/*" hidden>
         <div class="cover-row">
-          <button id="chooseCoverButton" type="button" class="btn btn-outline">Choose Cover Image</button>
-          <button id="findCoverButton" type="button" class="btn btn-outline">Find Cover Online</button>
+          <button id="chooseCoverButton" type="button" class="btn btn-outline">Choose Cover</button>
+          <button id="findCoverButton" type="button" class="btn btn-outline">Find Online</button>
         </div>
       </label>
       <p id="selectedCoverText" class="file-note">No cover selected.</p>
-
       <div id="coverSearchPanel" class="cover-search-panel" hidden>
         <div class="frame-picker-head">
           <span class="field-label" id="coverSearchStatus">Searching…</span>
         </div>
         <div id="coverSearchResults" class="frame-grid"></div>
       </div>
-
       <div id="framePicker" class="frame-picker">
         <div class="frame-picker-head">
           <span class="field-label">Pick a cover frame</span>
@@ -134,12 +126,10 @@
         </div>
         <div id="frameGrid" class="frame-grid"></div>
       </div>
-
       <label class="field">
         <span class="field-label">Hosted URL <span class="optional">Optional</span></span>
-        <input id="hostedUrlInput" type="url" placeholder="https://archive.org/download/identifier/file.mp4">
+        <input id="hostedUrlInput" type="url" placeholder="https://archive.org/download/…">
       </label>
-
       <div class="form-actions">
         <button type="submit" class="btn btn-solid">Save to Archive</button>
         <button id="exportJsonButton" type="button" class="btn btn-outline">Export JSON</button>
