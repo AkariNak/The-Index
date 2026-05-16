@@ -1,14 +1,12 @@
 // ============================================================
-// The Index — Shared core
-// Used by both index.html (grid) and detail.html (show page)
+// Aurum — core.js
+// Shared by all pages. Depends on Supabase CDN.
 // ============================================================
 
-// ---------- Supabase config ----------
-const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
+// ---------- Supabase ----------
+const SUPABASE_URL     = 'https://eosnuxttjchckprpymnw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
 
-// supabase client is loaded from CDN in the HTML files and available as window.supabase
-// We init lazily on first use so both pages work without ordering concerns.
 let _sb = null;
 function getSupabase() {
   if (_sb) return _sb;
@@ -20,9 +18,10 @@ function getSupabase() {
 }
 
 // ---------- Constants ----------
-const LOCAL_STORAGE_KEY = 'the-index-collections-local-videos';
-const TAGS_OVERRIDE_KEY  = 'the-index-tags-override';
-const PROGRESS_KEY       = 'the-index-episode-progress';
+const LOCAL_STORAGE_KEY = 'aurum-local-videos';
+const TAGS_OVERRIDE_KEY = 'aurum-tags-override';
+const PROGRESS_KEY      = 'aurum-episode-progress';
+const THEME_KEY         = 'aurum-theme';
 
 // ---------- State ----------
 window.AppState = window.AppState || {
@@ -30,9 +29,9 @@ window.AppState = window.AppState || {
   localVideos:   [],
   sessionVideos: [],
   videos:        [],
-  tagsOverride:  {},   // { collectionSlug: { add: [...], remove: [...] } }
-  progress:      {},   // { collectionSlug: { lastEpisodeTitle, lastWatched } }
-  jikanCache:    {},   // { collectionSlug: { tags, synopsis, year, image, episodes, type } }
+  tagsOverride:  {},
+  progress:      {},
+  jikanCache:    {},
 };
 
 // ---------- Utilities ----------
@@ -65,11 +64,7 @@ function todayIso() {
 }
 
 function stripExtension(name) {
-  return String(name || '')
-    .replace(/\.[^/.]+$/, '')
-    .replace(/[._-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return String(name || '').replace(/\.[^/.]+$/, '').replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function parseAnimeMetadata(title) {
@@ -88,8 +83,7 @@ function parseEpisodeInfo(rawName) {
   let episode     = '';
   let collection  = name;
   const animeMeta = parseAnimeMetadata(name);
-
-  const patterns = [
+  const patterns  = [
     /^(.*?)\s+[sS](\d{1,2})\s*[eE](\d{1,3})(?:\s+.*)?$/,
     /^(.*?)\s+(\d{1,2})x(\d{1,3})(?:\s+.*)?$/i,
     /^(.*?)\s+(?:episode|ep)\s*(\d{1,3})(?:\s+.*)?$/i,
@@ -105,42 +99,37 @@ function parseEpisodeInfo(rawName) {
       : String(match[match.length - 1]).padStart(2, '0');
     break;
   }
-  collection = collection || name;
-  return { title: name, collection, episode, season: animeMeta.season, type: animeMeta.type };
+  return { title: name, collection: collection || name, episode, season: animeMeta.season, type: animeMeta.type };
 }
 
 function normalizeVideo(video) {
   const title  = video.title || 'Untitled';
   const parsed = video.collection ? null : parseEpisodeInfo(title);
   return {
-    // Preserve the Supabase row id so edits/deletes can reference it
     id:          video.id          || null,
     title,
     description: video.description || '',
-    collection:  video.collection  || video.show || video.series || (parsed && parsed.collection) || 'Unsorted',
-    episode:     video.episode     || (parsed && parsed.episode) || '',
+    collection:  video.collection  || video.show || video.series || parsed?.collection || 'Unsorted',
+    episode:     video.episode     || parsed?.episode || '',
     category:    video.category    || 'Other',
-    // Supabase columns use snake_case; accept both forms
     fileType:    video.fileType    || video.file_type  || video.format || 'MP4',
     fileSize:    video.fileSize    || video.file_size  || video.size   || '—',
     dateAdded:   video.dateAdded   || video.date_added || video.created_at || todayIso(),
     downloadUrl: video.downloadUrl || video.download_url || video.video_url || video.url || '#',
     coverUrl:    video.coverUrl    || video.cover_url    || '',
     temporary:   Boolean(video.temporary),
-    season:      video.season || (parsed && parsed.season) || 1,
-    type:        video.type   || (parsed && parsed.type)   || 'Episode',
+    season:      video.season || parsed?.season || 1,
+    type:        video.type   || parsed?.type   || 'Episode',
     sources:     video.sources || null
   };
 }
 
 function isPublicDownload(video) {
-  return video.downloadUrl
-    && video.downloadUrl !== '#'
-    && !video.temporary
-    && !video.downloadUrl.startsWith('blob:');
+  return video.downloadUrl && video.downloadUrl !== '#'
+    && !video.temporary && !video.downloadUrl.startsWith('blob:');
 }
 
-// ---------- Persistence (local extras & prefs — not the main video list) ----------
+// ---------- Persistence ----------
 function saveLocalVideos() {
   try { localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(AppState.localVideos)); }
   catch (e) { console.warn('localStorage save failed:', e); }
@@ -159,9 +148,8 @@ function saveTagsOverride() {
 }
 
 function loadTagsOverride() {
-  try {
-    AppState.tagsOverride = JSON.parse(localStorage.getItem(TAGS_OVERRIDE_KEY) || '{}');
-  } catch { AppState.tagsOverride = {}; }
+  try { AppState.tagsOverride = JSON.parse(localStorage.getItem(TAGS_OVERRIDE_KEY) || '{}'); }
+  catch { AppState.tagsOverride = {}; }
 }
 
 function saveProgress() {
@@ -170,23 +158,22 @@ function saveProgress() {
 }
 
 function loadProgress() {
-  try {
-    AppState.progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
-  } catch { AppState.progress = {}; }
+  try { AppState.progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); }
+  catch { AppState.progress = {}; }
 }
 
 function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
   const k = slug(collectionName);
   AppState.progress[k] = {
     lastEpisodeTitle: videoTitle,
-    lastWatched: new Date().toISOString(),
+    lastWatched:      new Date().toISOString(),
     timestamp
   };
   saveProgress();
 }
 
 function saveTimestamp(collectionName, videoTitle, timestamp) {
-  const k = slug(collectionName);
+  const k       = slug(collectionName);
   const existing = AppState.progress[k] || {};
   if (existing.lastEpisodeTitle !== videoTitle) return;
   existing.timestamp = timestamp;
@@ -198,118 +185,229 @@ function getLastWatched(collectionName) {
   return AppState.progress[slug(collectionName)] || null;
 }
 
-// ---------- Sync videos array ----------
+// ---------- Sync ----------
 function syncVideos() {
   AppState.videos = [...AppState.baseVideos, ...AppState.localVideos, ...AppState.sessionVideos]
     .sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
 }
 
-// ---------- Supabase: load videos (public SELECT) ----------
+// ---------- Supabase: load videos ----------
 async function loadBaseVideos() {
   try {
     const sb = getSupabase();
-    const { data, error } = await sb
-      .from('videos')
-      .select('*')
-      .order('date_added', { ascending: false });
+    const { data, error } = await sb.from('videos').select('*').order('date_added', { ascending: false });
     if (error) throw error;
     AppState.baseVideos = Array.isArray(data) ? data.map(normalizeVideo) : [];
   } catch (err) {
-    console.warn('Could not load videos from Supabase:', err);
+    console.warn('Could not load videos:', err);
     AppState.baseVideos = [];
   }
 }
 
 // ---------- Supabase: auth ----------
 async function supabaseSignIn(email, password) {
-  const sb = getSupabase();
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await getSupabase().auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data.session;
 }
 
 async function supabaseSignOut() {
-  const sb = getSupabase();
-  await sb.auth.signOut();
+  await getSupabase().auth.signOut();
 }
 
 async function getSession() {
-  const sb = getSupabase();
-  const { data } = await sb.auth.getSession();
+  const { data } = await getSupabase().auth.getSession();
   return data?.session || null;
 }
 
-// Synchronous check — uses the cached session state Supabase keeps in memory/localStorage.
-// Call getSession() (async) when you need a guaranteed-fresh check.
-function isAdminUnlocked() {
-  // supabase-js stores the session in localStorage under a key prefixed with 'sb-'
-  // We do a quick check of its in-memory state via the internal store when possible,
-  // otherwise fall back to checking localStorage directly.
-  try {
-    const sb = getSupabase();
-    // supabase-js v2 exposes _sessionData synchronously via internal property; if not
-    // available we fall through to the localStorage approach.
-    const raw = localStorage.getItem(`sb-${SUPABASE_URL.replace('https://', '').split('.')[0]}-auth-token`);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return Boolean(parsed?.access_token);
-    }
-    return false;
-  } catch {
-    return false;
-  }
+// Async — always accurate
+async function isAdminUnlockedAsync() {
+  const session = await getSession();
+  return Boolean(session);
 }
 
-// ---------- Supabase: CRUD (requires authenticated session) ----------
+// Sync — reads Supabase's localStorage cache; use for rendering only, not for gating writes
+function isAdminUnlocked() {
+  try {
+    const keys = Object.keys(localStorage);
+    const sbKey = keys.find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (!sbKey) return false;
+    const parsed = JSON.parse(localStorage.getItem(sbKey) || '{}');
+    return Boolean(parsed?.access_token);
+  } catch { return false; }
+}
 
-// Map our camelCase fields back to Supabase snake_case column names
+// ---------- Supabase: current user ----------
+async function getCurrentUser() {
+  const session = await getSession();
+  return session?.user || null;
+}
+
+async function getCurrentProfile() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const { data } = await getSupabase().from('user_profiles').select('*').eq('id', user.id).single();
+  return data || null;
+}
+
+// ---------- Supabase: sign up ----------
+async function supabaseSignUp(email, password, username) {
+  const sb = getSupabase();
+  const { data: existing } = await sb.from('user_profiles').select('id').eq('username', username).maybeSingle();
+  if (existing) throw new Error('Username is already taken.');
+  const { data, error } = await sb.auth.signUp({ email, password });
+  if (error) throw error;
+  const { error: profileError } = await sb.from('user_profiles').insert({ id: data.user.id, username, avatar_url: null });
+  if (profileError) throw profileError;
+  return data;
+}
+
+async function checkUsernameAvailable(username) {
+  if (!username || username.length < 3) return false;
+  const { data } = await getSupabase().from('user_profiles').select('id').eq('username', username).maybeSingle();
+  return !data;
+}
+
+// ---------- Supabase: avatar upload ----------
+async function uploadAvatar(file) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const compressed = await compressImage(file, 50);
+  const path       = `${user.id}/avatar.jpg`;
+  const sb         = getSupabase();
+  const { error }  = await sb.storage.from('avatars').upload(path, compressed, { upsert: true, contentType: 'image/jpeg' });
+  if (error) throw error;
+  const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
+  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+  await sb.from('user_profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
+  return avatarUrl;
+}
+
+function compressImage(file, targetKB) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas  = document.createElement('canvas');
+      const maxDim  = 256;
+      const scale   = Math.min(maxDim / img.width, maxDim / img.height, 1);
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      let lo = 0.1, hi = 0.95, quality = 0.8;
+      for (let i = 0; i < 8; i++) {
+        const mid    = (lo + hi) / 2;
+        const dataUrl = canvas.toDataURL('image/jpeg', mid);
+        const kb     = Math.round((dataUrl.length * 3) / 4 / 1024);
+        if (kb > targetKB) hi = mid; else { lo = mid; quality = mid; }
+      }
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Compression failed')), 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = url;
+  });
+}
+
+async function updateUsername(newUsername) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const available = await checkUsernameAvailable(newUsername);
+  if (!available) throw new Error('Username is already taken.');
+  const { error } = await getSupabase().from('user_profiles').update({ username: newUsername }).eq('id', user.id);
+  if (error) throw error;
+}
+
+// ---------- Supabase: watch status ----------
+async function getWatchStatus(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const { data } = await getSupabase()
+    .from('watch_status').select('status')
+    .eq('user_id', user.id).eq('collection', collectionName).maybeSingle();
+  return data?.status || null;
+}
+
+async function setWatchStatus(collectionName, status) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await getSupabase().from('watch_status').upsert({
+    user_id: user.id, collection: collectionName, status,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,collection' });
+}
+
+async function getUserWatchList() {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data } = await getSupabase()
+    .from('watch_status').select('*').eq('user_id', user.id)
+    .order('updated_at', { ascending: false });
+  return data || [];
+}
+
+// ---------- Supabase: comments ----------
+async function getComments(collectionName, episodeTitle) {
+  const { data, error } = await getSupabase()
+    .from('comments').select('*')
+    .eq('collection', collectionName).eq('episode_title', episodeTitle)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function postComment(collectionName, episodeTitle, content) {
+  const user    = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const profile = await getCurrentProfile();
+  if (!profile) throw new Error('No profile found.');
+  const { data, error } = await getSupabase().from('comments').insert({
+    user_id: user.id, username: profile.username, avatar_url: profile.avatar_url || null,
+    collection: collectionName, episode_title: episodeTitle, content: content.trim()
+  }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+async function deleteComment(commentId) {
+  const { error } = await getSupabase().from('comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+// ---------- Supabase: CRUD ----------
 function toSupabaseRow(video) {
   return {
-    title:        video.title,
-    description:  video.description  || '',
-    collection:   video.collection,
-    episode:      video.episode      || '',
-    category:     video.category     || 'Other',
-    file_type:    video.fileType     || 'MP4',
-    file_size:    video.fileSize     || '—',
-    date_added:   video.dateAdded    || todayIso(),
-    download_url: video.downloadUrl  || '#',
-    cover_url:    video.coverUrl     || '',
-    temporary:    video.temporary    || false,
-    season:       video.season       || 1,
-    type:         video.type         || 'Episode',
-    sources:      video.sources      || null
+    title: video.title, description: video.description || '',
+    collection: video.collection, episode: video.episode || '',
+    category: video.category || 'Other', file_type: video.fileType || 'MP4',
+    file_size: video.fileSize || '—', date_added: video.dateAdded || todayIso(),
+    download_url: video.downloadUrl || '#', cover_url: video.coverUrl || '',
+    temporary: video.temporary || false, season: video.season || 1,
+    type: video.type || 'Episode', sources: video.sources || null
   };
 }
 
 async function supabaseInsert(videoData) {
-  const sb = getSupabase();
-  const row = toSupabaseRow(videoData);
-  const { data, error } = await sb.from('videos').insert(row).select().single();
+  const { data, error } = await getSupabase().from('videos').insert(toSupabaseRow(videoData)).select().single();
   if (error) throw error;
   return normalizeVideo(data);
 }
 
 async function supabaseUpdate(id, videoData) {
-  if (!id) throw new Error('supabaseUpdate: no id provided');
-  const sb = getSupabase();
-  const row = toSupabaseRow(videoData);
-  const { data, error } = await sb.from('videos').update(row).eq('id', id).select().single();
+  if (!id) throw new Error('supabaseUpdate: no id');
+  const { data, error } = await getSupabase().from('videos').update(toSupabaseRow(videoData)).eq('id', id).select().single();
   if (error) throw error;
   return normalizeVideo(data);
 }
 
 async function supabaseDelete(id) {
-  if (!id) throw new Error('supabaseDelete: no id provided');
-  const sb = getSupabase();
-  const { error } = await sb.from('videos').delete().eq('id', id);
+  if (!id) throw new Error('supabaseDelete: no id');
+  const { error } = await getSupabase().from('videos').delete().eq('id', id);
   if (error) throw error;
 }
 
 async function supabaseDeleteCollection(collectionName) {
-  if (!collectionName) throw new Error('supabaseDeleteCollection: no name provided');
-  const sb = getSupabase();
-  const { error } = await sb.from('videos').delete().eq('collection', collectionName);
+  const { error } = await getSupabase().from('videos').delete().eq('collection', collectionName);
   if (error) throw error;
 }
 
@@ -319,13 +417,7 @@ function groupVideos(videoList) {
   videoList.forEach(video => {
     const key = slug(video.collection) || 'unsorted';
     if (!map.has(key)) {
-      map.set(key, {
-        slug: key,
-        title: video.collection || 'Unsorted',
-        category: video.category,
-        videos: [],
-        firstCover: video.coverUrl || ''
-      });
+      map.set(key, { slug: key, title: video.collection || 'Unsorted', category: video.category, videos: [], firstCover: video.coverUrl || '' });
     }
     const group = map.get(key);
     group.videos.push(video);
@@ -342,13 +434,13 @@ function groupVideos(videoList) {
   }).sort((a, b) => a.title.localeCompare(b.title));
 }
 
-// ---------- Jikan API (anime metadata) ----------
+// ---------- Jikan ----------
 const JIKAN_BASE = 'https://api.jikan.moe/v4/anime';
 let lastJikanCall = 0;
 
 async function jikanRequest(url) {
-  const sinceLast = Date.now() - lastJikanCall;
-  if (sinceLast < 400) await new Promise(r => setTimeout(r, 400 - sinceLast));
+  const wait = Date.now() - lastJikanCall;
+  if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
   lastJikanCall = Date.now();
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Jikan ${res.status}`);
@@ -360,88 +452,58 @@ async function searchJikan(query) {
   try {
     const data = await jikanRequest(`${JIKAN_BASE}?q=${encodeURIComponent(query)}&limit=8&sfw=true`);
     return (data.data || []).map(item => ({
-      malId: item.mal_id,
-      title: item.title,
-      year:  item.year,
-      type:  item.type,
-      image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || ''
+      malId: item.mal_id, title: item.title_english || item.title, year: item.year,
+      type: item.type, image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || ''
     })).filter(r => r.image);
-  } catch (err) {
-    console.warn('Jikan search failed:', err);
-    return [];
-  }
+  } catch (err) { console.warn('Jikan search failed:', err); return []; }
 }
 
 async function fetchJikanDetails(query) {
   if (!query) return null;
   const cacheKey = slug(query);
   if (AppState.jikanCache[cacheKey]) return AppState.jikanCache[cacheKey];
-
   try {
     const search = await jikanRequest(`${JIKAN_BASE}?q=${encodeURIComponent(query)}&limit=1&sfw=true`);
-    const first  = search.data && search.data[0];
+    const first  = search.data?.[0];
     if (!first) return null;
     const details = {
-      malId:    first.mal_id,
-      title:    first.title_english || first.title,
-      synopsis: first.synopsis || '',
-      year:     first.year,
-      type:     first.type,
-      episodes: first.episodes,
-      score:    first.score,
-      image:    first.images?.jpg?.large_image_url || '',
+      malId: first.mal_id, title: first.title_english || first.title,
+      synopsis: first.synopsis || '', year: first.year, type: first.type,
+      episodes: first.episodes, score: first.score,
+      image: first.images?.jpg?.large_image_url || '',
       tags: (first.genres || []).concat(first.themes || []).concat(first.demographics || [])
         .map(g => g.name).filter(Boolean)
     };
     AppState.jikanCache[cacheKey] = details;
     return details;
-  } catch (err) {
-    console.warn('Jikan details failed:', err);
-    return null;
-  }
+  } catch (err) { console.warn('Jikan details failed:', err); return null; }
 }
 
-// ---------- AniList API (banner images) ----------
+// ---------- AniList ----------
 const ANILIST_BASE = 'https://graphql.anilist.co';
 
 async function fetchAniListBanner(query) {
   if (!query) return null;
   const cacheKey = `anilist-${slug(query)}`;
   if (AppState.jikanCache[cacheKey]) return AppState.jikanCache[cacheKey];
-
-  const gql = `
-    query ($search: String) {
-      Media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
-        bannerImage
-        coverImage { extraLarge color }
-        title { romaji english }
-      }
-    }
-  `;
+  const gql = `query ($s: String) { Media(search: $s, type: ANIME, sort: SEARCH_MATCH) { bannerImage coverImage { extraLarge color } title { romaji english } } }`;
   try {
     const res  = await fetch(ANILIST_BASE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ query: gql, variables: { search: query } })
+      body: JSON.stringify({ query: gql, variables: { s: query } })
     });
     if (!res.ok) throw new Error(`AniList ${res.status}`);
-    const json   = await res.json();
-    const media  = json?.data?.Media;
+    const json  = await res.json();
+    const media = json?.data?.Media;
     if (!media) return null;
-    const result = {
-      banner:     media.bannerImage || null,
-      cover:      media.coverImage?.extraLarge || null,
-      accentColor: media.coverImage?.color || null
-    };
+    const result = { banner: media.bannerImage || null, cover: media.coverImage?.extraLarge || null, accentColor: media.coverImage?.color || null };
     AppState.jikanCache[cacheKey] = result;
     return result;
-  } catch (err) {
-    console.warn('AniList banner fetch failed:', err);
-    return null;
-  }
+  } catch (err) { console.warn('AniList failed:', err); return null; }
 }
 
-// ---------- Tags (merged Jikan + admin overrides) ----------
+// ---------- Tags ----------
 function getTagsForCollection(collectionName, jikanTags = []) {
   const k        = slug(collectionName);
   const override = AppState.tagsOverride[k] || { add: [], remove: [] };
@@ -476,214 +538,18 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
   return allGroups
     .filter(g => g.slug !== k)
     .map(g => {
-      let score = 0;
-      if (g.category === currentCategory) score += 1;
       const jikan     = AppState.jikanCache[g.slug];
       const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      score += otherTags.filter(t => lowerTags.includes(t)).length * 2;
-      return { group: g, score };
+      const overlap   = otherTags.filter(t => lowerTags.includes(t)).length;
+      return { group: g, overlap };
     })
-    .sort((a, b) => b.score - a.score)
+    .filter(x => x.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)
     .slice(0, 8)
     .map(x => x.group);
 }
 
-// ---------- Current user helpers ----------
-async function getCurrentUser() {
-  const session = await getSession();
-  return session?.user || null;
-}
-
-async function getCurrentProfile() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const sb = getSupabase();
-  const { data } = await sb.from('user_profiles').select('*').eq('id', user.id).single();
-  return data || null;
-}
-
-// ---------- Sign up ----------
-async function supabaseSignUp(email, password, username) {
-  const sb = getSupabase();
-
-  // Check username availability first
-  const { data: existing } = await sb
-    .from('user_profiles')
-    .select('id')
-    .eq('username', username)
-    .maybeSingle();
-  if (existing) throw new Error('Username is already taken.');
-
-  const { data, error } = await sb.auth.signUp({ email, password });
-  if (error) throw error;
-
-  // Create profile
-  const { error: profileError } = await sb.from('user_profiles').insert({
-    id:       data.user.id,
-    username,
-    avatar_url: null
-  });
-  if (profileError) throw profileError;
-
-  return data;
-}
-
-// ---------- Username availability check ----------
-async function checkUsernameAvailable(username) {
-  if (!username || username.length < 3) return false;
-  const sb = getSupabase();
-  const { data } = await sb
-    .from('user_profiles')
-    .select('id')
-    .eq('username', username)
-    .maybeSingle();
-  return !data;
-}
-
-// ---------- Avatar upload (compressed to ~50KB) ----------
-async function uploadAvatar(file) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('Not signed in.');
-
-  // Compress image to ~50KB in browser
-  const compressed = await compressImage(file, 50);
-  const ext        = 'jpg';
-  const path       = `${user.id}/avatar.${ext}`;
-
-  const sb = getSupabase();
-  const { error } = await sb.storage.from('avatars').upload(path, compressed, {
-    upsert:      true,
-    contentType: 'image/jpeg'
-  });
-  if (error) throw error;
-
-  const { data: urlData } = sb.storage.from('avatars').getPublicUrl(path);
-  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`; // bust cache
-
-  // Save to profile
-  await sb.from('user_profiles').update({ avatar_url: avatarUrl }).eq('id', user.id);
-  return avatarUrl;
-}
-
-function compressImage(file, targetKB) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const canvas  = document.createElement('canvas');
-      const maxDim  = 256;
-      const scale   = Math.min(maxDim / img.width, maxDim / img.height, 1);
-      canvas.width  = Math.round(img.width  * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      // Binary search for quality that hits target size
-      let lo = 0.1, hi = 0.95, quality = 0.8;
-      for (let i = 0; i < 8; i++) {
-        const mid      = (lo + hi) / 2;
-        const dataUrl  = canvas.toDataURL('image/jpeg', mid);
-        const kb       = Math.round((dataUrl.length * 3) / 4 / 1024);
-        if (kb > targetKB) hi = mid; else { lo = mid; quality = mid; }
-      }
-
-      canvas.toBlob(blob => {
-        if (blob) resolve(blob);
-        else reject(new Error('Compression failed'));
-      }, 'image/jpeg', quality);
-    };
-    img.onerror = () => reject(new Error('Could not load image'));
-    img.src = url;
-  });
-}
-
-// ---------- Update username ----------
-async function updateUsername(newUsername) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error('Not signed in.');
-  const available = await checkUsernameAvailable(newUsername);
-  if (!available) throw new Error('Username is already taken.');
-  const sb = getSupabase();
-  const { error } = await sb.from('user_profiles').update({ username: newUsername }).eq('id', user.id);
-  if (error) throw error;
-}
-
-// ---------- Watch status ----------
-async function getWatchStatus(collectionName) {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const sb = getSupabase();
-  const { data } = await sb
-    .from('watch_status')
-    .select('status')
-    .eq('user_id', user.id)
-    .eq('collection', collectionName)
-    .maybeSingle();
-  return data?.status || null;
-}
-
-async function setWatchStatus(collectionName, status) {
-  const user = await getCurrentUser();
-  if (!user) return;
-  const sb = getSupabase();
-  await sb.from('watch_status').upsert({
-    user_id:    user.id,
-    collection: collectionName,
-    status,
-    updated_at: new Date().toISOString()
-  }, { onConflict: 'user_id,collection' });
-}
-
-async function getUserWatchList() {
-  const user = await getCurrentUser();
-  if (!user) return [];
-  const sb = getSupabase();
-  const { data } = await sb
-    .from('watch_status')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false });
-  return data || [];
-}
-
-// ---------- Comments ----------
-async function getComments(collectionName, episodeTitle) {
-  const sb = getSupabase();
-  const { data, error } = await sb
-    .from('comments')
-    .select('*')
-    .eq('collection', collectionName)
-    .eq('episode_title', episodeTitle)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return data || [];
-}
-
-async function postComment(collectionName, episodeTitle, content) {
-  const user    = await getCurrentUser();
-  if (!user) throw new Error('Not signed in.');
-  const profile = await getCurrentProfile();
-  if (!profile) throw new Error('No profile found.');
-  const sb = getSupabase();
-  const { data, error } = await sb.from('comments').insert({
-    user_id:       user.id,
-    username:      profile.username,
-    avatar_url:    profile.avatar_url || null,
-    collection:    collectionName,
-    episode_title: episodeTitle,
-    content:       content.trim()
-  }).select().single();
-  if (error) throw error;
-  return data;
-}
-
-async function deleteComment(commentId) {
-  const sb = getSupabase();
-  const { error } = await sb.from('comments').delete().eq('id', commentId);
-  if (error) throw error;
-}
-
-// ---------- Init helper (shared bootstrap) ----------
+// ---------- Init ----------
 async function coreInit() {
   loadLocalVideos();
   loadTagsOverride();
