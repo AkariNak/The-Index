@@ -1133,6 +1133,24 @@ body.light .topnav {
   .poster-title { font-size: 12px; }
 }
 
+/* ============ DIALOG CLOSE BUTTON ============ */
+.dialog-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--ink-mute);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color .12s, background .12s;
+}
+.dialog-close:hover { color: var(--ink); background: var(--paper-3); }
+.admin-login { position: relative; }
+
 /* ============ KO-FI BUTTON ============ */
 .kofi-btn {
   display: inline-flex;
