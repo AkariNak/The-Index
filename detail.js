@@ -21,6 +21,8 @@
 const detailMain             = document.getElementById('detailMain');
 const recommendationsSection = document.getElementById('recommendationsSection');
 const recsGrid               = document.getElementById('recsGrid');
+const seriesSection          = document.getElementById('seriesSection');
+const seriesGrid             = document.getElementById('seriesGrid');
 const adminDialog            = document.getElementById('adminDialog');
 const adminLoginForm         = document.getElementById('adminLoginForm');
 const adminLoginButton       = document.getElementById('adminLoginButton');
@@ -305,13 +307,8 @@ async function simpleDelete(video) {
 }
 
 // ---------- Recommendations ----------
-function renderRecommendations(allGroups) {
-  if (!currentGroup || !recsGrid || !recommendationsSection) return;
-  const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
-  const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, allGroups, tags);
-  if (!recs.length) { recommendationsSection.hidden = true; return; }
-  recommendationsSection.hidden = false;
-  recsGrid.innerHTML = recs.map(g => `
+function posterCardHtml(g) {
+  return `
     <article class="poster-card">
       <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(g.slug)}">
         <div class="poster-cover">
@@ -325,7 +322,59 @@ function renderRecommendations(allGroups) {
         </div>
       </a>
     </article>
-  `).join('');
+  `;
+}
+
+function getBaseTitle(title) {
+  // Strip common season/part suffixes to find the base series name
+  // e.g. "Attack on Titan Season 2" → "Attack on Titan"
+  return title
+    .replace(/\s+(season|part|cour|arc)\s+\w+.*$/i, '')
+    .replace(/\s+S\d+.*$/i, '')
+    .replace(/\s+\d+(st|nd|rd|th)\s+(season|part|cour).*$/i, '')
+    .replace(/:\s+.+$/, '') // "Show: Subtitle" → "Show"
+    .trim()
+    .toLowerCase();
+}
+
+function renderRecommendations(allGroups) {
+  if (!currentGroup) return;
+
+  const baseTitle  = getBaseTitle(currentGroup.title);
+  const currentSlug = currentGroup.slug;
+
+  // Split into same-series vs general
+  const seriesGroups = allGroups.filter(g =>
+    g.slug !== currentSlug &&
+    getBaseTitle(g.title) === baseTitle
+  );
+
+  const otherGroups = allGroups.filter(g =>
+    g.slug !== currentSlug &&
+    getBaseTitle(g.title) !== baseTitle
+  );
+
+  // More from this series
+  if (seriesSection && seriesGrid) {
+    if (seriesGroups.length) {
+      seriesSection.hidden = false;
+      seriesGrid.innerHTML = seriesGroups.map(posterCardHtml).join('');
+    } else {
+      seriesSection.hidden = true;
+    }
+  }
+
+  // You might also like — tag-based, exclude series entries
+  if (recsGrid && recommendationsSection) {
+    const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
+    const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, otherGroups, tags);
+    if (recs.length) {
+      recommendationsSection.hidden = false;
+      recsGrid.innerHTML = recs.map(posterCardHtml).join('');
+    } else {
+      recommendationsSection.hidden = true;
+    }
+  }
 }
 
 // ---------- Watch status ----------
