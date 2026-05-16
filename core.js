@@ -383,7 +383,7 @@ async function fetchJikanDetails(query) {
     if (!first) return null;
     const details = {
       malId:    first.mal_id,
-      title:    first.title,
+      title:    first.title_english || first.title,
       synopsis: first.synopsis || '',
       year:     first.year,
       type:     first.type,
