@@ -253,19 +253,25 @@ async function getCurrentProfile() {
 // ---------- Supabase: sign up ----------
 async function supabaseSignUp(email, password, username) {
   const sb = getSupabase();
+
+  // Check username availability first
   const { data: existing } = await sb.from('user_profiles').select('id').eq('username', username).maybeSingle();
   if (existing) throw new Error('Username is already taken.');
 
+  // Sign up — the database trigger will auto-create the profile
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Sign up failed — please try again.');
 
-  // Sign in immediately so the session is active before inserting profile
+  // Sign in to get an active session
   const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
-  if (signInError) throw new Error('Account created but sign-in failed. Please sign in manually.');
+  if (signInError) throw new Error('Account created. Please sign in.');
 
-  const { error: profileError } = await sb.from('user_profiles').insert({ id: data.user.id, username, avatar_url: null });
-  if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
+  // Update the auto-created profile with the chosen username
+  const { error: updateError } = await sb.from('user_profiles')
+    .update({ username })
+    .eq('id', data.user.id);
+  if (updateError) throw new Error(`Could not set username: ${updateError.message}`);
 
   return data;
 }
