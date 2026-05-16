@@ -255,10 +255,18 @@ async function supabaseSignUp(email, password, username) {
   const sb = getSupabase();
   const { data: existing } = await sb.from('user_profiles').select('id').eq('username', username).maybeSingle();
   if (existing) throw new Error('Username is already taken.');
+
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) throw error;
+  if (!data.user) throw new Error('Sign up failed — please try again.');
+
+  // Sign in immediately so the session is active before inserting profile
+  const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
+  if (signInError) throw new Error('Account created but sign-in failed. Please sign in manually.');
+
   const { error: profileError } = await sb.from('user_profiles').insert({ id: data.user.id, username, avatar_url: null });
-  if (profileError) throw profileError;
+  if (profileError) throw new Error(`Profile creation failed: ${profileError.message}`);
+
   return data;
 }
 
