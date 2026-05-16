@@ -263,6 +263,11 @@
       .player-layout { grid-template-columns: 1fr; }
       #episodeSidebar { max-height: 300px; }
     }
+    .player-comments-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--line);
+    }
   </style>
 </head>
 <body>
@@ -317,6 +322,10 @@
         <section id="recsSection" hidden>
           <h3>You Might Also Like</h3>
           <div id="recsGrid" class="poster-grid"></div>
+        </section>
+
+        <section id="commentsSection" class="player-comments-section">
+          <div id="commentsContainer"></div>
         </section>
       </div>
 
