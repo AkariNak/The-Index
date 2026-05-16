@@ -337,6 +337,31 @@ function getBaseTitle(title) {
     .toLowerCase();
 }
 
+function extractSeriesNum(title) {
+  // Try to pull a season/part number for sorting
+  const m = title.match(/(?:season|part|cour|s)\s*(\d+)/i) ||
+            title.match(/(\d+)(?:st|nd|rd|th)?\s*(?:season|part|cour)/i) ||
+            title.match(/\bS(\d+)\b/i);
+  if (m) return parseInt(m[1], 10);
+  // Movies/OVAs after the main series — put them at the end
+  if (/movie|film|ova|special/i.test(title)) return 999;
+  return 1; // Base season
+}
+
+function extractSeriesLabel(title) {
+  // Return the part that differentiates this entry within the series
+  // e.g. "Attack on Titan Season 2" → "Season 2"
+  //      "Attack on Titan: The Final Season" → "The Final Season"
+  //      "Attack on Titan Movie" → "Movie"
+  const seasonMatch = title.match(/(?:season|part|cour)\s*\w+/i);
+  if (seasonMatch) return seasonMatch[0].replace(/^\w/, c => c.toUpperCase());
+  const colonMatch = title.match(/:\s*(.+)$/);
+  if (colonMatch) return colonMatch[1].trim();
+  const typeMatch = title.match(/\b(Movie|OVA|Special|Film|Final Season|Final Part)\b.*/i);
+  if (typeMatch) return typeMatch[0];
+  return 'Season 1';
+}
+
 function renderRecommendations(allGroups) {
   if (!currentGroup) return;
 
@@ -354,11 +379,36 @@ function renderRecommendations(allGroups) {
     getBaseTitle(g.title) !== baseTitle
   );
 
-  // More from this series
+  // More from this series — HiAnime style horizontal cards, all seasons including current
   if (seriesSection && seriesGrid) {
-    if (seriesGroups.length) {
+    // Include ALL entries in the series (not just others) sorted by season number
+    const allSeriesGroups = allGroups
+      .filter(g => getBaseTitle(g.title) === baseTitle)
+      .sort((a, b) => {
+        // Extract season/part number for sorting
+        const numA = extractSeriesNum(a.title);
+        const numB = extractSeriesNum(b.title);
+        return numA - numB;
+      });
+
+    if (allSeriesGroups.length > 1) {
       seriesSection.hidden = false;
-      seriesGrid.innerHTML = seriesGroups.map(posterCardHtml).join('');
+      seriesGrid.innerHTML = allSeriesGroups.map(g => {
+        const isCurrent = g.slug === currentSlug;
+        const label     = extractSeriesLabel(g.title);
+        const epCount   = g.videos.length;
+        const cover     = g.firstCover || '';
+        return `
+          <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
+            <div class="series-card-bg" style="background-image:url('${escapeHtml(cover)}')"></div>
+            <div class="series-card-info">
+              <div class="series-card-label">${escapeHtml(label)}</div>
+              <div class="series-card-eps">${epCount} ${epCount === 1 ? 'episode' : 'episodes'}</div>
+            </div>
+            ${isCurrent ? '<div class="series-card-now">Now Watching</div>' : ''}
+          </a>
+        `;
+      }).join('');
     } else {
       seriesSection.hidden = true;
     }
