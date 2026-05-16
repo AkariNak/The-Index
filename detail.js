@@ -565,6 +565,7 @@ function openUserAuthDialog(mode) {
   if (!authDialog || !authDialogInner) return;
   if (mode === 'signin') {
     authDialogInner.innerHTML = `
+      <button type="button" class="dialog-close" id="authClose">×</button>
       <h3>Sign In</h3>
       <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
       <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
@@ -574,6 +575,7 @@ function openUserAuthDialog(mode) {
         <button type="button" class="btn btn-solid btn-small" id="authSubmit">Sign In</button>
       </div>
     `;
+    document.getElementById('authClose').addEventListener('click', closeUserAuthDialog);
     document.getElementById('authSubmit').addEventListener('click', async () => {
       const email    = document.getElementById('authEmail').value.trim();
       const password = document.getElementById('authPassword').value.trim();
@@ -588,6 +590,7 @@ function openUserAuthDialog(mode) {
     document.getElementById('authSwitch').addEventListener('click', () => openUserAuthDialog('signup'));
   } else {
     authDialogInner.innerHTML = `
+      <button type="button" class="dialog-close" id="authClose">×</button>
       <h3>Create Account</h3>
       <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
       <input id="authUsername" type="text" placeholder="Username" maxlength="24">
@@ -599,6 +602,7 @@ function openUserAuthDialog(mode) {
         <button type="button" class="btn btn-solid btn-small" id="authSubmit">Create Account</button>
       </div>
     `;
+    document.getElementById('authClose').addEventListener('click', closeUserAuthDialog);
     let checkTimer = null;
     document.getElementById('authUsername').addEventListener('input', e => {
       clearTimeout(checkTimer);
