@@ -132,6 +132,7 @@ function renderDetail() {
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
+        <div id="watchStatusContainer"></div>
         <div class="tag-list">${tagsHtml}</div>
         ${adminAddTag}
         ${adminShowControls}
@@ -158,6 +159,9 @@ function renderDetail() {
   `;
 
   wireDetailEvents();
+
+  // Render watch status async
+  renderWatchStatus(document.getElementById('watchStatusContainer'), g.title);
 }
 
 function episodeRowHtml(video) {
@@ -173,6 +177,20 @@ function episodeRowHtml(video) {
         <small>EP</small>
         ${escapeHtml(ep)}
       </div>
+      <div class="episode-info">
+        <h4 class="episode-title">${escapeHtml(video.title)}</h4>
+        <div class="episode-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)} · ${escapeHtml(formatDate(video.dateAdded))}${isPublicDownload(video) ? '' : ' · LOCAL PREVIEW ONLY'}</div>
+      </div>
+      <div class="episode-actions">
+        <button class="btn btn-outline btn-small play-btn" type="button">Play</button>
+        ${adminControls}
+      </div>
+    </div>
+    <div class="episode-comments-wrap" id="comments-${escapeHtml(String(idx))}">
+      <button class="comments-toggle btn btn-outline btn-small" data-idx="${idx}" type="button">💬 Comments</button>
+      <div class="comments-container" id="comments-body-${escapeHtml(String(idx))}" hidden></div>
+    </div>
+  `;
       <div class="episode-info">
         <h4 class="episode-title">${escapeHtml(video.title)}</h4>
         <div class="episode-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)} · ${escapeHtml(formatDate(video.dateAdded))}${isPublicDownload(video) ? '' : ' · LOCAL PREVIEW ONLY'}</div>
@@ -239,8 +257,20 @@ function wireDetailEvents() {
     if (video) btn.addEventListener('click', () => simpleDelete(video));
   });
 
-  // Continue watching
-  const continueBtn = document.querySelector('.continue-btn');
+  // Comments toggle
+  document.querySelectorAll('.comments-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx       = Number(btn.dataset.idx);
+      const video     = AppState.videos[idx];
+      const body      = document.getElementById(`comments-body-${idx}`);
+      if (!body || !video) return;
+      const isHidden  = body.hidden;
+      body.hidden     = false;
+      btn.textContent = isHidden ? '💬 Hide Comments' : '💬 Comments';
+      if (isHidden) renderComments(body, currentGroup.title, video.title);
+      else body.hidden = true;
+    });
+  });
   if (continueBtn) {
     continueBtn.addEventListener('click', () => {
       const title = continueBtn.dataset.title;
@@ -525,6 +555,230 @@ function wireAdmin() {
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
   wireFogControl();
+  wireSignInNavBtn();
+  wireAccountLink();
+}
+
+// ---------- Sign in nav button (for regular users) ----------
+function wireSignInNavBtn() {
+  const btn = document.getElementById('signInNavBtn');
+  const accountLink = document.getElementById('accountLink');
+  if (!btn) return;
+  getCurrentUser().then(user => {
+    if (user) {
+      btn.hidden = true;
+      if (accountLink) accountLink.hidden = false;
+    } else {
+      btn.hidden = false;
+      if (accountLink) accountLink.hidden = true;
+      btn.addEventListener('click', () => openUserAuthDialog('signin'));
+    }
+  });
+}
+
+function wireAccountLink() {
+  const accountLink = document.getElementById('accountLink');
+  getCurrentUser().then(user => {
+    if (accountLink) accountLink.hidden = !user;
+  });
+}
+
+// ---------- User auth dialog (sign in / sign up for regular users) ----------
+const authDialog     = document.getElementById('authDialog');
+const authDialogInner = document.getElementById('authDialogInner');
+
+function openUserAuthDialog(mode) {
+  if (!authDialog || !authDialogInner) return;
+  if (mode === 'signin') {
+    authDialogInner.innerHTML = `
+      <h3>Sign In</h3>
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+      <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+      <p id="authError" class="admin-error" hidden></p>
+      <div class="admin-actions">
+        <button type="button" class="btn btn-outline btn-small" id="authSwitch">Create account</button>
+        <button type="button" class="btn btn-solid btn-small" id="authSubmit">Sign In</button>
+      </div>
+    `;
+    document.getElementById('authSubmit').addEventListener('click', async () => {
+      const email    = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value.trim();
+      const errEl    = document.getElementById('authError');
+      try {
+        await supabaseSignIn(email, password);
+        closeUserAuthDialog();
+        wireSignInNavBtn();
+        renderDetail();
+      } catch (err) { errEl.textContent = err.message; errEl.hidden = false; }
+    });
+    document.getElementById('authSwitch').addEventListener('click', () => openUserAuthDialog('signup'));
+  } else {
+    authDialogInner.innerHTML = `
+      <h3>Create Account</h3>
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+      <input id="authUsername" type="text" placeholder="Username" maxlength="24">
+      <input id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
+      <div id="authUsernameAvail" class="username-availability"></div>
+      <p id="authError" class="admin-error" hidden></p>
+      <div class="admin-actions">
+        <button type="button" class="btn btn-outline btn-small" id="authSwitch">Sign in instead</button>
+        <button type="button" class="btn btn-solid btn-small" id="authSubmit">Create Account</button>
+      </div>
+    `;
+    let checkTimer = null;
+    document.getElementById('authUsername').addEventListener('input', e => {
+      clearTimeout(checkTimer);
+      const availEl = document.getElementById('authUsernameAvail');
+      availEl.textContent = ''; availEl.className = 'username-availability';
+      if (e.target.value.trim().length < 3) return;
+      checkTimer = setTimeout(async () => {
+        const ok = await checkUsernameAvailable(e.target.value.trim());
+        availEl.textContent = ok ? '✓ Available' : '✗ Already taken';
+        availEl.className   = `username-availability ${ok ? 'available' : 'taken'}`;
+      }, 500);
+    });
+    document.getElementById('authSubmit').addEventListener('click', async () => {
+      const email    = document.getElementById('authEmail').value.trim();
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value.trim();
+      const errEl    = document.getElementById('authError');
+      if (!username || username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; errEl.hidden = false; return; }
+      try {
+        await supabaseSignUp(email, password, username);
+        closeUserAuthDialog();
+        wireSignInNavBtn();
+        renderDetail();
+      } catch (err) { errEl.textContent = err.message; errEl.hidden = false; }
+    });
+    document.getElementById('authSwitch').addEventListener('click', () => openUserAuthDialog('signin'));
+  }
+  if (typeof authDialog.showModal === 'function') authDialog.showModal();
+  else authDialog.setAttribute('open', '');
+}
+
+function closeUserAuthDialog() {
+  if (!authDialog) return;
+  if (typeof authDialog.close === 'function') authDialog.close();
+  else authDialog.removeAttribute('open');
+}
+
+// ---------- Watch status ----------
+const STATUS_LABELS = {
+  watching:      'Watching',
+  completed:     'Completed',
+  plan_to_watch: 'Plan to Watch',
+  on_hold:       'On Hold',
+  dropped:       'Dropped'
+};
+
+async function renderWatchStatus(containerEl, collectionName) {
+  if (!containerEl) return;
+  const user   = await getCurrentUser();
+  const status = user ? await getWatchStatus(collectionName) : null;
+
+  containerEl.innerHTML = `
+    <div class="watch-status-wrap">
+      <select class="watch-status-select" id="watchStatusSelect" ${!user ? 'disabled title="Sign in to track"' : ''}>
+        <option value="">— Add to list —</option>
+        ${Object.entries(STATUS_LABELS).map(([val, label]) =>
+          `<option value="${val}" ${status === val ? 'selected' : ''}>${label}</option>`
+        ).join('')}
+      </select>
+    </div>
+  `;
+
+  if (user) {
+    document.getElementById('watchStatusSelect')?.addEventListener('change', async e => {
+      const val = e.target.value;
+      if (val) await setWatchStatus(collectionName, val);
+    });
+  }
+}
+
+// ---------- Comments ----------
+async function renderComments(containerEl, collectionName, episodeTitle) {
+  if (!containerEl) return;
+  containerEl.innerHTML = `<div class="comments-loading">Loading comments…</div>`;
+
+  const [comments, user, profile] = await Promise.all([
+    getComments(collectionName, episodeTitle),
+    getCurrentUser(),
+    getCurrentUser().then(u => u ? getCurrentProfile() : null)
+  ]);
+
+  const commentsHtml = comments.length
+    ? comments.map(c => `
+        <div class="comment" data-id="${escapeHtml(c.id)}">
+          <div class="comment-avatar">
+            ${c.avatar_url
+              ? `<img src="${escapeHtml(c.avatar_url)}" alt="${escapeHtml(c.username)}">`
+              : `<div class="comment-avatar-placeholder">${escapeHtml(c.username.charAt(0).toUpperCase())}</div>`}
+          </div>
+          <div class="comment-body">
+            <div class="comment-header">
+              <span class="comment-username">${escapeHtml(c.username)}</span>
+              <span class="comment-date">${formatDate(c.created_at)}</span>
+              ${user && c.user_id === user.id ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button">Delete</button>` : ''}
+            </div>
+            <p class="comment-content">${escapeHtml(c.content)}</p>
+          </div>
+        </div>
+      `).join('')
+    : `<div class="comments-empty">No comments yet. Be the first!</div>`;
+
+  const inputHtml = user
+    ? `<div class="comment-input-wrap">
+        <div class="comment-avatar">
+          ${profile?.avatar_url
+            ? `<img src="${escapeHtml(profile.avatar_url)}" alt="">`
+            : `<div class="comment-avatar-placeholder">${escapeHtml((profile?.username || '?').charAt(0).toUpperCase())}</div>`}
+        </div>
+        <div class="comment-input-inner">
+          <textarea id="commentInput" placeholder="Write a comment…" rows="2" maxlength="1000"></textarea>
+          <button class="btn btn-solid btn-small" id="commentSubmit" type="button">Post</button>
+        </div>
+      </div>`
+    : `<div class="comment-signin-prompt">
+        <button class="btn btn-outline btn-small" id="commentSignInBtn" type="button">Sign in to comment</button>
+      </div>`;
+
+  containerEl.innerHTML = `
+    <div class="comments-section">
+      <h4 class="comments-heading">Comments <span class="episodes-count">${comments.length}</span></h4>
+      ${inputHtml}
+      <div class="comments-list">${commentsHtml}</div>
+    </div>
+  `;
+
+  // Wire submit
+  document.getElementById('commentSubmit')?.addEventListener('click', async () => {
+    const input   = document.getElementById('commentInput');
+    const content = input?.value?.trim();
+    if (!content) return;
+    const submitBtn = document.getElementById('commentSubmit');
+    submitBtn.disabled = true;
+    try {
+      await postComment(collectionName, episodeTitle, content);
+      await renderComments(containerEl, collectionName, episodeTitle);
+    } catch (err) {
+      alert(`Could not post comment: ${err.message}`);
+      submitBtn.disabled = false;
+    }
+  });
+
+  // Wire delete
+  containerEl.querySelectorAll('.comment-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this comment?')) return;
+      try {
+        await deleteComment(btn.dataset.id);
+        await renderComments(containerEl, collectionName, episodeTitle);
+      } catch (err) { alert(`Could not delete: ${err.message}`); }
+    });
+  });
+
+  // Wire sign in prompt
+  document.getElementById('commentSignInBtn')?.addEventListener('click', () => openUserAuthDialog('signin'));
 }
 
 // ---------- Theme (dark by default) ----------
