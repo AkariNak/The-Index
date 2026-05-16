@@ -191,16 +191,6 @@ function episodeRowHtml(video) {
       <div class="comments-container" id="comments-body-${escapeHtml(String(idx))}" hidden></div>
     </div>
   `;
-      <div class="episode-info">
-        <h4 class="episode-title">${escapeHtml(video.title)}</h4>
-        <div class="episode-meta">${escapeHtml(video.fileType)} · ${escapeHtml(video.fileSize)} · ${escapeHtml(formatDate(video.dateAdded))}${isPublicDownload(video) ? '' : ' · LOCAL PREVIEW ONLY'}</div>
-      </div>
-      <div class="episode-actions">
-        <button class="btn btn-outline btn-small play-btn" type="button">Play</button>
-        ${adminControls}
-      </div>
-    </div>
-  `;
 }
 
 function wireDetailEvents() {
