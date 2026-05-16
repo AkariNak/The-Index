@@ -9,15 +9,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Lora:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <style>
-    .player-page {
-      max-width: 1500px;
-      margin: 0 auto;
-      padding: 24px 32px 80px;
-    }
+    .player-page { max-width: 1500px; margin: 0 auto; padding: 24px 32px 80px; }
+
     .player-nav {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       margin-bottom: 20px;
       padding-bottom: 16px;
       border-bottom: 1px solid var(--line);
@@ -25,36 +22,37 @@
     .player-nav a {
       font-family: var(--mono);
       font-size: 10px;
-      letter-spacing: 0.15em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--ink-soft);
       text-decoration: none;
-      transition: color .15s;
+      transition: color 0.15s;
     }
     .player-nav a:hover { color: var(--accent); }
-    .player-nav .nav-divider { color: var(--line); font-size: 11px; }
+    .player-nav .nav-div { color: var(--line); }
     .player-nav .nav-show {
       font-family: var(--display);
       font-size: 14px;
       font-weight: 600;
       color: var(--ink);
+      letter-spacing: 0.04em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      letter-spacing: 0.04em;
     }
+
     .player-layout {
       display: grid;
       grid-template-columns: 1fr 300px;
       gap: 24px;
       align-items: start;
     }
+
     .video-wrap {
-      width: 100%;
       background: #000;
       border-radius: var(--radius);
       overflow: hidden;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(201,150,58,0.1);
+      box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,150,58,0.1);
       margin-bottom: 12px;
     }
     .video-wrap video {
@@ -63,30 +61,19 @@
       max-height: 72vh;
       background: #000;
     }
+
     /* Fog / cinema mode */
     .video-controls-bar {
       display: flex;
       align-items: center;
       justify-content: flex-end;
       gap: 10px;
-      padding: 8px 2px;
-      margin-bottom: 12px;
+      padding: 6px 0 14px;
     }
-    .fog-control {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .fog-label {
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-    }
+    .fog-control { display: flex; align-items: center; gap: 8px; }
+    .fog-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); }
     .fog-swatch {
-      width: 26px;
-      height: 26px;
+      width: 26px; height: 26px;
       padding: 0;
       border: 1px solid var(--line);
       border-radius: 50%;
@@ -94,7 +81,9 @@
       background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
       position: relative;
       overflow: hidden;
+      transition: border-color 0.15s;
     }
+    .fog-swatch:hover { border-color: var(--accent); }
     .fog-swatch::after {
       content: '';
       position: absolute;
@@ -105,12 +94,7 @@
       display: var(--fog-swatch-show, none);
     }
     .fog-swatch.active::after { display: block; }
-    .fog-input {
-      position: absolute;
-      width: 0; height: 0;
-      opacity: 0;
-      pointer-events: none;
-    }
+    .fog-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
     .fog-off-btn {
       background: transparent;
       border: 1px solid var(--line);
@@ -122,99 +106,30 @@
       text-transform: uppercase;
       cursor: pointer;
       border-radius: var(--radius-sm);
-      transition: color .12s, border-color .12s;
+      transition: color 0.15s, border-color 0.15s;
     }
     .fog-off-btn:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+    /* Player info */
     .player-info { padding: 0 2px; }
-    .player-ep-meta {
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-      margin-bottom: 8px;
-    }
-    .player-title {
-      font-family: var(--display);
-      font-size: clamp(16px, 2vw, 24px);
-      font-weight: 700;
-      line-height: 1.2;
-      margin: 0 0 10px;
-      color: var(--ink);
-      letter-spacing: 0.04em;
-    }
-    .player-desc {
-      font-family: var(--body);
-      font-size: 14px;
-      color: var(--ink-soft);
-      line-height: 1.6;
-      margin: 0 0 20px;
-    }
-    .show-info-block {
-      border-top: 1px solid var(--line);
-      padding-top: 20px;
-      margin-top: 4px;
-    }
-    .show-info-label {
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 8px;
-    }
-    #showTitle {
-      font-family: var(--display);
-      font-size: 18px;
-      font-weight: 700;
-      margin: 0 0 6px;
-      color: var(--ink);
-      letter-spacing: 0.04em;
-    }
-    #showMeta {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.12em;
-      color: var(--ink-soft);
-      margin-bottom: 12px;
-    }
-    #showSynopsis {
-      font-family: var(--body);
-      font-size: 14px;
-      color: var(--ink-soft);
-      line-height: 1.6;
-      margin: 0 0 14px;
-    }
+    .player-ep-meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 8px; }
+    .player-title { font-family: var(--display); font-size: clamp(16px, 2vw, 22px); font-weight: 700; line-height: 1.2; margin: 0 0 10px; color: var(--ink); letter-spacing: 0.04em; }
+    .player-desc { font-family: var(--body); font-size: 14px; color: var(--ink-soft); line-height: 1.6; margin: 0 0 20px; }
+
+    .show-info-block { border-top: 1px solid var(--line); padding-top: 20px; margin-top: 8px; }
+    .show-info-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    #showTitle { font-family: var(--display); font-size: 17px; font-weight: 700; margin: 0 0 6px; color: var(--ink); letter-spacing: 0.04em; }
+    #showMeta { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--ink-soft); margin-bottom: 12px; }
+    #showSynopsis { font-family: var(--body); font-size: 14px; color: var(--ink-soft); line-height: 1.6; margin: 0 0 14px; }
     #tagList { display: flex; flex-wrap: wrap; gap: 6px; }
-    #recsSection {
-      margin-top: 28px;
-      padding-top: 20px;
-      border-top: 1px solid var(--line);
-    }
-    #recsSection h3 {
-      font-family: var(--display);
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      color: var(--ink-soft);
-      margin: 0 0 16px;
-      font-weight: 600;
-    }
-    #recsGrid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 14px;
-    }
+
+    #recsSection { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+    #recsSection h3 { font-family: var(--display); font-size: 14px; font-weight: 600; letter-spacing: 0.06em; color: var(--ink-soft); margin: 0 0 16px; }
+    #recsGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
+
+    /* Sidebar */
     .player-sidebar { position: sticky; top: 88px; }
-    .sidebar-head {
-      font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-soft);
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--line);
-      margin-bottom: 2px;
-    }
+    .sidebar-head { font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); padding-bottom: 10px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
     #episodeSidebar {
       display: flex;
       flex-direction: column;
@@ -225,139 +140,129 @@
     }
     #episodeSidebar::-webkit-scrollbar { width: 3px; }
     #episodeSidebar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 2px; }
+
     .sidebar-ep {
       display: flex;
       flex-direction: column;
       gap: 2px;
-      padding: 12px 14px;
+      padding: 11px 14px;
       background: transparent;
       border: none;
       border-bottom: 1px solid var(--line-soft);
       text-align: left;
       cursor: pointer;
       color: var(--ink);
-      transition: background .12s;
+      transition: background 0.12s;
     }
     .sidebar-ep:hover { background: var(--paper-2); }
     .sidebar-ep.active { background: var(--accent); }
-    .sidebar-ep.active .sidebar-ep-num { color: rgba(0,0,0,0.6); }
-    .sidebar-ep.active .sidebar-ep-title { color: #000; }
-    .sidebar-ep-num {
-      font-family: var(--mono);
-      font-size: 8px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-    }
-    .sidebar-ep-title {
-      font-family: var(--body);
-      font-size: 13px;
-      line-height: 1.3;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+    .sidebar-ep.active .sidebar-ep-num, .sidebar-ep.active .sidebar-ep-title { color: #000; }
+    .sidebar-ep-num { font-family: var(--mono); font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); }
+    .sidebar-ep-title { font-family: var(--body); font-size: 13px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
     @media (max-width: 900px) {
       .player-page { padding: 16px 16px 64px; }
       .player-layout { grid-template-columns: 1fr; }
-      #episodeSidebar { max-height: 300px; }
+      #episodeSidebar { max-height: 280px; }
     }
-    .player-comments-section {
-      margin-top: 32px;
-      padding-top: 24px;
-      border-top: 1px solid var(--line);
+    @media (max-width: 600px) {
+      .player-page { padding: 12px 12px 48px; }
     }
   </style>
 </head>
 <body>
 
-  <nav class="topnav">
-    <a class="topnav-brand" href="index.html">AURUM</a>
-    <div class="topnav-right">
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
-    </div>
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html">AURUM</a>
+  <div class="topnav-right">
+    <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn">☕ <span>Support</span></a>
+    <a id="accountLink" href="account.html" class="btn btn-outline btn-small" hidden>Account</a>
+    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small" style="display:none">Sign In</button>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<div class="player-page">
+  <nav class="player-nav">
+    <a href="index.html">← Aurum</a>
+    <span class="nav-div">/</span>
+    <a id="backLink" href="index.html">Show</a>
+    <span class="nav-div">/</span>
+    <span class="nav-show" id="navShowTitle">Loading…</span>
   </nav>
 
-  <div class="player-page">
-    <nav class="player-nav">
-      <a href="index.html">← Aurum</a>
-      <span class="nav-divider">/</span>
-      <a id="backLink" href="index.html">Show page</a>
-      <span class="nav-divider">/</span>
-      <span class="nav-show" id="navShowTitle">Loading…</span>
-    </nav>
+  <div class="player-layout">
 
-    <div class="player-layout">
-      <div class="player-main">
-        <div class="video-wrap">
-          <video
-            id="playerVideo"
-            controls
-            controlsList="nodownload noremoteplayback"
-            disablePictureInPicture
-          ></video>
-        </div>
-        <div class="video-controls-bar">
-          <div class="fog-control">
-            <span class="fog-label">Cinema Fog</span>
-            <label class="fog-swatch" id="fogSwatch" title="Pick fog color">
-              <input type="color" id="fogInput" class="fog-input" value="#000000">
-            </label>
-            <button type="button" id="fogOffButton" class="fog-off-btn">Off</button>
-          </div>
-        </div>
-        <div class="player-info">
-          <div class="player-ep-meta" id="playerEpMeta"></div>
-          <h1 class="player-title" id="playerTitle">Loading…</h1>
-          <p class="player-desc" id="playerDesc" hidden></p>
-        </div>
-        <div class="show-info-block">
-          <div class="show-info-label">From the collection</div>
-          <h2 id="showTitle"></h2>
-          <div id="showMeta" hidden></div>
-          <p id="showSynopsis" hidden></p>
-          <div id="tagList" hidden></div>
-        </div>
-        <section id="recsSection" hidden>
-          <h3>You Might Also Like</h3>
-          <div id="recsGrid" class="poster-grid"></div>
-        </section>
-
-        <section id="commentsSection" class="player-comments-section">
-          <div id="commentsContainer"></div>
-        </section>
+    <div class="player-main">
+      <div class="video-wrap">
+        <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture></video>
       </div>
-
-      <aside class="player-sidebar">
-        <div class="sidebar-head">Episodes</div>
-        <div id="episodeSidebar"></div>
-      </aside>
+      <div class="video-controls-bar">
+        <div class="fog-control">
+          <span class="fog-label">Cinema Fog</span>
+          <label class="fog-swatch" id="fogSwatch" title="Pick fog color">
+            <input type="color" id="fogInput" class="fog-input" value="#000000">
+          </label>
+          <button type="button" id="fogOffButton" class="fog-off-btn">Off</button>
+        </div>
+      </div>
+      <div class="player-info">
+        <div class="player-ep-meta" id="playerEpMeta"></div>
+        <h1 class="player-title" id="playerTitle">Loading…</h1>
+        <p class="player-desc" id="playerDesc" hidden></p>
+      </div>
+      <div class="show-info-block">
+        <div class="show-info-label">From the collection</div>
+        <h2 id="showTitle"></h2>
+        <div id="showMeta" hidden></div>
+        <p id="showSynopsis" hidden></p>
+        <div id="tagList" hidden></div>
+      </div>
+      <section id="recsSection" hidden>
+        <h3>You Might Also Like</h3>
+        <div id="recsGrid"></div>
+      </section>
+      <section class="player-comments-section">
+        <div id="commentsContainer"></div>
+      </section>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="core.js"></script>
-  <script src="player.js"></script>
-  <script>
-    // Wire theme toggle on player page
-    const _tt = document.getElementById('themeToggle');
-    if (_tt) {
-      _tt.addEventListener('click', () => {
-        const nowLight = !document.body.classList.contains('light');
-        document.body.classList.toggle('light', nowLight);
-        localStorage.setItem('the-index-theme', nowLight ? 'light' : 'dark');
-        _tt.textContent = nowLight ? '☀' : '☾';
-      });
-      _tt.textContent = document.body.classList.contains('light') ? '☀' : '☾';
-    }
-    // Sync nav title
-    const _st = document.getElementById('showTitle');
-    const _nt = document.getElementById('navShowTitle');
-    if (_st && _nt) {
-      new MutationObserver(() => { _nt.textContent = _st.textContent; })
-        .observe(_st, { childList: true, subtree: true, characterData: true });
-    }
-  </script>
+    <aside class="player-sidebar">
+      <div class="sidebar-head">Episodes</div>
+      <div id="episodeSidebar"></div>
+    </aside>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="core.js"></script>
+<script src="player.js"></script>
+<script>
+  // Theme toggle
+  const _tt = document.getElementById('themeToggle');
+  if (_tt) {
+    _tt.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+    _tt.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', nowLight);
+      localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+      _tt.textContent = nowLight ? '☀' : '☾';
+    });
+  }
+  // Sync nav title
+  const _st = document.getElementById('showTitle');
+  const _nt = document.getElementById('navShowTitle');
+  if (_st && _nt) {
+    new MutationObserver(() => { _nt.textContent = _st.textContent; }).observe(_st, { childList: true, subtree: true, characterData: true });
+  }
+  // Nav auth
+  getCurrentUser && getCurrentUser().then(user => {
+    const signIn = document.getElementById('signInNavBtn');
+    const acct   = document.getElementById('accountLink');
+    if (user) { if (signIn) signIn.style.display = 'none'; if (acct) acct.hidden = false; }
+    else { if (signIn) { signIn.style.display = ''; signIn.onclick = () => window.location.href = 'account.html'; } if (acct) acct.hidden = true; }
+  });
+</script>
 </body>
 </html>
