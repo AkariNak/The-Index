@@ -222,6 +222,7 @@ function openAuthDialog(mode) {
   const inner = document.getElementById('authDialogInner');
   if (mode === 'signin') {
     inner.innerHTML = `
+      <button type="button" class="dialog-close" id="authClose">×</button>
       <h3>Sign In</h3>
       <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
       <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
@@ -231,6 +232,7 @@ function openAuthDialog(mode) {
         <button type="button" class="btn btn-solid btn-small" id="authSubmit">Sign In</button>
       </div>
     `;
+    document.getElementById('authClose').addEventListener('click', closeAuthDialog);
     document.getElementById('authSubmit').addEventListener('click', async () => {
       const email    = document.getElementById('authEmail').value.trim();
       const password = document.getElementById('authPassword').value.trim();
@@ -246,6 +248,7 @@ function openAuthDialog(mode) {
     document.getElementById('authSwitch').addEventListener('click', () => openAuthDialog('signup'));
   } else {
     inner.innerHTML = `
+      <button type="button" class="dialog-close" id="authClose">×</button>
       <h3>Create Account</h3>
       <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
       <input id="authUsername" type="text" placeholder="Username" maxlength="24">
@@ -257,6 +260,7 @@ function openAuthDialog(mode) {
         <button type="button" class="btn btn-solid btn-small" id="authSubmit">Create Account</button>
       </div>
     `;
+    document.getElementById('authClose').addEventListener('click', closeAuthDialog);
     let checkTimer = null;
     document.getElementById('authUsername').addEventListener('input', e => {
       clearTimeout(checkTimer);
