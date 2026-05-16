@@ -1,7 +1,11 @@
 // ============================================================
-// index.html — poster grid + add-video form
-// Depends on core.js
+// Aurum — index.js
 // ============================================================
+
+// ---------- Theme (runs immediately before anything renders) ----------
+(function() {
+  document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
+})();
 
 // ---------- DOM refs ----------
 const collectionGrid    = document.getElementById('collectionGrid');
@@ -9,7 +13,6 @@ const archiveList       = document.getElementById('archiveList');
 const search            = document.getElementById('search');
 const filters           = document.getElementById('filters');
 const count             = document.getElementById('count');
-const publicCount       = document.getElementById('publicCount');
 const addVideoForm      = document.getElementById('addVideoForm');
 const exportJsonButton  = document.getElementById('exportJsonButton');
 const clearLocalButton  = document.getElementById('clearLocalButton');
@@ -25,7 +28,19 @@ const framePicker       = document.getElementById('framePicker');
 const frameGrid         = document.getElementById('frameGrid');
 const regenerateFramesButton = document.getElementById('regenerateFramesButton');
 const downloadIndexPanel     = document.getElementById('downloadIndexPanel');
-
+const skeletonGrid           = document.getElementById('skeletonGrid');
+const adminPanel         = document.getElementById('adminPanel');
+const adminDialog        = document.getElementById('adminDialog');
+const adminLoginForm     = document.getElementById('adminLoginForm');
+const adminLoginButton   = document.getElementById('adminLoginButton');
+const adminCancelButton  = document.getElementById('adminCancelButton');
+const adminEmailInput    = document.getElementById('adminEmailInput');
+const adminPasswordInput = document.getElementById('adminPasswordInput');
+const adminError         = document.getElementById('adminError');
+const findCoverButton    = document.getElementById('findCoverButton');
+const coverSearchPanel   = document.getElementById('coverSearchPanel');
+const coverSearchStatus  = document.getElementById('coverSearchStatus');
+const coverSearchResults = document.getElementById('coverSearchResults');
 const titleInput       = document.getElementById('titleInput');
 const collectionInput  = document.getElementById('collectionInput');
 const episodeInput     = document.getElementById('episodeInput');
@@ -35,50 +50,32 @@ const fileSizeInput    = document.getElementById('fileSizeInput');
 const descriptionInput = document.getElementById('descriptionInput');
 const hostedUrlInput   = document.getElementById('hostedUrlInput');
 
-const adminPanel         = document.getElementById('adminPanel');
-const adminDialog        = document.getElementById('adminDialog');
-const adminLoginForm     = document.getElementById('adminLoginForm');
-const adminLoginButton   = document.getElementById('adminLoginButton');
-const adminCancelButton  = document.getElementById('adminCancelButton');
-const adminEmailInput    = document.getElementById('adminEmailInput');
-const adminPasswordInput = document.getElementById('adminPasswordInput');
-const adminError         = document.getElementById('adminError');
-
-const findCoverButton    = document.getElementById('findCoverButton');
-const coverSearchPanel   = document.getElementById('coverSearchPanel');
-const coverSearchStatus  = document.getElementById('coverSearchStatus');
-const coverSearchResults = document.getElementById('coverSearchResults');
-
 const yearEl = document.getElementById('year');
 if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
-// ---------- Local state ----------
-let activeCategory  = 'all';
-let activeTab       = 'collections';
-let selectedVideoUrl  = '';
-let selectedCoverUrl  = '';
-let generatedFrames   = [];
+// ---------- State ----------
+let activeCategory   = 'all';
+let selectedVideoUrl = '';
+let selectedCoverUrl = '';
+let generatedFrames  = [];
 
-// ---------- Theme (dark by default) ----------
-const THEME_KEY = 'the-index-theme';
-
-function applyTheme(light) {
-  document.body.classList.toggle('light', light);
-  const btn = document.getElementById('themeToggle');
-  if (btn) btn.textContent = light ? '☀' : '☾';
+// ---------- Skeleton loading ----------
+function showSkeleton() {
+  if (!skeletonGrid) return;
+  skeletonGrid.innerHTML = Array(12).fill(0).map(() => `
+    <div class="poster-card">
+      <div class="skeleton skeleton-poster"></div>
+      <div style="padding:0 2px;margin-top:10px">
+        <div class="skeleton skeleton-line skeleton-line-short" style="width:40%;height:9px;margin-bottom:6px"></div>
+        <div class="skeleton skeleton-line" style="height:13px;margin-bottom:4px"></div>
+        <div class="skeleton skeleton-line skeleton-line-short" style="height:9px;width:55%"></div>
+      </div>
+    </div>
+  `).join('');
 }
 
-function wireThemeToggle() {
-  const saved = localStorage.getItem(THEME_KEY);
-  applyTheme(saved === 'light');
-  const btn = document.getElementById('themeToggle');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      const nowLight = !document.body.classList.contains('light');
-      applyTheme(nowLight);
-      localStorage.setItem(THEME_KEY, nowLight ? 'light' : 'dark');
-    });
-  }
+function hideSkeleton() {
+  if (skeletonGrid) skeletonGrid.innerHTML = '';
 }
 
 // ---------- Filter / render ----------
@@ -89,7 +86,7 @@ function getFilteredVideos() {
       video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchesCategory) return false;
     if (!query) return true;
-    return [video.title, video.description, video.collection, video.category, video.fileType]
+    return [video.title, video.description, video.collection, video.category]
       .join(' ').toLowerCase().includes(query);
   });
 }
@@ -100,10 +97,10 @@ function buildFilters() {
   filters.innerHTML = categories.map(c =>
     `<button class="chip ${c === activeCategory ? 'active' : ''}" data-category="${escapeHtml(c)}" type="button">${c === 'all' ? 'All' : escapeHtml(c)}</button>`
   ).join('');
-  filters.querySelectorAll('.chip').forEach(button => {
-    button.addEventListener('click', () => {
-      activeCategory = button.dataset.category;
-      filters.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === button));
+  filters.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.category;
+      filters.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === btn));
       render();
     });
   });
@@ -111,13 +108,11 @@ function buildFilters() {
 
 function posterCardHtml(group) {
   const cover = group.firstCover
-    ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)} cover" loading="lazy">`
+    ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
     : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0).toUpperCase())}</div>`;
-
   const epCount = group.videos.length;
-
   return `
-    <article class="poster-card" data-collection="${escapeHtml(group.title)}">
+    <article class="poster-card">
       <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(group.slug)}">
         <div class="poster-cover">
           ${cover}
@@ -135,18 +130,13 @@ function posterCardHtml(group) {
 
 function render() {
   if (!collectionGrid) return;
-  const filtered        = getFilteredVideos();
-  const publicDownloads = filtered.filter(isPublicDownload).length;
+  hideSkeleton();
+  const filtered = getFilteredVideos();
+  const groups   = groupVideos(filtered);
 
-  if (count)       count.textContent       = `SHOWING ${filtered.length} ${filtered.length === 1 ? 'ENTRY' : 'ENTRIES'}`;
-  if (publicCount) publicCount.textContent = `${publicDownloads} PUBLIC DOWNLOADS`;
-
-  const groups = groupVideos(filtered);
-  if (!groups.length) {
-    collectionGrid.innerHTML = '<div class="empty">Nothing here yet. Add a video to get started.</div>';
-  } else {
-    collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
-  }
+  const showCount = groups.length;
+  const epCount   = filtered.length;
+  if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   if (archiveList) {
     archiveList.innerHTML = filtered.map(v => `
@@ -156,14 +146,19 @@ function render() {
       </li>
     `).join('');
   }
+
+  if (!groups.length) {
+    collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>';
+    return;
+  }
+  collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
 }
 
 function refreshArchive() {
   syncVideos();
   buildFilters();
   render();
-  const groups = groupVideos(AppState.videos);
-  buildHero(groups);
+  rebuildHero();
 }
 
 // ---------- Frame picker ----------
@@ -172,48 +167,38 @@ async function generateCoverFrames(videoUrl) {
   framePicker.classList.add('visible');
   frameGrid.innerHTML = '<div class="file-note">Generating frames…</div>';
   generatedFrames = [];
-
   const video = document.createElement('video');
   video.src = videoUrl; video.muted = true; video.playsInline = true; video.preload = 'metadata';
-
-  function loadMeta() {
-    return new Promise((res, rej) => {
-      video.addEventListener('loadedmetadata', () => res(), { once: true });
-      video.addEventListener('error', () => rej(new Error('Could not load video.')), { once: true });
-    });
-  }
-  function seek(t) {
-    return new Promise((res, rej) => {
-      video.addEventListener('seeked', () => res(), { once: true });
-      video.addEventListener('error', () => rej(new Error('Seek failed.')), { once: true });
-      video.currentTime = Math.min(Math.max(t, 0), Math.max(video.duration - 0.1, 0));
-    });
-  }
   try {
-    await loadMeta();
+    await new Promise((res, rej) => {
+      video.addEventListener('loadedmetadata', res, { once: true });
+      video.addEventListener('error', rej, { once: true });
+    });
     const dur    = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
     const points = [0.12, 0.25, 0.4, 0.55, 0.72].map(p => Math.max(0.15, dur * p));
     const canvas = document.createElement('canvas');
     const ctx    = canvas.getContext('2d', { willReadFrequently: true });
-    const sw     = video.videoWidth  || 1280;
-    const sh     = video.videoHeight || 720;
     canvas.width  = 640;
-    canvas.height = Math.round(640 * sh / sw);
+    canvas.height = Math.round(640 * (video.videoHeight || 720) / (video.videoWidth || 1280));
     for (const t of points) {
-      await seek(t);
+      await new Promise((res, rej) => {
+        video.addEventListener('seeked', res, { once: true });
+        video.addEventListener('error', rej, { once: true });
+        video.currentTime = Math.min(Math.max(t, 0), Math.max(video.duration - 0.1, 0));
+      });
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       generatedFrames.push({ url: canvas.toDataURL('image/jpeg', 0.78), time: t });
     }
     renderFrameOptions();
   } catch (err) {
-    frameGrid.innerHTML = `<div class="file-note">${escapeHtml(err.message)}</div>`;
+    frameGrid.innerHTML = `<div class="file-note">Could not generate frames.</div>`;
   } finally {
     video.removeAttribute('src'); video.load();
   }
 }
 
 function renderFrameOptions() {
-  if (!generatedFrames.length) { frameGrid.innerHTML = '<div class="file-note">No frames.</div>'; return; }
+  if (!generatedFrames.length) return;
   if (!selectedCoverUrl || selectedCoverUrl.startsWith('blob:')) {
     selectedCoverUrl = generatedFrames[Math.min(1, generatedFrames.length - 1)].url;
   }
@@ -229,96 +214,39 @@ function renderFrameOptions() {
   });
 }
 
-function handleVideoFileSelect(file) {
-  if (!file) return;
-  if (selectedVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedVideoUrl);
-  selectedVideoUrl = URL.createObjectURL(file);
-  if (selectedFileText) selectedFileText.textContent = `${file.name} · ${formatBytes(file.size)}`;
-  const parsed = parseEpisodeInfo(file.name);
-  if (titleInput      && !titleInput.value)      titleInput.value      = parsed.title;
-  if (collectionInput && !collectionInput.value)  collectionInput.value = parsed.collection;
-  if (episodeInput    && !episodeInput.value)      episodeInput.value    = parsed.episode;
-  if (fileSizeInput   && !fileSizeInput.value)     fileSizeInput.value   = formatBytes(file.size);
-  if (fileTypeInput   && !fileTypeInput.value)     fileTypeInput.value   = (file.name.split('.').pop() || 'MP4').toUpperCase();
-  if (autoGroupText) autoGroupText.textContent = `Auto-grouped under "${parsed.collection}".`;
-  generateCoverFrames(selectedVideoUrl);
-}
-
-function handleCoverFileSelect(file) {
-  if (!file) return;
-  if (selectedCoverUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedCoverUrl);
-  selectedCoverUrl = URL.createObjectURL(file);
-  if (selectedCoverText) selectedCoverText.textContent = `${file.name} · ${formatBytes(file.size)}`;
-}
-
-function findDuplicates(newVideo) {
-  const existing = [...AppState.baseVideos, ...AppState.localVideos, ...AppState.sessionVideos];
-  const reasons  = [];
-  const titleMatch = existing.find(v => v.title.trim().toLowerCase() === newVideo.title.trim().toLowerCase());
-  if (titleMatch) reasons.push(`exact title "${titleMatch.title}"`);
-  if (newVideo.episode) {
-    const epMatch = existing.find(v =>
-      v.collection.trim().toLowerCase() === newVideo.collection.trim().toLowerCase() &&
-      String(v.episode).trim() === String(newVideo.episode).trim()
-    );
-    if (epMatch && epMatch !== titleMatch) reasons.push(`episode ${epMatch.episode} of "${epMatch.collection}"`);
-  }
-  if (newVideo.downloadUrl && newVideo.downloadUrl !== '#' && !newVideo.downloadUrl.startsWith('blob:')) {
-    const urlMatch = existing.find(v => v.downloadUrl === newVideo.downloadUrl);
-    if (urlMatch && urlMatch !== titleMatch) reasons.push(`same hosted URL as "${urlMatch.title}"`);
-  }
-  return reasons;
-}
-
-async function handleFormSubmit(event) {
-  event.preventDefault();
+// ---------- Form ----------
+async function handleFormSubmit(e) {
+  e.preventDefault();
   const title = titleInput?.value?.trim();
   if (!title) { if (formStatus) formStatus.textContent = 'A title is required.'; return; }
-
   const hostedUrl   = hostedUrlInput?.value?.trim();
   const downloadUrl = hostedUrl || selectedVideoUrl || '#';
   const isTemporary = !hostedUrl && Boolean(selectedVideoUrl);
-
   const newVideo = normalizeVideo({
-    title,
-    description:  descriptionInput?.value?.trim() || '',
-    collection:   collectionInput?.value?.trim()  || '',
-    episode:      episodeInput?.value?.trim()      || '',
-    category:     categoryInput?.value?.trim()     || 'Other',
-    fileType:     fileTypeInput?.value?.trim()     || 'MP4',
-    fileSize:     fileSizeInput?.value?.trim()     || '—',
-    dateAdded:    todayIso(),
-    downloadUrl,
-    coverUrl:     selectedCoverUrl || '',
-    temporary:    isTemporary
+    title, description: descriptionInput?.value?.trim() || '',
+    collection: collectionInput?.value?.trim() || '', episode: episodeInput?.value?.trim() || '',
+    category: categoryInput?.value?.trim() || 'Other', fileType: fileTypeInput?.value?.trim() || 'MP4',
+    fileSize: fileSizeInput?.value?.trim() || '—', dateAdded: todayIso(),
+    downloadUrl, coverUrl: selectedCoverUrl || '', temporary: isTemporary
   });
-
-  const dupes = findDuplicates(newVideo);
-  if (dupes.length && !confirm(`Possible duplicate:\n\n• ${dupes.join('\n• ')}\n\nAdd anyway?`)) {
-    if (formStatus) formStatus.textContent = 'Add cancelled.';
-    return;
-  }
-
   if (isTemporary) {
     AppState.sessionVideos.push(newVideo);
-    if (formStatus) formStatus.textContent = 'Added as a device preview. Provide a hosted URL to publish it.';
+    if (formStatus) formStatus.textContent = 'Added as device preview. Add a hosted URL to publish.';
   } else if (isAdminUnlocked()) {
     try {
       if (formStatus) formStatus.textContent = 'Saving…';
       const saved = await supabaseInsert(newVideo);
       AppState.baseVideos.unshift(saved);
-      if (formStatus) formStatus.textContent = 'Saved to Supabase.';
+      if (formStatus) formStatus.textContent = 'Saved.';
     } catch (err) {
-      console.error('Insert failed:', err);
       if (formStatus) formStatus.textContent = `Save failed: ${err.message}`;
       return;
     }
   } else {
     AppState.localVideos.push(newVideo);
     saveLocalVideos();
-    if (formStatus) formStatus.textContent = 'Saved locally (log in as admin to publish).';
+    if (formStatus) formStatus.textContent = 'Saved locally. Sign in as admin to publish.';
   }
-
   resetForm();
   refreshArchive();
 }
@@ -335,55 +263,23 @@ function resetForm() {
   generatedFrames = [];
 }
 
-function handleExportJson() {
-  const exportable = [...AppState.baseVideos, ...AppState.localVideos].map(v => {
-    const o = { ...v };
-    if (o.downloadUrl?.startsWith('blob:')) o.downloadUrl = '';
-    if (o.coverUrl?.startsWith('blob:') || o.coverUrl?.startsWith('data:')) o.coverUrl = '';
-    return o;
-  });
-  const blob = new Blob([JSON.stringify(exportable, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = 'videos.json'; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function handleClearLocal() {
-  if (!confirm('Clear all locally added videos? This only removes entries saved to this browser, not Supabase.')) return;
-  AppState.localVideos = [];
-  saveLocalVideos();
-  refreshArchive();
-  if (formStatus) formStatus.textContent = 'Local library cleared.';
-}
-
 // ---------- Cover search ----------
 function debounce(fn, ms) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
 }
 
 function bestSearchQuery(title, collection) {
-  if (collection && collection.trim()) return collection.trim();
-  if (!title) return '';
-  return title
-    .replace(/\s+S\d{1,2}\s*E\d{1,3}.*$/i, '')
-    .replace(/\s+\d{1,2}x\d{1,3}.*$/i, '')
-    .replace(/\s+(episode|ep)\s*\d+.*$/i, '')
-    .replace(/\s+-\s*\d+.*$/, '')
-    .trim();
+  if (collection?.trim()) return collection.trim();
+  return (title || '').replace(/\s+S\d{1,2}\s*E\d{1,3}.*$/i, '').replace(/\s+(episode|ep)\s*\d+.*$/i, '').trim();
 }
 
 async function runCoverSearch(query) {
   if (!query) { if (coverSearchPanel) coverSearchPanel.hidden = true; return; }
   if (coverSearchPanel) coverSearchPanel.hidden = false;
-  if (coverSearchStatus) coverSearchStatus.textContent = `Searching for "${query}"…`;
+  if (coverSearchStatus) coverSearchStatus.textContent = `Searching "${query}"…`;
   if (coverSearchResults) coverSearchResults.innerHTML = '';
   const results = await searchJikan(query);
-  if (!results.length) {
-    if (coverSearchStatus) coverSearchStatus.textContent = `No results for "${query}".`;
-    return;
-  }
+  if (!results.length) { if (coverSearchStatus) coverSearchStatus.textContent = `No results for "${query}".`; return; }
   if (coverSearchStatus) coverSearchStatus.textContent = `Pick a cover for "${query}"`;
   if (coverSearchResults) {
     coverSearchResults.innerHTML = results.map((r, i) => `
@@ -395,7 +291,7 @@ async function runCoverSearch(query) {
       btn.addEventListener('click', () => {
         const r = results[Number(btn.dataset.i)];
         selectedCoverUrl = r.image;
-        if (selectedCoverText) selectedCoverText.textContent = `Cover set: "${r.title}"`;
+        if (selectedCoverText) selectedCoverText.textContent = `Cover: "${r.title}"`;
         coverSearchResults.querySelectorAll('.cover-search-result').forEach(b => b.classList.toggle('active', b === btn));
       });
     });
@@ -420,21 +316,20 @@ function openAdminDialog() {
 }
 
 function closeAdminDialog() {
-  if (!adminDialog) return;
-  if (typeof adminDialog.close === 'function') adminDialog.close();
-  else adminDialog.removeAttribute('open');
+  if (typeof adminDialog?.close === 'function') adminDialog.close();
+  else adminDialog?.removeAttribute('open');
 }
 
-async function handleAdminSubmit(event) {
-  event.preventDefault();
-  const email    = adminEmailInput?.value?.trim()    || '';
-  const password = adminPasswordInput?.value?.trim() || '';
-  if (!email || !password) return;
+async function handleAdminSubmit(e) {
+  e.preventDefault();
+  const email = adminEmailInput?.value?.trim() || '';
+  const pass  = adminPasswordInput?.value?.trim() || '';
+  if (!email || !pass) return;
   const submitBtn = adminLoginForm?.querySelector('[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
   if (adminError) adminError.hidden = true;
   try {
-    await supabaseSignIn(email, password);
+    await supabaseSignIn(email, pass);
     closeAdminDialog();
     updateAdminUi();
   } catch (err) {
@@ -445,25 +340,189 @@ async function handleAdminSubmit(event) {
   }
 }
 
-async function handleAdminSignOut() {
-  await supabaseSignOut();
-  updateAdminUi();
+// ---------- Theme toggle ----------
+function wireThemeToggle() {
+  const btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  btn.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+  btn.addEventListener('click', () => {
+    const nowLight = !document.body.classList.contains('light');
+    document.body.classList.toggle('light', nowLight);
+    localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+    btn.textContent = nowLight ? '☀' : '☾';
+  });
 }
 
 // ---------- Tabs ----------
 function wireTabs() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      activeTab = tab.dataset.tab;
       document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
-      if (activeTab === 'download-index') {
-        if (collectionGrid)     collectionGrid.style.display     = 'none';
-        if (downloadIndexPanel) { downloadIndexPanel.style.display = 'block'; downloadIndexPanel.setAttribute('open', ''); }
-      } else {
-        if (collectionGrid)     collectionGrid.style.display     = '';
-        if (downloadIndexPanel) downloadIndexPanel.style.display  = '';
-      }
+      const isDownload = tab.dataset.tab === 'download-index';
+      if (collectionGrid)     collectionGrid.style.display     = isDownload ? 'none' : '';
+      if (downloadIndexPanel) { downloadIndexPanel.style.display = isDownload ? 'block' : ''; if (isDownload) downloadIndexPanel.setAttribute('open', ''); }
     });
+  });
+}
+
+// ---------- Hero slideshow (single-slide swap approach) ----------
+let heroIndex   = 0;
+let heroTimer   = null;
+let heroFeature = [];
+const HERO_INTERVAL    = 6000;
+const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
+
+function loadBannerOverrides() {
+  try { return JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'); } catch { return {}; }
+}
+function saveBannerOverride(s, url) {
+  const o = loadBannerOverrides(); o[s] = url; localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(o));
+}
+
+function renderHeroSlide(idx) {
+  const g         = heroFeature[idx];
+  const overrides = loadBannerOverrides();
+  const bannerUrl = overrides[g.slug] || g.firstCover;
+  const desc      = g.videos[0]?.description || '';
+  const adminBtns = isAdminUnlocked() ? `
+    <button class="hero-banner-override" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
+    <button class="hero-delete-show danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
+  ` : '';
+  const slidesEl = document.getElementById('heroSlides');
+  if (!slidesEl) return;
+
+  slidesEl.innerHTML = `
+    <div class="hero-slide" data-slug="${escapeHtml(g.slug)}" style="opacity:1">
+      <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
+      <div class="hero-slide-gradient"></div>
+      <div class="hero-slide-content">
+        <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
+        <div class="hero-slide-info">
+          <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
+          <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
+          ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
+          <div class="hero-slide-actions">
+            <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
+            ${adminBtns}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Update dots
+  document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+
+  // Wire admin buttons
+  slidesEl.querySelector('.hero-banner-override')?.addEventListener('click', () => {
+    const url = prompt('Enter banner image URL (wide, ~1900×500):');
+    if (!url) return;
+    saveBannerOverride(g.slug, url.trim());
+    slidesEl.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
+  });
+  slidesEl.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
+    if (!confirm(`Delete ALL videos in "${g.title}" from Supabase? Cannot be undone.`)) return;
+    try {
+      await supabaseDeleteCollection(g.title);
+      AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== g.title);
+      refreshArchive();
+    } catch (err) { alert(`Delete failed: ${err.message}`); }
+  });
+
+  // AniList banner in background
+  if (!overrides[g.slug]) {
+    fetchAniListBanner(g.title).then(result => {
+      if (!result?.banner) return;
+      const bg = slidesEl.querySelector('.hero-slide-bg');
+      if (bg && heroIndex === idx) bg.style.backgroundImage = `url('${escapeHtml(result.banner)}')`;
+    });
+  }
+}
+
+function goToSlide(idx) {
+  heroIndex = idx;
+  const slidesEl = document.getElementById('heroSlides');
+  const slide    = slidesEl?.querySelector('.hero-slide');
+  if (!slide) { renderHeroSlide(idx); return; }
+  slide.style.transition = 'opacity 0.35s ease';
+  slide.style.opacity    = '0';
+  setTimeout(() => {
+    renderHeroSlide(idx);
+    const newSlide = slidesEl.querySelector('.hero-slide');
+    if (newSlide) {
+      newSlide.style.opacity = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        newSlide.style.transition = 'opacity 0.35s ease';
+        newSlide.style.opacity    = '1';
+      }));
+    }
+  }, 350);
+}
+
+function startHeroTimer() {
+  stopHeroTimer();
+  heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL);
+}
+
+function stopHeroTimer() {
+  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
+}
+
+// Called once on init. Wires prev/next/dot buttons once only.
+function buildHero(groups) {
+  const section  = document.getElementById('heroSlideshow');
+  const dotsEl   = document.getElementById('heroDots');
+  if (!section || !dotsEl) return;
+
+  heroFeature = groups.filter(g => g.firstCover).slice(0, 6);
+  if (!heroFeature.length) { section.hidden = true; return; }
+  section.hidden = false;
+  heroIndex = 0;
+
+  dotsEl.innerHTML = heroFeature.map((_, i) =>
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
+  ).join('');
+
+  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
+  });
+
+  document.getElementById('heroPrev')?.addEventListener('click', () => {
+    stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length); startHeroTimer();
+  });
+  document.getElementById('heroNext')?.addEventListener('click', () => {
+    stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length); startHeroTimer();
+  });
+
+  renderHeroSlide(0);
+  startHeroTimer();
+}
+
+// Called on refreshArchive — updates featured list and re-renders current slide without re-wiring buttons
+function rebuildHero() {
+  const groups = groupVideos(AppState.videos);
+  heroFeature  = groups.filter(g => g.firstCover).slice(0, 6);
+  if (!heroFeature.length) {
+    const section = document.getElementById('heroSlideshow');
+    if (section) section.hidden = true;
+    return;
+  }
+  heroIndex = Math.min(heroIndex, heroFeature.length - 1);
+  renderHeroSlide(heroIndex);
+}
+
+// ---------- Nav: sign in / account ----------
+function wireNavAuth() {
+  const signInBtn   = document.getElementById('signInNavBtn');
+  const accountLink = document.getElementById('accountLink');
+  getCurrentUser().then(user => {
+    if (user) {
+      if (signInBtn)   signInBtn.style.display = 'none';
+      if (accountLink) accountLink.hidden = false;
+    } else {
+      if (signInBtn)   { signInBtn.style.display = ''; signInBtn.addEventListener('click', () => window.location.href = 'account.html'); }
+      if (accountLink) accountLink.hidden = true;
+    }
   });
 }
 
@@ -473,204 +532,74 @@ function wireAll() {
 
   if (chooseVideoButton && videoFileInput) {
     chooseVideoButton.addEventListener('click', () => videoFileInput.click());
-    videoFileInput.addEventListener('change', e => handleVideoFileSelect(e.target.files?.[0]));
+    videoFileInput.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (selectedVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedVideoUrl);
+      selectedVideoUrl = URL.createObjectURL(file);
+      if (selectedFileText) selectedFileText.textContent = `${file.name} · ${formatBytes(file.size)}`;
+      const parsed = parseEpisodeInfo(file.name);
+      if (titleInput      && !titleInput.value)      titleInput.value      = parsed.title;
+      if (collectionInput && !collectionInput.value)  collectionInput.value = parsed.collection;
+      if (episodeInput    && !episodeInput.value)      episodeInput.value    = parsed.episode;
+      if (fileSizeInput   && !fileSizeInput.value)     fileSizeInput.value   = formatBytes(file.size);
+      if (fileTypeInput   && !fileTypeInput.value)     fileTypeInput.value   = (file.name.split('.').pop() || 'MP4').toUpperCase();
+      if (autoGroupText) autoGroupText.textContent = `Auto-grouped under "${parsed.collection}".`;
+      generateCoverFrames(selectedVideoUrl);
+    });
   }
+
   if (chooseCoverButton && coverFileInput) {
     chooseCoverButton.addEventListener('click', () => coverFileInput.click());
-    coverFileInput.addEventListener('change', e => handleCoverFileSelect(e.target.files?.[0]));
+    coverFileInput.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (selectedCoverUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedCoverUrl);
+      selectedCoverUrl = URL.createObjectURL(file);
+      if (selectedCoverText) selectedCoverText.textContent = `${file.name}`;
+    });
   }
-  if (regenerateFramesButton) {
-    regenerateFramesButton.addEventListener('click', () => { if (selectedVideoUrl) generateCoverFrames(selectedVideoUrl); });
-  }
+
+  if (regenerateFramesButton) regenerateFramesButton.addEventListener('click', () => { if (selectedVideoUrl) generateCoverFrames(selectedVideoUrl); });
   if (addVideoForm)     addVideoForm.addEventListener('submit', handleFormSubmit);
-  if (exportJsonButton) exportJsonButton.addEventListener('click', handleExportJson);
-  if (clearLocalButton) clearLocalButton.addEventListener('click', handleClearLocal);
+  if (exportJsonButton) exportJsonButton.addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify([...AppState.baseVideos, ...AppState.localVideos], null, 2)], { type: 'application/json' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'videos.json' });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
+  });
+  if (clearLocalButton) clearLocalButton.addEventListener('click', () => {
+    if (!confirm('Clear all locally added videos?')) return;
+    AppState.localVideos = []; saveLocalVideos(); refreshArchive();
+    if (formStatus) formStatus.textContent = 'Local library cleared.';
+  });
 
   updateAdminUi();
   if (adminLoginButton) {
     adminLoginButton.addEventListener('click', () => {
-      if (isAdminUnlocked()) handleAdminSignOut();
+      if (isAdminUnlocked()) { supabaseSignOut().then(updateAdminUi); }
       else openAdminDialog();
     });
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
 
-  if (findCoverButton) {
-    findCoverButton.addEventListener('click', () => {
-      runCoverSearch(bestSearchQuery(titleInput?.value || '', collectionInput?.value || ''));
-    });
-  }
-  const debounced = debounce(() => {
-    const q = bestSearchQuery(titleInput?.value || '', collectionInput?.value || '');
-    if (q.length >= 3) runCoverSearch(q);
-  }, 800);
+  if (findCoverButton) findCoverButton.addEventListener('click', () => runCoverSearch(bestSearchQuery(titleInput?.value || '', collectionInput?.value || '')));
+  const debounced = debounce(() => { const q = bestSearchQuery(titleInput?.value || '', collectionInput?.value || ''); if (q.length >= 3) runCoverSearch(q); }, 800);
   if (titleInput)      titleInput.addEventListener('input', debounced);
   if (collectionInput) collectionInput.addEventListener('input', debounced);
 
+  wireThemeToggle();
   wireTabs();
-}
-
-// ---------- Hero slideshow ----------
-let heroIndex = 0;
-let heroTimer = null;
-const HERO_INTERVAL = 6000;
-
-const BANNER_OVERRIDE_KEY = 'the-index-banner-overrides';
-function loadBannerOverrides() {
-  try { return JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'); }
-  catch { return {}; }
-}
-function saveBannerOverride(collSlug, url) {
-  const o = loadBannerOverrides(); o[collSlug] = url;
-  localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(o));
-}
-
-function buildHero(groups) {
-  const section  = document.getElementById('heroSlideshow');
-  const slidesEl = document.getElementById('heroSlides');
-  const dotsEl   = document.getElementById('heroDots');
-  if (!section || !slidesEl || !dotsEl) return;
-
-  const featured = groups.filter(g => g.firstCover).slice(0, 6);
-  if (!featured.length) { section.hidden = true; return; }
-
-  section.hidden = false;
-  heroIndex = 0;
-  stopHeroTimer();
-
-  const overrides = loadBannerOverrides();
-
-  function renderSlide(idx) {
-    const g         = featured[idx];
-    const bannerUrl = overrides[g.slug] || g.firstCover;
-    const desc      = g.videos[0]?.description || '';
-    const adminBtns = isAdminUnlocked() ? `
-      <button class="hero-banner-override btn btn-small" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
-      <button class="hero-delete-show btn btn-small danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
-    ` : '';
-
-    slidesEl.innerHTML = `
-      <div class="hero-slide" data-slug="${escapeHtml(g.slug)}" style="opacity:1">
-        <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
-        <div class="hero-slide-gradient"></div>
-        <div class="hero-slide-content">
-          <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
-          <div class="hero-slide-info">
-            <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-            <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
-            ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
-            <div class="hero-slide-actions">
-              <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
-              ${adminBtns}
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Wire admin buttons for this slide
-    slidesEl.querySelector('.hero-banner-override')?.addEventListener('click', () => {
-      const url = prompt('Enter a banner image URL (wide crop, ~1900×500):');
-      if (!url) return;
-      saveBannerOverride(g.slug, url.trim());
-      slidesEl.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
-    });
-    slidesEl.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
-      if (!confirm(`Delete ALL videos in "${g.title}" from Supabase? This cannot be undone.`)) return;
-      try {
-        await supabaseDeleteCollection(g.title);
-        AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== g.title);
-        refreshArchive();
-      } catch (err) { alert(`Delete failed: ${err.message}`); }
-    });
-
-    // Fetch AniList banner in background if no override
-    if (!overrides[g.slug]) {
-      fetchAniListBanner(g.title).then(result => {
-        if (!result?.banner) return;
-        const bg = slidesEl.querySelector('.hero-slide-bg');
-        if (bg && heroIndex === idx) bg.style.backgroundImage = `url('${escapeHtml(result.banner)}')`;
-      });
-    }
-  }
-
-  function goToSlide(idx) {
-    heroIndex = idx;
-    dotsEl.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
-
-    // Fade out, swap content, fade in
-    const slide = slidesEl.querySelector('.hero-slide');
-    if (!slide) { renderSlide(idx); return; }
-    slide.style.transition = 'opacity 0.35s ease';
-    slide.style.opacity    = '0';
-    setTimeout(() => {
-      renderSlide(idx);
-      const newSlide = slidesEl.querySelector('.hero-slide');
-      if (newSlide) {
-        newSlide.style.transition = 'opacity 0.35s ease';
-        newSlide.style.opacity    = '0';
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => { newSlide.style.opacity = '1'; });
-        });
-      }
-    }, 350);
-  }
-
-  // Build dots
-  dotsEl.innerHTML = featured.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
-  ).join('');
-  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
-  });
-
-  document.getElementById('heroPrev')?.addEventListener('click', () => {
-    stopHeroTimer();
-    goToSlide((heroIndex - 1 + featured.length) % featured.length);
-    startHeroTimer();
-  });
-  document.getElementById('heroNext')?.addEventListener('click', () => {
-    stopHeroTimer();
-    goToSlide((heroIndex + 1) % featured.length);
-    startHeroTimer();
-  });
-
-  // Render first slide
-  renderSlide(0);
-
-  function startHeroTimer() {
-    stopHeroTimer();
-    heroTimer = setInterval(() => goToSlide((heroIndex + 1) % featured.length), HERO_INTERVAL);
-  }
-  startHeroTimer();
-}
-
-function stopHeroTimer() {
-  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
 }
 
 // ---------- Bootstrap ----------
 (async function init() {
-  wireThemeToggle();
+  showSkeleton();
   await coreInit();
-
-  // Wire account/sign-in nav buttons
-  const signInNavBtn = document.getElementById('signInNavBtn');
-  const accountLink  = document.getElementById('accountLink');
-  getCurrentUser().then(user => {
-    if (user) {
-      if (signInNavBtn) signInNavBtn.style.display = 'none';
-      if (accountLink)  accountLink.hidden = false;
-    } else {
-      if (signInNavBtn) { signInNavBtn.style.display = ''; signInNavBtn.addEventListener('click', () => { window.location.href = 'account.html'; }); }
-      if (accountLink)  accountLink.hidden = true;
-    }
-  });
-
+  hideSkeleton();
   buildFilters();
   render();
-  const groups = groupVideos(AppState.videos);
-  buildHero(groups);
+  buildHero(groupVideos(AppState.videos));
   wireAll();
+  wireNavAuth();
 })();
