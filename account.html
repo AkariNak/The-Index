@@ -11,38 +11,25 @@
 <style>
   .account-page { max-width: 1100px; margin: 0 auto; padding: 32px 32px 80px; }
 
-  /* Profile header — HiAnime style */
   .profile-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 28px;
     padding: 32px;
     background: var(--paper-2);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     margin-bottom: 32px;
-    position: relative;
   }
-  .profile-avatar-wrap {
-    position: relative;
-    flex-shrink: 0;
-    width: 100px;
-    height: 100px;
-  }
-  .profile-avatar {
-    width: 100px;
-    height: 100px;
+  .profile-avatar-wrap { position: relative; flex-shrink: 0; width: 100px; height: 100px; }
+  .profile-avatar, .profile-avatar-placeholder {
+    width: 100px; height: 100px;
     border-radius: 50%;
-    object-fit: cover;
     border: 3px solid var(--accent);
-    background: var(--paper-3);
     display: block;
   }
+  .profile-avatar { object-fit: cover; background: var(--paper-3); }
   .profile-avatar-placeholder {
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    border: 3px solid var(--accent);
     background: var(--paper-3);
     display: grid;
     place-items: center;
@@ -52,10 +39,8 @@
   }
   .profile-avatar-edit {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 28px;
-    height: 28px;
+    bottom: 0; right: 0;
+    width: 28px; height: 28px;
     border-radius: 50%;
     background: var(--accent);
     color: #000;
@@ -64,73 +49,39 @@
     display: grid;
     place-items: center;
     font-size: 13px;
-    transition: background .15s;
+    transition: background 0.15s;
   }
   .profile-avatar-edit:hover { background: var(--accent-soft); }
   #avatarFileInput { display: none; }
-  .profile-info { flex: 1; min-width: 0; }
-  .profile-username {
-    font-family: var(--display);
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: 0.04em;
-    margin: 0 0 4px;
-  }
-  .profile-email {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--ink-mute);
-    letter-spacing: 0.1em;
-    margin-bottom: 16px;
-  }
-  .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .profile-status-msg {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-top: 8px;
-    color: var(--accent);
-  }
 
-  /* Username edit inline */
-  .username-edit-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 8px;
-  }
+  .profile-info { flex: 1; min-width: 0; }
+  .profile-username { font-family: var(--display); font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: 0.04em; margin: 0 0 4px; }
+  .profile-email { font-family: var(--mono); font-size: 11px; color: var(--ink-mute); letter-spacing: 0.1em; margin-bottom: 16px; }
+  .profile-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .profile-status-msg { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 10px; color: var(--accent); min-height: 16px; }
+
+  .username-edit-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
   .username-edit-row input {
     background: var(--paper-3);
     border: 1px solid var(--line);
     color: var(--ink);
     font-family: var(--display);
-    font-size: 16px;
+    font-size: 15px;
     padding: 8px 12px;
     border-radius: var(--radius-sm);
     outline: none;
     letter-spacing: 0.04em;
+    transition: border-color 0.15s;
   }
   .username-edit-row input:focus { border-color: var(--accent); }
-  .username-availability {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
-  .username-availability.available { color: #4caf50; }
-  .username-availability.taken { color: #e05252; }
 
-  /* Watch list tabs */
   .watchlist-tabs {
     display: flex;
-    gap: 0;
     border-bottom: 1px solid var(--line);
     margin-bottom: 24px;
     overflow-x: auto;
     scrollbar-width: none;
+    gap: 0;
   }
   .watchlist-tabs::-webkit-scrollbar { display: none; }
   .watchlist-tab {
@@ -138,15 +89,15 @@
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--ink-soft);
-    padding: 12px 18px;
+    padding: 12px 16px;
     font-family: var(--mono);
     font-size: 10px;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     cursor: pointer;
     white-space: nowrap;
     margin-bottom: -1px;
-    transition: color .12s, border-color .12s;
+    transition: color 0.15s, border-color 0.15s;
   }
   .watchlist-tab:hover { color: var(--ink); }
   .watchlist-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -165,56 +116,14 @@
   }
   .watchlist-tab.active .watchlist-count { background: var(--accent); color: #000; }
 
-  /* Watch list grid */
-  .watchlist-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 16px;
-  }
-  .watchlist-empty {
-    padding: 48px 32px;
-    text-align: center;
-    font-family: var(--body);
-    font-style: italic;
-    color: var(--ink-mute);
-    border: 1px dashed var(--line);
-    border-radius: var(--radius);
-    grid-column: 1 / -1;
-  }
+  .watchlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px; }
+  .watchlist-empty { padding: 48px 24px; text-align: center; font-family: var(--body); font-style: italic; color: var(--ink-mute); border: 1px dashed var(--line); border-radius: var(--radius); grid-column: 1 / -1; }
 
-  /* Sign out */
-  .account-signout {
-    margin-top: 40px;
-    padding-top: 24px;
-    border-top: 1px solid var(--line);
-    display: flex;
-    justify-content: flex-end;
-  }
+  .account-signout { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
 
-  /* Not logged in state */
-  .account-gate {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 80px 32px;
-    text-align: center;
-    gap: 16px;
-  }
-  .account-gate h2 {
-    font-family: var(--display);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    margin: 0;
-    color: var(--ink);
-  }
-  .account-gate p {
-    font-family: var(--body);
-    color: var(--ink-soft);
-    margin: 0;
-    max-width: 40ch;
-  }
+  .account-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 32px; text-align: center; gap: 16px; }
+  .account-gate h2 { font-family: var(--display); font-size: 28px; font-weight: 700; letter-spacing: 0.04em; margin: 0; }
+  .account-gate p { font-family: var(--body); color: var(--ink-soft); margin: 0; max-width: 38ch; }
   .account-gate-actions { display: flex; gap: 12px; }
 </style>
 </head>
@@ -223,18 +132,15 @@
 <nav class="topnav">
   <a class="topnav-brand" href="index.html">AURUM</a>
   <div class="topnav-right">
-    <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn">☕ Support</a>
+    <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn">☕ <span>Support</span></a>
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
   </div>
 </nav>
 
 <div class="account-page">
-  <div id="accountMain">
-    <div class="detail-loading">Loading…</div>
-  </div>
+  <div id="accountMain"><div class="detail-loading">Loading…</div></div>
 </div>
 
-<!-- Sign in / Sign up dialog (shared) -->
 <dialog id="authDialog" class="admin-dialog" style="width:400px">
   <div class="admin-login" id="authDialogInner"></div>
 </dialog>
