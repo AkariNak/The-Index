@@ -186,10 +186,6 @@ function episodeRowHtml(video) {
         ${adminControls}
       </div>
     </div>
-    <div class="episode-comments-wrap" id="comments-${escapeHtml(String(idx))}">
-      <button class="comments-toggle btn btn-outline btn-small" data-idx="${idx}" type="button">💬 Comments</button>
-      <div class="comments-container" id="comments-body-${escapeHtml(String(idx))}" hidden></div>
-    </div>
   `;
 }
 
@@ -247,20 +243,8 @@ function wireDetailEvents() {
     if (video) btn.addEventListener('click', () => simpleDelete(video));
   });
 
-  // Comments toggle
-  document.querySelectorAll('.comments-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx       = Number(btn.dataset.idx);
-      const video     = AppState.videos[idx];
-      const body      = document.getElementById(`comments-body-${idx}`);
-      if (!body || !video) return;
-      const isHidden  = body.hidden;
-      body.hidden     = false;
-      btn.textContent = isHidden ? '💬 Hide Comments' : '💬 Comments';
-      if (isHidden) renderComments(body, currentGroup.title, video.title);
-      else body.hidden = true;
-    });
-  });
+  // Continue watching
+  const continueBtn = document.querySelector('.continue-btn');
   if (continueBtn) {
     continueBtn.addEventListener('click', () => {
       const title = continueBtn.dataset.title;
