@@ -654,6 +654,20 @@ function stopHeroTimer() {
 (async function init() {
   wireThemeToggle();
   await coreInit();
+
+  // Wire account/sign-in nav buttons
+  const signInNavBtn = document.getElementById('signInNavBtn');
+  const accountLink  = document.getElementById('accountLink');
+  getCurrentUser().then(user => {
+    if (user) {
+      if (signInNavBtn) signInNavBtn.style.display = 'none';
+      if (accountLink)  accountLink.hidden = false;
+    } else {
+      if (signInNavBtn) { signInNavBtn.style.display = ''; signInNavBtn.addEventListener('click', () => { window.location.href = 'account.html'; }); }
+      if (accountLink)  accountLink.hidden = true;
+    }
+  });
+
   buildFilters();
   render();
   const groups = groupVideos(AppState.videos);
