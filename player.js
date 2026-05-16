@@ -120,6 +120,98 @@ function loadVideo(video) {
 
   // Highlight sidebar
   highlightSidebarEp(video);
+
+  // Load comments for this episode
+  const commentsContainer = document.getElementById('commentsContainer');
+  if (commentsContainer && currentGroup) {
+    renderPlayerComments(commentsContainer, currentGroup.title, video.title);
+  }
+}
+
+// ---------- Player comments ----------
+async function renderPlayerComments(container, collectionName, episodeTitle) {
+  container.innerHTML = `<div class="comments-loading">Loading comments…</div>`;
+
+  const [comments, user, profile] = await Promise.all([
+    getComments(collectionName, episodeTitle),
+    getCurrentUser(),
+    getCurrentUser().then(u => u ? getCurrentProfile() : null)
+  ]);
+
+  const commentsHtml = comments.length
+    ? comments.map(c => `
+        <div class="comment" data-id="${escapeHtml(c.id)}">
+          <div class="comment-avatar">
+            ${c.avatar_url
+              ? `<img src="${escapeHtml(c.avatar_url)}" alt="${escapeHtml(c.username)}">`
+              : `<div class="comment-avatar-placeholder">${escapeHtml(c.username.charAt(0).toUpperCase())}</div>`}
+          </div>
+          <div class="comment-body">
+            <div class="comment-header">
+              <span class="comment-username">${escapeHtml(c.username)}</span>
+              <span class="comment-date">${formatDate(c.created_at)}</span>
+              ${user && c.user_id === user.id
+                ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button">Delete</button>`
+                : ''}
+            </div>
+            <p class="comment-content">${escapeHtml(c.content)}</p>
+          </div>
+        </div>
+      `).join('')
+    : `<div class="comments-empty">No comments yet. Be the first!</div>`;
+
+  const inputHtml = user
+    ? `<div class="comment-input-wrap">
+        <div class="comment-avatar">
+          ${profile?.avatar_url
+            ? `<img src="${escapeHtml(profile.avatar_url)}" alt="">`
+            : `<div class="comment-avatar-placeholder">${escapeHtml((profile?.username || '?').charAt(0).toUpperCase())}</div>`}
+        </div>
+        <div class="comment-input-inner">
+          <textarea id="commentInput" placeholder="Write a comment…" rows="2" maxlength="1000"></textarea>
+          <button class="btn btn-solid btn-small" id="commentSubmit" type="button">Post</button>
+        </div>
+      </div>`
+    : `<div class="comment-signin-prompt">
+        <button class="btn btn-outline btn-small" id="commentSignInBtn" type="button">Sign in to comment</button>
+      </div>`;
+
+  container.innerHTML = `
+    <div class="comments-section">
+      <h4 class="comments-heading">Comments <span class="episodes-count">${comments.length}</span></h4>
+      ${inputHtml}
+      <div class="comments-list">${commentsHtml}</div>
+    </div>
+  `;
+
+  document.getElementById('commentSubmit')?.addEventListener('click', async () => {
+    const input   = document.getElementById('commentInput');
+    const content = input?.value?.trim();
+    if (!content) return;
+    const btn = document.getElementById('commentSubmit');
+    btn.disabled = true;
+    try {
+      await postComment(collectionName, episodeTitle, content);
+      renderPlayerComments(container, collectionName, episodeTitle);
+    } catch (err) {
+      alert(`Could not post: ${err.message}`);
+      btn.disabled = false;
+    }
+  });
+
+  container.querySelectorAll('.comment-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Delete this comment?')) return;
+      try {
+        await deleteComment(btn.dataset.id);
+        renderPlayerComments(container, collectionName, episodeTitle);
+      } catch (err) { alert(`Could not delete: ${err.message}`); }
+    });
+  });
+
+  document.getElementById('commentSignInBtn')?.addEventListener('click', () => {
+    window.location.href = `account.html`;
+  });
 }
 
 // ---------- Sidebar highlight ----------
