@@ -559,17 +559,40 @@ function applyTheme(light) {
     return;
   }
 
-  document.title = `${currentGroup.title} — The Index`;
+  document.title = `${currentGroup.title} — Aurum`;
   renderDetail();
   renderRecommendations(allGroups);
   wireAdmin();
 
-  // Fetch Jikan details in background, then re-render
-  fetchJikanDetails(currentGroup.title).then(details => {
-    if (details) {
-      currentJikan = details;
-      renderDetail();
-      renderRecommendations(allGroups);
+  // Fetch Jikan details in background, then re-render and auto-save cover
+  fetchJikanDetails(currentGroup.title).then(async details => {
+    if (!details) return;
+    currentJikan = details;
+    renderDetail();
+    renderRecommendations(allGroups);
+
+    // Auto-save cover and description to Supabase for episodes missing them
+    if (isAdminUnlocked()) {
+      const missing = currentGroup.videos.filter(v => v.id && (!v.coverUrl || !v.description));
+      for (const video of missing) {
+        const updates = { ...video };
+        if (!video.coverUrl && details.image)    updates.coverUrl    = details.image;
+        if (!video.description && details.synopsis) updates.description = details.synopsis;
+        if (updates.coverUrl === video.coverUrl && updates.description === video.description) continue;
+        try {
+          const saved = await supabaseUpdate(video.id, updates);
+          const idx   = AppState.baseVideos.findIndex(v => v.id === video.id);
+          if (idx >= 0) AppState.baseVideos[idx] = saved;
+          video.coverUrl    = saved.coverUrl;
+          video.description = saved.description;
+        } catch (err) {
+          console.warn('Auto metadata save failed for', video.title, err);
+        }
+      }
+      if (missing.length > 0) {
+        syncVideos();
+        renderDetail();
+      }
     }
   });
 })();
