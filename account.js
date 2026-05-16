@@ -249,12 +249,25 @@ function openAuthDialog(mode) {
     });
     document.getElementById('authSubmit').addEventListener('click', async () => {
       const errEl    = document.getElementById('authError');
+      const submitBtn = document.getElementById('authSubmit');
       const username = document.getElementById('authUsername').value.trim();
+      const email    = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value.trim();
       if (username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; errEl.hidden = false; return; }
+      if (!email || !password) { errEl.textContent = 'Email and password are required.'; errEl.hidden = false; return; }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating…';
+      errEl.hidden = true;
       try {
-        await supabaseSignUp(document.getElementById('authEmail').value.trim(), document.getElementById('authPassword').value.trim(), username);
-        closeAuthDialog(); await init();
-      } catch (err) { errEl.textContent = err.message; errEl.hidden = false; }
+        await supabaseSignUp(email, password, username);
+        closeAuthDialog();
+        await init();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.hidden = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+      }
     });
   }
 
