@@ -156,7 +156,10 @@ function renderSidebar(group, allGroups) {
       seasonPillsHtml = `<div class="season-pills">${seriesGroups.map(g => {
         const isCurrent = g.slug === group.slug;
         const label     = getLabel(g.title);
-        return `<a class="season-pill ${isCurrent ? 'active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">${escapeHtml(label)}</a>`;
+        const href      = isCurrent
+          ? '#'
+          : `player.html?show=${encodeURIComponent(g.slug)}&ep=0`;
+        return `<a class="season-pill ${isCurrent ? 'active' : ''}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
       }).join('')}</div>`;
     }
   }
