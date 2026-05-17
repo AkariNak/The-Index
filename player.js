@@ -125,23 +125,32 @@ function highlightSidebarEp(video) {
   episodeSidebar.querySelector('.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
+function cleanEpNum(ep, index) {
+  if (!ep) return String(index + 1);
+  const str = String(ep);
+  // "1.01" → "1", "1.25" → "25", "01" → "1"
+  if (str.includes('.')) return String(parseInt(str.split('.')[1], 10));
+  return String(parseInt(str, 10) || index + 1);
+}
+
 function renderSidebar(group) {
   if (!episodeSidebar || !group) return;
-  const useGrid   = group.videos.length > 12;
-  const progress  = getLastWatched(group.title);
+  const useGrid  = group.videos.length > 12;
+  const progress = getLastWatched(group.title);
 
   if (useGrid) {
     episodeSidebar.innerHTML = `<div class="ep-grid">${group.videos.map((video, i) => {
-      const ep       = video.episode || String(i + 1);
+      const ep       = cleanEpNum(video.episode, i);
       const isActive = currentVideo && video.title === currentVideo.title;
       const watched  = progress && progress.lastEpisodeTitle === video.title;
       return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-title="${escapeHtml(video.title)}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
     }).join('')}</div>`;
   } else {
-    episodeSidebar.innerHTML = group.videos.map(video => {
+    episodeSidebar.innerHTML = group.videos.map((video, i) => {
       const isActive = currentVideo && video.title === currentVideo.title;
+      const ep       = cleanEpNum(video.episode, i);
       return `<button class="sidebar-ep${isActive ? ' active' : ''}" data-title="${escapeHtml(video.title)}" type="button">
-        <span class="sidebar-ep-num">EP ${escapeHtml(video.episode || '—')}</span>
+        <span class="sidebar-ep-num">EP ${escapeHtml(ep)}</span>
         <span class="sidebar-ep-title">${escapeHtml(video.title)}</span>
       </button>`;
     }).join('');
