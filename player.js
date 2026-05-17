@@ -165,21 +165,23 @@ function renderSidebar(group) {
 }
 
 // ---------- Series (seasons) ----------
-function renderSeriesOnPlayer(allGroups) {
-  const container = document.getElementById('playerSeriesContainer');
-  if (!container || !currentGroup) return;
-
-  const baseTitle = currentGroup.title
-    .replace(/\s+(season|part|cour|s)\s*\d+.*$/i, '')
+function getSeriesBase(title) {
+  return title
+    .replace(/\s+(season|part|cour)\s*\w+.*$/i, '')
+    .replace(/\s+S\d+.*$/i, '')
     .replace(/\s+\d+(st|nd|rd|th)?\s*(season|part|cour).*$/i, '')
     .replace(/:\s*.+$/, '')
     .trim().toLowerCase();
+}
 
+function renderSeriesOnPlayer(allGroups) {
+  const container = document.getElementById('playerSeriesContainer');
+  const grid      = document.getElementById('playerSeriesGrid');
+  if (!container || !grid || !currentGroup) return;
+
+  const baseTitle    = getSeriesBase(currentGroup.title);
   const seriesGroups = allGroups
-    .filter(g => {
-      const b = g.title.replace(/\s+(season|part|cour|s)\s*\d+.*$/i, '').replace(/:\s*.+$/, '').trim().toLowerCase();
-      return b === baseTitle;
-    })
+    .filter(g => getSeriesBase(g.title) === baseTitle)
     .sort((a, b) => {
       const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 1; };
       return getNum(a.title) - getNum(b.title);
@@ -189,12 +191,15 @@ function renderSeriesOnPlayer(allGroups) {
   container.hidden = false;
 
   const getLabel = title => {
-    const m = title.match(/(?:season|part|cour)\s*\w+/i) || title.match(/:\s*(.+)$/) || title.match(/\b(Movie|OVA|Special|Final Season|Final Part)\b.*/i);
+    const m = title.match(/(?:season|part|cour)\s*\w+/i) ||
+              title.match(/\b(Movie|OVA|Special|Final Season|Final Part)\b.*/i);
     if (m) return (m[1] || m[0]).replace(/^\w/, c => c.toUpperCase());
+    const colon = title.match(/:\s*(.+)$/);
+    if (colon) return colon[1].trim();
     return 'Season 1';
   };
 
-  container.querySelector('.player-series-grid').innerHTML = seriesGroups.map(g => {
+  grid.innerHTML = seriesGroups.map(g => {
     const isCurrent = g.slug === currentGroup.slug;
     const label     = getLabel(g.title);
     const epCount   = g.videos.length;
