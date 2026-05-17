@@ -379,7 +379,7 @@ function saveBannerOverride(s, url) {
   const o = loadBannerOverrides(); o[s] = url; localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(o));
 }
 
-function renderHeroSlide(idx) {
+function renderHeroSlideInto(el, idx) {
   const g         = heroFeature[idx];
   const overrides = loadBannerOverrides();
   const bannerUrl = overrides[g.slug] || g.firstCover;
@@ -388,40 +388,34 @@ function renderHeroSlide(idx) {
     <button class="hero-banner-override" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
     <button class="hero-delete-show danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
   ` : '';
-  const slidesEl = document.getElementById('heroSlides');
-  if (!slidesEl) return;
 
-  slidesEl.innerHTML = `
-    <div class="hero-slide" data-slug="${escapeHtml(g.slug)}" style="opacity:1">
-      <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
-      <div class="hero-slide-gradient"></div>
-      <div class="hero-slide-content">
-        <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
-        <div class="hero-slide-info">
-          <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-          <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
-          ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
-          <div class="hero-slide-actions">
-            <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
-            ${adminBtns}
-          </div>
+  el.className    = 'hero-slide';
+  el.dataset.slug = g.slug;
+  el.innerHTML    = `
+    <div class="hero-slide-bg" style="background-image:url('${escapeHtml(bannerUrl)}')"></div>
+    <div class="hero-slide-gradient"></div>
+    <div class="hero-slide-content">
+      <img class="hero-slide-poster" src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">
+      <div class="hero-slide-info">
+        <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
+        <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
+        ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
+        <div class="hero-slide-actions">
+          <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
+          ${adminBtns}
         </div>
       </div>
     </div>
   `;
 
-  // Update dots
-  document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
-
-  // Wire admin buttons
-  slidesEl.querySelector('.hero-banner-override')?.addEventListener('click', () => {
+  el.querySelector('.hero-banner-override')?.addEventListener('click', () => {
     const url = prompt('Enter banner image URL (wide, ~1900×500):');
     if (!url) return;
     saveBannerOverride(g.slug, url.trim());
-    slidesEl.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
+    el.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
   });
-  slidesEl.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
-    if (!confirm(`Delete ALL videos in "${g.title}" from Supabase? Cannot be undone.`)) return;
+  el.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
+    if (!confirm(`Delete ALL videos in "${g.title}"? Cannot be undone.`)) return;
     try {
       await supabaseDeleteCollection(g.title);
       AppState.baseVideos = AppState.baseVideos.filter(v => v.collection !== g.title);
@@ -429,34 +423,65 @@ function renderHeroSlide(idx) {
     } catch (err) { alert(`Delete failed: ${err.message}`); }
   });
 
-  // AniList banner in background
   if (!overrides[g.slug]) {
     fetchAniListBanner(g.title).then(result => {
       if (!result?.banner) return;
-      const bg = slidesEl.querySelector('.hero-slide-bg');
+      const bg = el.querySelector('.hero-slide-bg');
       if (bg && heroIndex === idx) bg.style.backgroundImage = `url('${escapeHtml(result.banner)}')`;
     });
   }
 }
 
-function goToSlide(idx) {
-  heroIndex = idx;
+function renderHeroSlide(idx) {
   const slidesEl = document.getElementById('heroSlides');
-  const slide    = slidesEl?.querySelector('.hero-slide');
-  if (!slide) { renderHeroSlide(idx); return; }
-  slide.style.transition = 'opacity 0.35s ease';
-  slide.style.opacity    = '0';
-  setTimeout(() => {
-    renderHeroSlide(idx);
-    const newSlide = slidesEl.querySelector('.hero-slide');
-    if (newSlide) {
-      newSlide.style.opacity = '0';
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        newSlide.style.transition = 'opacity 0.35s ease';
-        newSlide.style.opacity    = '1';
-      }));
-    }
-  }, 350);
+  if (!slidesEl) return;
+  slidesEl.innerHTML = '';
+  const slide = document.createElement('div');
+  renderHeroSlideInto(slide, idx);
+  slidesEl.appendChild(slide);
+  document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+
+let _sliding = false;
+
+function goToSlide(idx, direction) {
+  if (_sliding || idx === heroIndex) return;
+  const slidesEl = document.getElementById('heroSlides');
+  if (!slidesEl) return;
+
+  // Default direction: forward = left-to-right, backward = right-to-left
+  if (direction === undefined) direction = idx > heroIndex ? 1 : -1;
+
+  const fromSlide = slidesEl.querySelector('.hero-slide');
+  heroIndex = idx;
+  document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+
+  if (!fromSlide) { renderHeroSlide(idx); return; }
+
+  // Build incoming slide off-screen
+  const incoming = document.createElement('div');
+  incoming.style.cssText = `position:absolute;inset:0;transform:translateX(${direction > 0 ? '100%' : '-100%'});will-change:transform;`;
+  slidesEl.appendChild(incoming);
+  renderHeroSlideInto(incoming, idx);
+
+  _sliding = true;
+  const DURATION = 520;
+  const start    = performance.now();
+
+  function step(now) {
+    const p    = Math.min((now - start) / DURATION, 1);
+    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p; // ease-in-out
+    fromSlide.style.transform = `translateX(${-direction * ease * 100}%)`;
+    incoming.style.transform  = `translateX(${direction * (1 - ease) * 100}%)`;
+    if (p < 1) { requestAnimationFrame(step); return; }
+    // Done — replace from with incoming
+    fromSlide.remove();
+    incoming.style.transform = '';
+    incoming.style.position  = '';
+    incoming.style.cssText   = '';
+    _sliding = false;
+  }
+  requestAnimationFrame(step);
 }
 
 function startHeroTimer() {
@@ -488,10 +513,10 @@ function buildHero(groups) {
   });
 
   document.getElementById('heroPrev')?.addEventListener('click', () => {
-    stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length); startHeroTimer();
+    stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer();
   });
   document.getElementById('heroNext')?.addEventListener('click', () => {
-    stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length); startHeroTimer();
+    stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer();
   });
 
   renderHeroSlide(0);
@@ -596,6 +621,52 @@ async function autoFillEpisodeTitle() {
   if (titleInput) titleInput.value = `${col} - ${epTitle}`;
 }
 
+// ---------- Auto-fill form from URL ----------
+async function autoFillFromUrl(url) {
+  if (!url || !url.startsWith('http')) return;
+
+  // Extract filename from URL
+  let filename = '';
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/');
+    filename = decodeURIComponent(parts[parts.length - 1] || '');
+  } catch { return; }
+
+  if (!filename) return;
+
+  // Detect format from extension
+  const ext = filename.split('.').pop()?.toUpperCase() || 'MP4';
+  if (fileTypeInput && !fileTypeInput.value) fileTypeInput.value = ext;
+
+  // Detect category from extension
+  const videoExts = ['MP4', 'MKV', 'AVI', 'MOV', 'WEBM', 'M4V', 'TS', 'OGV'];
+  if (categoryInput && !categoryInput.value) {
+    categoryInput.value = videoExts.includes(ext) ? 'Shows' : 'Other';
+  }
+
+  // Parse episode info from filename
+  const parsed = parseEpisodeInfo(filename);
+
+  if (collectionInput && !collectionInput.value && parsed.collection) {
+    collectionInput.value = parsed.collection;
+  }
+  if (episodeInput && !episodeInput.value && parsed.episode) {
+    // Store clean episode number (strip season prefix like "1.01" → "1")
+    const epStr = String(parsed.episode);
+    episodeInput.value = epStr.includes('.') ? String(parseInt(epStr.split('.')[1], 10)) : epStr;
+  }
+
+  // Try to fill title from Jikan using collection + episode
+  if (collectionInput?.value && episodeInput?.value) {
+    await autoFillEpisodeTitle();
+  } else if (collectionInput?.value && titleInput && !titleInput.value) {
+    titleInput.value = `${collectionInput.value} - `;
+  }
+
+  if (formStatus) formStatus.textContent = `Parsed: ${parsed.collection}${parsed.episode ? ` EP ${episodeInput?.value}` : ''}`;
+}
+
 function wireAll() {
   if (search) search.addEventListener('input', render);
 
@@ -668,6 +739,16 @@ function wireAll() {
       }
       // Re-run episode lookup if episode number already filled
       if (episodeInput?.value?.trim()) autoFillEpisodeTitle();
+    });
+  }
+
+  // Auto-fill from URL paste
+  if (hostedUrlInput) {
+    hostedUrlInput.addEventListener('input', () => autoFillFromUrl(hostedUrlInput.value.trim()));
+    hostedUrlInput.addEventListener('paste', e => {
+      // paste event fires before input value updates, so read from clipboard
+      const pasted = (e.clipboardData || window.clipboardData)?.getData('text')?.trim();
+      if (pasted) setTimeout(() => autoFillFromUrl(pasted), 0);
     });
   }
 
