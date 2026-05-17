@@ -995,13 +995,13 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
 }
 .detail-series-grid {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.detail-series-grid::-webkit-scrollbar { display: none; }
-.detail-series-grid:empty { display: none; }
+.detail-series-grid .series-card {
+  min-width: 0;
+  width: 100%;
+}
 
 /* ============ SERIES CARDS (seasons/movies) ============ */
 #seriesGrid {
