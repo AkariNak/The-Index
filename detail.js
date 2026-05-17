@@ -119,7 +119,10 @@ function renderDetail() {
 
   detailMain.innerHTML = `
     <div class="detail-hero">
-      <div class="detail-cover">${cover}</div>
+      <div class="detail-cover-wrap">
+        <div class="detail-cover">${cover}</div>
+        <div id="detailSeriesGrid" class="detail-series-grid"></div>
+      </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
@@ -379,40 +382,35 @@ function renderRecommendations(allGroups) {
     getBaseTitle(g.title) !== baseTitle
   );
 
-  // More from this series — HiAnime style horizontal cards, all seasons including current
-  if (seriesSection && seriesGrid) {
-    // Include ALL entries in the series (not just others) sorted by season number
-    const allSeriesGroups = allGroups
-      .filter(g => getBaseTitle(g.title) === baseTitle)
-      .sort((a, b) => {
-        // Extract season/part number for sorting
-        const numA = extractSeriesNum(a.title);
-        const numB = extractSeriesNum(b.title);
-        return numA - numB;
-      });
+  const seriesCardsHtml = (groups) => groups.map(g => {
+    const isCurrent = g.slug === currentSlug;
+    const label     = extractSeriesLabel(g.title);
+    const epCount   = g.videos.length;
+    return `
+      <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
+        <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
+        <div class="series-card-info">
+          <div class="series-card-label">${escapeHtml(label)}</div>
+          <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'}</div>
+        </div>
+        ${isCurrent ? '<div class="series-card-now">Watching</div>' : ''}
+      </a>
+    `;
+  }).join('');
 
-    if (allSeriesGroups.length > 1) {
-      seriesSection.hidden = false;
-      seriesGrid.innerHTML = allSeriesGroups.map(g => {
-        const isCurrent = g.slug === currentSlug;
-        const label     = extractSeriesLabel(g.title);
-        const epCount   = g.videos.length;
-        const cover     = g.firstCover || '';
-        return `
-          <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
-            <div class="series-card-bg" style="background-image:url('${escapeHtml(cover)}')"></div>
-            <div class="series-card-info">
-              <div class="series-card-label">${escapeHtml(label)}</div>
-              <div class="series-card-eps">${epCount} ${epCount === 1 ? 'episode' : 'episodes'}</div>
-            </div>
-            ${isCurrent ? '<div class="series-card-now">Now Watching</div>' : ''}
-          </a>
-        `;
-      }).join('');
-    } else {
-      seriesSection.hidden = true;
-    }
+  const allSeriesGroups = allGroups
+    .filter(g => getBaseTitle(g.title) === baseTitle)
+    .sort((a, b) => extractSeriesNum(a.title) - extractSeriesNum(b.title));
+
+  // Render inside detail hero under cover
+  const detailSeriesGrid = document.getElementById('detailSeriesGrid');
+  if (detailSeriesGrid) {
+    detailSeriesGrid.innerHTML = allSeriesGroups.length > 1
+      ? seriesCardsHtml(allSeriesGroups) : '';
   }
+
+  // Hide the standalone section since we show inline now
+  if (seriesSection) seriesSection.hidden = true;
 
   // You might also like — tag-based, exclude series entries
   if (recsGrid && recommendationsSection) {
