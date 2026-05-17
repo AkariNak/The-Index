@@ -926,7 +926,7 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   line-height: 1;
 }
 .ep-pill:hover { background: var(--paper-2); border-color: var(--accent); color: var(--accent); }
-.ep-pill.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+.ep-pill.active { background: var(--accent); color: #1a1000; border-color: var(--accent); font-weight: 700; }
 .ep-pill.watched { border-color: rgba(201,150,58,0.35); color: rgba(201,150,58,0.65); }
 
 /* ============ COMMENTS ============ */
@@ -1020,11 +1020,10 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   position: relative;
   display: flex;
   align-items: center;
-  height: 56px;
-  min-width: 140px;
-  max-width: 200px;
-  flex: 1 0 140px;
-  border-radius: var(--radius-sm);
+  height: 64px;
+  min-width: 130px;
+  flex: 1 0 130px;
+  border-radius: 10px;
   overflow: hidden;
   text-decoration: none;
   border: 1px solid var(--line);
@@ -1039,8 +1038,8 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   inset: 0;
   background-size: cover;
   background-position: center;
-  filter: blur(4px) brightness(0.3);
-  transform: scale(1.08);
+  filter: blur(4px) brightness(0.28);
+  transform: scale(1.1);
 }
 
 .series-card-info {
@@ -1049,12 +1048,13 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   padding: 0 12px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
+  flex: 1;
 }
 .series-card-label {
   font-family: var(--display);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #fff;
   letter-spacing: 0.03em;
@@ -1071,20 +1071,20 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
 }
 
 .series-card-now {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
+  z-index: 1;
+  margin-right: 12px;
   font-family: var(--mono);
   font-size: 8px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
   background: rgba(201,150,58,0.15);
-  border: 1px solid rgba(201,150,58,0.3);
-  padding: 3px 7px;
+  border: 1px solid rgba(201,150,58,0.4);
+  padding: 3px 8px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* ============ USERNAME AVAILABILITY ============ */
