@@ -133,20 +133,43 @@ function cleanEpNum(ep, index) {
   return String(parseInt(str, 10) || index + 1);
 }
 
-function renderSidebar(group) {
+function renderSidebar(group, allGroups) {
   if (!episodeSidebar || !group) return;
   const useGrid  = group.videos.length > 12;
   const progress = getLastWatched(group.title);
 
+  // Season pills — only if there are related seasons
+  let seasonPillsHtml = '';
+  if (allGroups) {
+    const baseTitle    = getSeriesBase(group.title);
+    const seriesGroups = allGroups
+      .filter(g => getSeriesBase(g.title) === baseTitle)
+      .sort((a, b) => {
+        const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 1; };
+        return n(a.title) - n(b.title);
+      });
+    if (seriesGroups.length > 1) {
+      const getLabel = t => {
+        const m = t.match(/(?:season|part|cour)\s*(\w+)/i);
+        return m ? `S${m[1].replace(/one/i,'1').replace(/two/i,'2').replace(/three/i,'3')}` : 'S1';
+      };
+      seasonPillsHtml = `<div class="season-pills">${seriesGroups.map(g => {
+        const isCurrent = g.slug === group.slug;
+        const label     = getLabel(g.title);
+        return `<a class="season-pill ${isCurrent ? 'active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">${escapeHtml(label)}</a>`;
+      }).join('')}</div>`;
+    }
+  }
+
   if (useGrid) {
-    episodeSidebar.innerHTML = `<div class="ep-grid">${group.videos.map((video, i) => {
+    episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
       const ep       = cleanEpNum(video.episode, i);
       const isActive = currentVideo && video.title === currentVideo.title;
       const watched  = progress && progress.lastEpisodeTitle === video.title;
       return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-title="${escapeHtml(video.title)}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
     }).join('')}</div>`;
   } else {
-    episodeSidebar.innerHTML = group.videos.map((video, i) => {
+    episodeSidebar.innerHTML = seasonPillsHtml + group.videos.map((video, i) => {
       const isActive = currentVideo && video.title === currentVideo.title;
       const ep       = cleanEpNum(video.episode, i);
       return `<button class="sidebar-ep${isActive ? ' active' : ''}" data-title="${escapeHtml(video.title)}" type="button">
@@ -390,7 +413,7 @@ function wireFog() {
   }
 
   renderShowInfo(currentGroup, null);
-  renderSidebar(currentGroup);
+  renderSidebar(currentGroup, allGroups);
   wireAutoAdvance(currentGroup);
   wireFog();
   renderSeriesOnPlayer(allGroups);
