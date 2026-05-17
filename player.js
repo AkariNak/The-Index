@@ -164,6 +164,53 @@ function renderSidebar(group) {
   });
 }
 
+// ---------- Series (seasons) ----------
+function renderSeriesOnPlayer(allGroups) {
+  const container = document.getElementById('playerSeriesContainer');
+  if (!container || !currentGroup) return;
+
+  const baseTitle = currentGroup.title
+    .replace(/\s+(season|part|cour|s)\s*\d+.*$/i, '')
+    .replace(/\s+\d+(st|nd|rd|th)?\s*(season|part|cour).*$/i, '')
+    .replace(/:\s*.+$/, '')
+    .trim().toLowerCase();
+
+  const seriesGroups = allGroups
+    .filter(g => {
+      const b = g.title.replace(/\s+(season|part|cour|s)\s*\d+.*$/i, '').replace(/:\s*.+$/, '').trim().toLowerCase();
+      return b === baseTitle;
+    })
+    .sort((a, b) => {
+      const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 1; };
+      return getNum(a.title) - getNum(b.title);
+    });
+
+  if (seriesGroups.length <= 1) { container.hidden = true; return; }
+  container.hidden = false;
+
+  const getLabel = title => {
+    const m = title.match(/(?:season|part|cour)\s*\w+/i) || title.match(/:\s*(.+)$/) || title.match(/\b(Movie|OVA|Special|Final Season|Final Part)\b.*/i);
+    if (m) return (m[1] || m[0]).replace(/^\w/, c => c.toUpperCase());
+    return 'Season 1';
+  };
+
+  container.querySelector('.player-series-grid').innerHTML = seriesGroups.map(g => {
+    const isCurrent = g.slug === currentGroup.slug;
+    const label     = getLabel(g.title);
+    const epCount   = g.videos.length;
+    return `
+      <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
+        <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
+        <div class="series-card-info">
+          <div class="series-card-label">${escapeHtml(label)}</div>
+          <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'}</div>
+        </div>
+        ${isCurrent ? '<div class="series-card-now">Watching</div>' : ''}
+      </a>
+    `;
+  }).join('');
+}
+
 // ---------- Show info ----------
 function renderShowInfo(group, jikan) {
   if (backLink) backLink.href = `detail.html?show=${encodeURIComponent(group.slug)}`;
@@ -341,6 +388,7 @@ function wireFog() {
   renderSidebar(currentGroup);
   wireAutoAdvance(currentGroup);
   wireFog();
+  renderSeriesOnPlayer(allGroups);
   loadVideo(startVideo);
 
   fetchJikanDetails(currentGroup.title).then(details => {
@@ -348,5 +396,6 @@ function wireFog() {
     currentJikan = details;
     renderShowInfo(currentGroup, currentJikan);
     renderRecommendations(allGroups);
+    renderSeriesOnPlayer(allGroups);
   });
 })();
