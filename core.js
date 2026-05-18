@@ -552,18 +552,22 @@ function removeTag(collectionName, tag) {
 function getRecommendationsForCollection(collectionName, currentCategory, allGroups, currentTags = []) {
   const lowerTags = currentTags.map(t => t.toLowerCase());
   const k         = slug(collectionName);
-  return allGroups
+
+  const scored = allGroups
     .filter(g => g.slug !== k)
     .map(g => {
-      const jikan     = AppState.jikanCache[g.slug];
+      const jikan     = AppState.jikanCache[slug(g.title)];
       const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
       const overlap   = otherTags.filter(t => lowerTags.includes(t)).length;
-      return { group: g, overlap };
+      const samecat   = g.category === currentCategory ? 1 : 0;
+      return { group: g, score: overlap * 2 + samecat };
     })
-    .filter(x => x.overlap > 0)
-    .sort((a, b) => b.overlap - a.overlap)
-    .slice(0, 8)
-    .map(x => x.group);
+    .sort((a, b) => b.score - a.score);
+
+  // If we have tag-scored results use them, otherwise fall back to all groups sorted by category match
+  const withTags = scored.filter(x => x.score > 0);
+  const results  = withTags.length >= 3 ? withTags : scored;
+  return results.slice(0, 8).map(x => x.group);
 }
 
 // ---------- Community ratings ----------
