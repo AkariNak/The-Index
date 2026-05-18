@@ -713,6 +713,19 @@ function wireAll() {
     if (formStatus) formStatus.textContent = 'Local library cleared.';
   });
 
+  const syncMetaButton = document.getElementById('syncMetaButton');
+  if (syncMetaButton) {
+    syncMetaButton.addEventListener('click', async () => {
+      syncMetaButton.disabled = true;
+      syncMetaButton.textContent = 'Syncing…';
+      if (formStatus) formStatus.textContent = 'Fetching covers from Jikan…';
+      await bulkAutoSaveMetadata();
+      syncMetaButton.disabled = false;
+      syncMetaButton.textContent = 'Sync All Covers';
+      if (formStatus) formStatus.textContent = 'Sync complete.';
+    });
+  }
+
   updateAdminUi();
   if (adminLoginButton) {
     adminLoginButton.addEventListener('click', () => {
@@ -760,6 +773,48 @@ function wireAll() {
 
   wireThemeToggle();
   wireTabs();
+}
+
+// ---------- Bulk cover/description auto-save (runs in background for admin) ----------
+async function bulkAutoSaveMetadata() {
+  if (!isAdminUnlocked()) return;
+  const groups  = groupVideos(AppState.videos);
+  const missing = groups.filter(g => g.videos.some(v => v.id && (!v.coverUrl || !v.description)));
+  if (!missing.length) return;
+
+  console.log(`Aurum: auto-saving metadata for ${missing.length} shows…`);
+
+  for (const group of missing) {
+    try {
+      const details = await fetchJikanDetails(group.title);
+      if (!details) continue;
+
+      const toUpdate = group.videos.filter(v => v.id && (!v.coverUrl || !v.description));
+      for (const video of toUpdate) {
+        const updates = { ...video };
+        if (!video.coverUrl    && details.image)    updates.coverUrl    = details.image;
+        if (!video.description && details.synopsis) updates.description = details.synopsis;
+        if (updates.coverUrl === video.coverUrl && updates.description === video.description) continue;
+        try {
+          const saved = await supabaseUpdate(video.id, updates);
+          const idx   = AppState.baseVideos.findIndex(v => v.id === video.id);
+          if (idx >= 0) AppState.baseVideos[idx] = saved;
+          video.coverUrl    = saved.coverUrl;
+          video.description = saved.description;
+        } catch (err) {
+          console.warn('Cover save failed for', video.title, err);
+        }
+      }
+
+      // Update hero and grid after each show so covers appear progressively
+      syncVideos();
+      render();
+      rebuildHero();
+    } catch (err) {
+      console.warn('Jikan fetch failed for', group.title, err);
+    }
+  }
+  console.log('Aurum: metadata sync complete.');
 }
 
 // ---------- Bootstrap ----------
