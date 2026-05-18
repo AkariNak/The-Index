@@ -455,37 +455,13 @@ function groupVideos(videoList) {
 const JIKAN_BASE = 'https://api.jikan.moe/v4/anime';
 let lastJikanCall = 0;
 
-const JIKAN_CACHE_KEY = 'aurum-jikan-cache';
-
-function loadJikanCache() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(JIKAN_CACHE_KEY) || '{}');
-    Object.assign(AppState.jikanCache, saved);
-  } catch {}
-}
-
-function saveJikanCache() {
-  try { localStorage.setItem(JIKAN_CACHE_KEY, JSON.stringify(AppState.jikanCache)); }
-  catch {}
-}
-
 async function jikanRequest(url) {
   const wait = Date.now() - lastJikanCall;
-  if (wait < 500) await new Promise(r => setTimeout(r, 500 - wait));
+  if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
   lastJikanCall = Date.now();
-
-  let attempts = 0;
-  while (attempts < 3) {
-    const res = await fetch(url);
-    if (res.status === 429) {
-      attempts++;
-      await new Promise(r => setTimeout(r, 2000 * attempts));
-      continue;
-    }
-    if (!res.ok) throw new Error(`Jikan ${res.status}`);
-    return res.json();
-  }
-  throw new Error('Jikan 429 — too many requests');
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Jikan ${res.status}`);
+  return res.json();
 }
 
 async function searchJikan(query) {
@@ -516,7 +492,6 @@ async function fetchJikanDetails(query) {
         .map(g => g.name).filter(Boolean)
     };
     AppState.jikanCache[cacheKey] = details;
-    saveJikanCache(); // persist so next page load skips the fetch
     return details;
   } catch (err) { console.warn('Jikan details failed:', err); return null; }
 }
@@ -573,73 +548,42 @@ function removeTag(collectionName, tag) {
   saveTagsOverride();
 }
 
-// ---------- Tag weights ----------
-const DEMOGRAPHIC_TAGS = new Set(['shounen', 'seinen', 'shoujo', 'josei', 'kids']);
-
-const TAG_WEIGHTS = {
-  // Core genres — 4 pts
-  'action': 4, 'romance': 4, 'drama': 4, 'horror': 4, 'comedy': 4,
-  'mystery': 4, 'sci-fi': 4, 'fantasy': 4, 'slice of life': 4,
-  // Thematic — 3 pts
-  'psychological': 3, 'supernatural': 3, 'thriller': 3, 'adventure': 3,
-  'sports': 3, 'isekai': 3, 'military': 3, 'tragedy': 3, 'survival': 3,
-  'gore': 3, 'violence': 3,
-  // Setting / tone — 2 pts
-  'school': 2, 'historical': 2, 'mecha': 2, 'music': 2, 'magic': 2,
-  'super power': 2, 'martial arts': 2, 'demons': 2, 'vampires': 2,
-  'time travel': 2, 'space': 2,
-};
-
-function tagWeight(tag) {
-  return TAG_WEIGHTS[tag.toLowerCase()] ?? 1;
-}
-
-function filterTags(tags) {
-  return tags.filter(t => !DEMOGRAPHIC_TAGS.has(t.toLowerCase()));
-}
-
 // ---------- Recommendations ----------
 function getRecommendationsForCollection(collectionName, currentCategory, allGroups, currentTags = []) {
-  const filtered  = filterTags(currentTags);
-  const lowerTags = filtered.map(t => t.toLowerCase());
+  const lowerTags = currentTags.map(t => t.toLowerCase());
   const k         = slug(collectionName);
-
-  const scored = allGroups
+  return allGroups
     .filter(g => g.slug !== k)
     .map(g => {
-      const jikan     = AppState.jikanCache[slug(g.title)];
-      const otherTags = filterTags(getTagsForCollection(g.title, jikan?.tags || [])).map(t => t.toLowerCase());
-      const tagScore  = otherTags
-        .filter(t => lowerTags.includes(t))
-        .reduce((sum, t) => sum + tagWeight(t), 0);
-      const samecat   = g.category === currentCategory ? 2 : 0;
-      return { group: g, score: tagScore + samecat };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const withTags = scored.filter(x => x.score > 0);
-  const results  = withTags.length >= 3 ? withTags : scored;
-  return results.slice(0, 8).map(x => x.group);
-}
-
-const scored = allGroups
-    .filter(g => g.slug !== k)
-    .map(g => {
-      const jikan     = AppState.jikanCache[slug(g.title)];
+      const jikan     = AppState.jikanCache[g.slug];
       const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      // Sum weights of overlapping tags
-      const tagScore  = otherTags
-        .filter(t => lowerTags.includes(t))
-        .reduce((sum, t) => sum + tagWeight(t), 0);
-      const samecat   = g.category === currentCategory ? 2 : 0;
-      return { group: g, score: tagScore + samecat };
+      const overlap   = otherTags.filter(t => lowerTags.includes(t)).length;
+      return { group: g, overlap };
     })
-    .sort((a, b) => b.score - a.score);
-
-  const withTags = scored.filter(x => x.score > 0);
-  const results  = withTags.length >= 3 ? withTags : scored;
-  return results.slice(0, 8).map(x => x.group);
+    .filter(x => x.overlap > 0)
+    .sort((a, b) => b.overlap - a.overlap)
+    .slice(0, 8)
+    .map(x => x.group);
 }
+
+// ---------- Community ratings ----------
+async function getRatingForCollection(collectionName) {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
+    .select('rating')
+    .eq('collection', collectionName);
+  if (!data || !data.length) return { average: 0, count: 0 };
+  const avg = data.reduce((sum, r) => sum + Number(r.rating), 0) / data.length;
+  return { average: Math.round(avg * 2) / 2, count: data.length };
+}
+
+async function getUserRating(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
     .select('rating')
     .eq('user_id', user.id)
     .eq('collection', collectionName)
@@ -682,7 +626,6 @@ async function coreInit() {
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
-  loadJikanCache();
   await loadBaseVideos();
   syncVideos();
 }
