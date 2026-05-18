@@ -55,89 +55,16 @@
     <ul id="archiveList" class="archive-list"></ul>
   </details>
 
+  <!-- Admin panel: slideshow manager -->
   <section id="adminPanel" class="add-panel" hidden>
-    <h2 class="add-title">Add a Video</h2>
-    <p class="add-sub">Choose a local file to preview it here. For public downloads, paste a hosted URL. The collection field groups episodes into the same show.</p>
-    <form id="addVideoForm" class="add-form">
-      <div class="form-grid">
-        <label class="field">
-          <span class="field-label">Episode Title</span>
-          <input id="titleInput" type="text" placeholder="Show Name S01E02" required>
-        </label>
-        <label class="field">
-          <span class="field-label">Collection / Show</span>
-          <input id="collectionInput" type="text" placeholder="Auto-filled or set manually">
-        </label>
-      </div>
-      <div class="form-grid form-grid-3">
-        <label class="field">
-          <span class="field-label">Episode</span>
-          <input id="episodeInput" type="text" placeholder="02">
-        </label>
-        <label class="field">
-          <span class="field-label">Category</span>
-          <select id="categoryInput">
-            <option>Shows</option>
-            <option>Movies</option>
-            <option>OVA</option>
-            <option>Clips</option>
-            <option>Other</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field-label">Format</span>
-          <input id="fileTypeInput" type="text" placeholder="MP4">
-        </label>
-      </div>
-      <label class="field">
-        <span class="field-label">Size</span>
-        <input id="fileSizeInput" type="text" placeholder="120 MB">
-      </label>
-      <label class="field">
-        <span class="field-label">Description</span>
-        <textarea id="descriptionInput" rows="2" placeholder="Short description."></textarea>
-      </label>
-      <label class="field">
-        <span class="field-label">Video File</span>
-        <input id="videoFileInput" type="file" accept="video/*" hidden>
-        <button id="chooseVideoButton" type="button" class="btn btn-solid btn-block">Add Video</button>
-      </label>
-      <p id="selectedFileText" class="file-note">No file selected.</p>
-      <p id="autoGroupText" class="file-note muted">Auto-grouping watches for names like Show Name S01E02.</p>
-      <label class="field">
-        <span class="field-label">Cover Image <span class="optional">Optional</span></span>
-        <input id="coverFileInput" type="file" accept="image/*" hidden>
-        <div class="cover-row">
-          <button id="chooseCoverButton" type="button" class="btn btn-outline">Choose Cover</button>
-          <button id="findCoverButton" type="button" class="btn btn-outline">Find Online</button>
-        </div>
-      </label>
-      <p id="selectedCoverText" class="file-note">No cover selected.</p>
-      <div id="coverSearchPanel" class="cover-search-panel" hidden>
-        <div class="frame-picker-head">
-          <span class="field-label" id="coverSearchStatus">Searching…</span>
-        </div>
-        <div id="coverSearchResults" class="frame-grid"></div>
-      </div>
-      <div id="framePicker" class="frame-picker">
-        <div class="frame-picker-head">
-          <span class="field-label">Pick a cover frame</span>
-          <button id="regenerateFramesButton" type="button" class="btn btn-outline btn-small">Regenerate</button>
-        </div>
-        <div id="frameGrid" class="frame-grid"></div>
-      </div>
-      <label class="field">
-        <span class="field-label">Hosted URL <span class="optional">Optional</span></span>
-        <input id="hostedUrlInput" type="url" placeholder="https://archive.org/download/…">
-      </label>
-      <div class="form-actions">
-        <button type="submit" class="btn btn-solid">Save to Archive</button>
-        <button id="exportJsonButton" type="button" class="btn btn-outline">Export JSON</button>
-        <button id="clearLocalButton" type="button" class="btn btn-outline">Clear Local</button>
-        <button id="syncMetaButton" type="button" class="btn btn-outline">Sync All Covers</button>
-        <p id="formStatus" class="form-status">Add a hosted URL to make it public.</p>
-      </div>
-    </form>
+    <h2 class="add-title">Slideshow Manager</h2>
+    <p class="add-sub">Set which shows appear in the hero slideshow and their order. Positions 1–6 are shown. Leave blank to exclude a show.</p>
+    <div id="slideshowManager" class="slideshow-manager"></div>
+    <div class="form-actions" style="margin-top:20px">
+      <button id="saveSlideshowBtn" type="button" class="btn btn-solid">Save Order</button>
+      <button id="syncMetaButton" type="button" class="btn btn-outline">Sync All Covers</button>
+      <p id="formStatus" class="form-status"></p>
+    </div>
   </section>
 
   <footer class="site-foot">
