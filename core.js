@@ -566,6 +566,61 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(x => x.group);
 }
 
+// ---------- Community ratings ----------
+async function getRatingForCollection(collectionName) {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
+    .select('rating')
+    .eq('collection', collectionName);
+  if (!data || !data.length) return { average: 0, count: 0 };
+  const avg = data.reduce((sum, r) => sum + Number(r.rating), 0) / data.length;
+  return { average: Math.round(avg * 2) / 2, count: data.length };
+}
+
+async function getUserRating(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
+    .select('rating')
+    .eq('user_id', user.id)
+    .eq('collection', collectionName)
+    .maybeSingle();
+  return data ? Number(data.rating) : null;
+}
+
+async function setUserRating(collectionName, rating) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error('Not signed in.');
+  const sb = getSupabase();
+  await sb.from('ratings').upsert({
+    user_id: user.id,
+    collection: collectionName,
+    rating
+  }, { onConflict: 'user_id,collection' });
+}
+
+// ---------- Slideshow order ----------
+const HERO_ORDER_KEY = 'aurum-hero-order'; // { slug: rank (1-6) }
+
+function loadHeroOrder() {
+  try { return JSON.parse(localStorage.getItem(HERO_ORDER_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveHeroOrder(order) {
+  localStorage.setItem(HERO_ORDER_KEY, JSON.stringify(order));
+}
+
+function applyHeroOrder(groups) {
+  const order = loadHeroOrder();
+  const ranked   = groups.filter(g => order[g.slug] != null).sort((a, b) => order[a.slug] - order[b.slug]);
+  const unranked = groups.filter(g => order[g.slug] == null);
+  return [...ranked, ...unranked];
+}
+
 // ---------- Init ----------
 async function coreInit() {
   loadLocalVideos();
