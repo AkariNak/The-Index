@@ -64,7 +64,7 @@ function renderDetail() {
   const cover    = g.firstCover
     ? `<img src="${escapeHtml(g.firstCover)}" alt="${escapeHtml(g.title)}">`
     : `<div class="cover-placeholder">${escapeHtml(g.title.charAt(0).toUpperCase())}</div>`;
-  const tags     = getTagsForCollection(g.title, currentJikan?.tags || []);
+  const tags     = getTagsForCollection(g.title, currentJikan?.tags || []).filter(t => !['Shounen','Seinen','Shoujo','Josei','Kids'].includes(t));
   const tagsHtml = tags.length
     ? tags.map(t => `<span class="tag">${escapeHtml(t)}${isAdminUnlocked() ? `<button class="tag-remove" type="button" data-tag="${escapeHtml(t)}">×</button>` : ''}</span>`).join('')
     : '<span class="tag-empty">No tags yet</span>';
