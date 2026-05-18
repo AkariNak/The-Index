@@ -129,6 +129,7 @@ function renderDetail() {
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
         <div id="watchStatusContainer"></div>
+        <div id="communityRatingContainer"></div>
         <div class="tag-list">${tagsHtml}</div>
         ${adminAddTag}
         ${adminShowControls}
@@ -154,6 +155,7 @@ function renderDetail() {
 
   wireDetailEvents();
   renderWatchStatus(document.getElementById('watchStatusContainer'), g.title);
+  renderCommunityRating(document.getElementById('communityRatingContainer'), g.title);
 }
 
 function episodeRowHtml(video) {
@@ -258,6 +260,74 @@ function wireDetailEvents() {
       window.location.href = 'index.html';
     } catch (err) { alert(`Delete failed: ${err.message}`); }
   });
+}
+
+// ---------- Community rating ----------
+function starsHtml(rating, count) {
+  if (!rating || !count) return '';
+  const full  = Math.floor(rating);
+  const half  = (rating % 1) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty) + ` <span class="rating-count">${rating.toFixed(1)} (${count})</span>`;
+}
+
+async function renderCommunityRating(container, collectionName) {
+  if (!container) return;
+  container.innerHTML = `<div class="rating-loading">Loading ratings…</div>`;
+
+  const [ratingData, user, userRating] = await Promise.all([
+    getRatingForCollection(collectionName),
+    getCurrentUser(),
+    getCurrentUser().then(u => u ? getUserRating(collectionName) : null)
+  ]);
+
+  const avgHtml = ratingData.count
+    ? `<div class="rating-average">${starsHtml(ratingData.average, ratingData.count)} ratings</div>`
+    : `<div class="rating-average rating-none">No ratings yet</div>`;
+
+  const halfStars = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5];
+  const inputHtml = user ? `
+    <div class="rating-input-wrap">
+      <div class="rating-label">Your Rating</div>
+      <div class="rating-stars-input" id="ratingStarsInput">
+        ${halfStars.map(v => `
+          <button class="rating-star-btn ${userRating === v ? 'active' : ''}" data-value="${v}" type="button" title="${v} stars">
+            ${v % 1 === 0 ? '★' : '½'}
+          </button>
+        `).join('')}
+        ${userRating ? `<button class="rating-clear-btn" type="button" title="Clear rating">×</button>` : ''}
+      </div>
+    </div>
+  ` : `<div class="rating-signin"><button class="btn btn-outline btn-small" id="ratingSignInBtn" type="button">Sign in to rate</button></div>`;
+
+  container.innerHTML = `
+    <div class="community-rating">
+      ${avgHtml}
+      ${inputHtml}
+    </div>
+  `;
+
+  // Wire star buttons
+  container.querySelectorAll('.rating-star-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const val = parseFloat(btn.dataset.value);
+      try {
+        await setUserRating(collectionName, val);
+        renderCommunityRating(container, collectionName);
+      } catch (err) { alert(`Could not save rating: ${err.message}`); }
+    });
+  });
+
+  container.querySelector('.rating-clear-btn')?.addEventListener('click', async () => {
+    try {
+      const sb = getSupabase();
+      const user = await getCurrentUser();
+      await sb.from('ratings').delete().eq('user_id', user.id).eq('collection', collectionName);
+      renderCommunityRating(container, collectionName);
+    } catch (err) { alert(`Could not clear rating: ${err.message}`); }
+  });
+
+  document.getElementById('ratingSignInBtn')?.addEventListener('click', () => openUserAuthDialog('signin'));
 }
 
 // ---------- Player navigation ----------
