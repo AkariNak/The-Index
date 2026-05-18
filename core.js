@@ -455,6 +455,20 @@ function groupVideos(videoList) {
 const JIKAN_BASE = 'https://api.jikan.moe/v4/anime';
 let lastJikanCall = 0;
 
+const JIKAN_CACHE_KEY = 'aurum-jikan-cache';
+
+function loadJikanCache() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(JIKAN_CACHE_KEY) || '{}');
+    Object.assign(AppState.jikanCache, saved);
+  } catch {}
+}
+
+function saveJikanCache() {
+  try { localStorage.setItem(JIKAN_CACHE_KEY, JSON.stringify(AppState.jikanCache)); }
+  catch {}
+}
+
 async function jikanRequest(url) {
   const wait = Date.now() - lastJikanCall;
   if (wait < 500) await new Promise(r => setTimeout(r, 500 - wait));
@@ -465,8 +479,7 @@ async function jikanRequest(url) {
     const res = await fetch(url);
     if (res.status === 429) {
       attempts++;
-      const delay = 2000 * attempts; // 2s, 4s, 6s backoff
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise(r => setTimeout(r, 2000 * attempts));
       continue;
     }
     if (!res.ok) throw new Error(`Jikan ${res.status}`);
@@ -503,6 +516,7 @@ async function fetchJikanDetails(query) {
         .map(g => g.name).filter(Boolean)
     };
     AppState.jikanCache[cacheKey] = details;
+    saveJikanCache(); // persist so next page load skips the fetch
     return details;
   } catch (err) { console.warn('Jikan details failed:', err); return null; }
 }
@@ -665,6 +679,7 @@ async function coreInit() {
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
+  loadJikanCache();
   await loadBaseVideos();
   syncVideos();
 }
