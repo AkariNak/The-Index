@@ -622,25 +622,6 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
   return results.slice(0, 8).map(x => x.group);
 }
 
-  const scored = allGroups
-    .filter(g => g.slug !== k)
-    .map(g => {
-      const jikan     = AppState.jikanCache[slug(g.title)];
-      const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      // Sum weights of overlapping tags
-      const tagScore  = otherTags
-        .filter(t => lowerTags.includes(t))
-        .reduce((sum, t) => sum + tagWeight(t), 0);
-      const samecat   = g.category === currentCategory ? 2 : 0;
-      return { group: g, score: tagScore + samecat };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const withTags = scored.filter(x => x.score > 0);
-  const results  = withTags.length >= 3 ? withTags : scored;
-  return results.slice(0, 8).map(x => x.group);
-}
-
 // ---------- Community ratings ----------
 async function getRatingForCollection(collectionName) {
   const sb = getSupabase();
