@@ -573,8 +573,9 @@ function removeTag(collectionName, tag) {
   saveTagsOverride();
 }
 
-// ---------- Recommendations ----------
 // ---------- Tag weights ----------
+const DEMOGRAPHIC_TAGS = new Set(['shounen', 'seinen', 'shoujo', 'josei', 'kids']);
+
 const TAG_WEIGHTS = {
   // Core genres — 4 pts
   'action': 4, 'romance': 4, 'drama': 4, 'horror': 4, 'comedy': 4,
@@ -587,18 +588,39 @@ const TAG_WEIGHTS = {
   'school': 2, 'historical': 2, 'mecha': 2, 'music': 2, 'magic': 2,
   'super power': 2, 'martial arts': 2, 'demons': 2, 'vampires': 2,
   'time travel': 2, 'space': 2,
-  // Demographic — 1 pt
-  'shounen': 1, 'seinen': 1, 'shoujo': 1, 'josei': 1,
 };
 
 function tagWeight(tag) {
   return TAG_WEIGHTS[tag.toLowerCase()] ?? 1;
 }
 
+function filterTags(tags) {
+  return tags.filter(t => !DEMOGRAPHIC_TAGS.has(t.toLowerCase()));
+}
+
 // ---------- Recommendations ----------
 function getRecommendationsForCollection(collectionName, currentCategory, allGroups, currentTags = []) {
-  const lowerTags = currentTags.map(t => t.toLowerCase());
+  const filtered  = filterTags(currentTags);
+  const lowerTags = filtered.map(t => t.toLowerCase());
   const k         = slug(collectionName);
+
+  const scored = allGroups
+    .filter(g => g.slug !== k)
+    .map(g => {
+      const jikan     = AppState.jikanCache[slug(g.title)];
+      const otherTags = filterTags(getTagsForCollection(g.title, jikan?.tags || [])).map(t => t.toLowerCase());
+      const tagScore  = otherTags
+        .filter(t => lowerTags.includes(t))
+        .reduce((sum, t) => sum + tagWeight(t), 0);
+      const samecat   = g.category === currentCategory ? 2 : 0;
+      return { group: g, score: tagScore + samecat };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  const withTags = scored.filter(x => x.score > 0);
+  const results  = withTags.length >= 3 ? withTags : scored;
+  return results.slice(0, 8).map(x => x.group);
+}
 
   const scored = allGroups
     .filter(g => g.slug !== k)
