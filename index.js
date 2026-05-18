@@ -2,92 +2,70 @@
 // Aurum — index.js
 // ============================================================
 
-// ---------- Theme (runs immediately before anything renders) ----------
+// ---------- Theme ----------
 (function() {
   document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
 })();
 
 // ---------- DOM refs ----------
-const collectionGrid    = document.getElementById('collectionGrid');
-const archiveList       = document.getElementById('archiveList');
-const search            = document.getElementById('search');
-const filters           = document.getElementById('filters');
-const count             = document.getElementById('count');
-const addVideoForm      = document.getElementById('addVideoForm');
-const exportJsonButton  = document.getElementById('exportJsonButton');
-const clearLocalButton  = document.getElementById('clearLocalButton');
-const formStatus        = document.getElementById('formStatus');
-const videoFileInput    = document.getElementById('videoFileInput');
-const coverFileInput    = document.getElementById('coverFileInput');
-const chooseVideoButton = document.getElementById('chooseVideoButton');
-const chooseCoverButton = document.getElementById('chooseCoverButton');
-const selectedFileText  = document.getElementById('selectedFileText');
-const selectedCoverText = document.getElementById('selectedCoverText');
-const autoGroupText     = document.getElementById('autoGroupText');
-const framePicker       = document.getElementById('framePicker');
-const frameGrid         = document.getElementById('frameGrid');
-const regenerateFramesButton = document.getElementById('regenerateFramesButton');
-const downloadIndexPanel     = document.getElementById('downloadIndexPanel');
-const skeletonGrid           = document.getElementById('skeletonGrid');
-const adminPanel         = document.getElementById('adminPanel');
-const adminDialog        = document.getElementById('adminDialog');
-const adminLoginForm     = document.getElementById('adminLoginForm');
-const adminLoginButton   = document.getElementById('adminLoginButton');
-const adminCancelButton  = document.getElementById('adminCancelButton');
-const adminEmailInput    = document.getElementById('adminEmailInput');
+const collectionGrid  = document.getElementById('collectionGrid');
+const archiveList     = document.getElementById('archiveList');
+const search          = document.getElementById('search');
+const filters         = document.getElementById('filters');
+const count           = document.getElementById('count');
+const adminPanel      = document.getElementById('adminPanel');
+const adminDialog     = document.getElementById('adminDialog');
+const adminLoginForm  = document.getElementById('adminLoginForm');
+const adminLoginButton  = document.getElementById('adminLoginButton');
+const adminCancelButton = document.getElementById('adminCancelButton');
+const adminEmailInput   = document.getElementById('adminEmailInput');
 const adminPasswordInput = document.getElementById('adminPasswordInput');
-const adminError         = document.getElementById('adminError');
-const findCoverButton    = document.getElementById('findCoverButton');
-const coverSearchPanel   = document.getElementById('coverSearchPanel');
-const coverSearchStatus  = document.getElementById('coverSearchStatus');
-const coverSearchResults = document.getElementById('coverSearchResults');
-const titleInput       = document.getElementById('titleInput');
-const collectionInput  = document.getElementById('collectionInput');
-const episodeInput     = document.getElementById('episodeInput');
-const categoryInput    = document.getElementById('categoryInput');
-const fileTypeInput    = document.getElementById('fileTypeInput');
-const fileSizeInput    = document.getElementById('fileSizeInput');
-const descriptionInput = document.getElementById('descriptionInput');
-const hostedUrlInput   = document.getElementById('hostedUrlInput');
+const adminError        = document.getElementById('adminError');
+const formStatus        = document.getElementById('formStatus');
+const skeletonGrid      = document.getElementById('skeletonGrid');
+const downloadIndexPanel = document.getElementById('downloadIndexPanel');
 
 const yearEl = document.getElementById('year');
 if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
 // ---------- State ----------
-let activeCategory   = 'all';
-let selectedVideoUrl = '';
-let selectedCoverUrl = '';
-let generatedFrames  = [];
+let activeCategory = 'all';
+let _ratingCache   = {}; // { collectionSlug: { average, count } }
 
-// ---------- Skeleton loading ----------
+// ---------- Skeleton ----------
 function showSkeleton() {
   if (!skeletonGrid) return;
   skeletonGrid.innerHTML = Array(12).fill(0).map(() => `
     <div class="poster-card">
       <div class="skeleton skeleton-poster"></div>
       <div style="padding:0 2px;margin-top:10px">
-        <div class="skeleton skeleton-line skeleton-line-short" style="width:40%;height:9px;margin-bottom:6px"></div>
+        <div class="skeleton skeleton-line" style="width:40%;height:9px;margin-bottom:6px"></div>
         <div class="skeleton skeleton-line" style="height:13px;margin-bottom:4px"></div>
-        <div class="skeleton skeleton-line skeleton-line-short" style="height:9px;width:55%"></div>
+        <div class="skeleton skeleton-line" style="height:9px;width:55%"></div>
       </div>
     </div>
   `).join('');
 }
+function hideSkeleton() { if (skeletonGrid) skeletonGrid.innerHTML = ''; }
 
-function hideSkeleton() {
-  if (skeletonGrid) skeletonGrid.innerHTML = '';
+// ---------- Star rating display ----------
+function starsHtml(rating, count) {
+  if (!rating || !count) return '';
+  const full  = Math.floor(rating);
+  const half  = (rating % 1) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  const stars = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+  return `<div class="poster-rating" title="${rating} / 5 (${count} ${count === 1 ? 'rating' : 'ratings'})">${stars} <span class="poster-rating-count">${rating.toFixed(1)}</span></div>`;
 }
 
 // ---------- Filter / render ----------
 function getFilteredVideos() {
   const query = (search?.value || '').trim().toLowerCase();
   return AppState.videos.filter(video => {
-    const matchesCategory = activeCategory === 'all' ||
-      video.category.toLowerCase() === activeCategory.toLowerCase();
-    if (!matchesCategory) return false;
+    const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
+    if (!matchCat) return false;
     if (!query) return true;
-    return [video.title, video.description, video.collection, video.category]
-      .join(' ').toLowerCase().includes(query);
+    return [video.title, video.description, video.collection, video.category].join(' ').toLowerCase().includes(query);
   });
 }
 
@@ -110,7 +88,9 @@ function posterCardHtml(group) {
   const cover = group.firstCover
     ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
     : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0).toUpperCase())}</div>`;
-  const epCount = group.videos.length;
+  const epCount  = group.videos.length;
+  const ratingData = _ratingCache[group.slug];
+  const ratingEl   = ratingData ? starsHtml(ratingData.average, ratingData.count) : '';
   return `
     <article class="poster-card">
       <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(group.slug)}">
@@ -122,6 +102,7 @@ function posterCardHtml(group) {
         <div class="poster-info">
           <div class="poster-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
           <h3 class="poster-title">${escapeHtml(group.title)}</h3>
+          ${ratingEl}
         </div>
       </a>
     </article>
@@ -132,26 +113,19 @@ function render() {
   if (!collectionGrid) return;
   hideSkeleton();
   const filtered = getFilteredVideos();
-  const groups   = groupVideos(filtered);
-
+  const groups   = applyHeroOrder(groupVideos(filtered));
   const showCount = groups.length;
   const epCount   = filtered.length;
   if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
-
+  if (!groups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
+  collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
   if (archiveList) {
     archiveList.innerHTML = filtered.map(v => `
       <li class="archive-row">
         <span class="archive-row-title">${escapeHtml(v.title)}</span>
-        <span class="archive-row-meta">${escapeHtml(v.collection)} · ${escapeHtml(v.fileType)} · ${escapeHtml(v.fileSize)} · ${escapeHtml(formatDate(v.dateAdded))}</span>
-      </li>
-    `).join('');
+        <span class="archive-row-meta">${escapeHtml(v.collection)} · ${escapeHtml(v.fileType)} · ${escapeHtml(formatDate(v.dateAdded))}</span>
+      </li>`).join('');
   }
-
-  if (!groups.length) {
-    collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>';
-    return;
-  }
-  collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
 }
 
 function refreshArchive() {
@@ -161,148 +135,75 @@ function refreshArchive() {
   rebuildHero();
 }
 
-// ---------- Frame picker ----------
-async function generateCoverFrames(videoUrl) {
-  if (!videoUrl || !framePicker) return;
-  framePicker.classList.add('visible');
-  frameGrid.innerHTML = '<div class="file-note">Generating frames…</div>';
-  generatedFrames = [];
-  const video = document.createElement('video');
-  video.src = videoUrl; video.muted = true; video.playsInline = true; video.preload = 'metadata';
-  try {
-    await new Promise((res, rej) => {
-      video.addEventListener('loadedmetadata', res, { once: true });
-      video.addEventListener('error', rej, { once: true });
-    });
-    const dur    = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
-    const points = [0.12, 0.25, 0.4, 0.55, 0.72].map(p => Math.max(0.15, dur * p));
-    const canvas = document.createElement('canvas');
-    const ctx    = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width  = 640;
-    canvas.height = Math.round(640 * (video.videoHeight || 720) / (video.videoWidth || 1280));
-    for (const t of points) {
-      await new Promise((res, rej) => {
-        video.addEventListener('seeked', res, { once: true });
-        video.addEventListener('error', rej, { once: true });
-        video.currentTime = Math.min(Math.max(t, 0), Math.max(video.duration - 0.1, 0));
-      });
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      generatedFrames.push({ url: canvas.toDataURL('image/jpeg', 0.78), time: t });
-    }
-    renderFrameOptions();
-  } catch (err) {
-    frameGrid.innerHTML = `<div class="file-note">Could not generate frames.</div>`;
-  } finally {
-    video.removeAttribute('src'); video.load();
-  }
-}
-
-function renderFrameOptions() {
-  if (!generatedFrames.length) return;
-  if (!selectedCoverUrl || selectedCoverUrl.startsWith('blob:')) {
-    selectedCoverUrl = generatedFrames[Math.min(1, generatedFrames.length - 1)].url;
-  }
-  frameGrid.innerHTML = generatedFrames.map((f, i) => `
-    <button class="frame-option ${f.url === selectedCoverUrl ? 'active' : ''}" type="button" data-i="${i}">
-      <img src="${f.url}" alt="frame ${i + 1}">
-    </button>`).join('');
-  frameGrid.querySelectorAll('.frame-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedCoverUrl = generatedFrames[Number(btn.dataset.i)].url;
-      frameGrid.querySelectorAll('.frame-option').forEach(o => o.classList.toggle('active', o === btn));
-    });
-  });
-}
-
-// ---------- Form ----------
-async function handleFormSubmit(e) {
-  e.preventDefault();
-  const title = titleInput?.value?.trim();
-  if (!title) { if (formStatus) formStatus.textContent = 'A title is required.'; return; }
-  const hostedUrl   = hostedUrlInput?.value?.trim();
-  const downloadUrl = hostedUrl || selectedVideoUrl || '#';
-  const isTemporary = !hostedUrl && Boolean(selectedVideoUrl);
-  const newVideo = normalizeVideo({
-    title, description: descriptionInput?.value?.trim() || '',
-    collection: collectionInput?.value?.trim() || '', episode: episodeInput?.value?.trim() || '',
-    category: categoryInput?.value?.trim() || 'Other', fileType: fileTypeInput?.value?.trim() || 'MP4',
-    fileSize: fileSizeInput?.value?.trim() || '—', dateAdded: todayIso(),
-    downloadUrl, coverUrl: selectedCoverUrl || '', temporary: isTemporary
-  });
-  if (isTemporary) {
-    AppState.sessionVideos.push(newVideo);
-    if (formStatus) formStatus.textContent = 'Added as device preview. Add a hosted URL to publish.';
-  } else if (isAdminUnlocked()) {
+// ---------- Load ratings for all groups in background ----------
+async function loadRatings(groups) {
+  for (const g of groups) {
     try {
-      if (formStatus) formStatus.textContent = 'Saving…';
-      const saved = await supabaseInsert(newVideo);
-      AppState.baseVideos.unshift(saved);
-      if (formStatus) formStatus.textContent = 'Saved.';
-    } catch (err) {
-      if (formStatus) formStatus.textContent = `Save failed: ${err.message}`;
-      return;
+      const data = await getRatingForCollection(g.title);
+      if (data.count > 0) {
+        _ratingCache[g.slug] = data;
+        // Re-render that card with rating
+        const card = collectionGrid?.querySelector(`[data-slug="${g.slug}"]`);
+        if (card) card.outerHTML = posterCardHtml(g);
+        else render(); // fallback full re-render
+      }
+    } catch { /* silent */ }
+  }
+}
+
+// ---------- Admin: slideshow manager ----------
+function buildSlideshowManager() {
+  const manager = document.getElementById('slideshowManager');
+  if (!manager) return;
+  const groups = groupVideos(AppState.videos);
+  const order  = loadHeroOrder();
+
+  manager.innerHTML = `
+    <div class="slideshow-manager-grid">
+      ${groups.map(g => {
+        const rank = order[g.slug] ?? '';
+        return `
+          <div class="slideshow-row">
+            <div class="slideshow-row-cover">
+              ${g.firstCover ? `<img src="${escapeHtml(g.firstCover)}" alt="">` : `<div class="cover-placeholder" style="font-size:20px">${escapeHtml(g.title.charAt(0))}</div>`}
+            </div>
+            <div class="slideshow-row-title">${escapeHtml(g.title)}</div>
+            <input
+              class="slideshow-rank-input"
+              type="number"
+              min="1" max="6"
+              placeholder="—"
+              value="${escapeHtml(String(rank))}"
+              data-slug="${escapeHtml(g.slug)}"
+              data-title="${escapeHtml(g.title)}"
+            >
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function saveSlideshowOrder() {
+  const inputs = document.querySelectorAll('.slideshow-rank-input');
+  const order  = {};
+  inputs.forEach(input => {
+    const val = parseInt(input.value, 10);
+    if (!Number.isNaN(val) && val >= 1 && val <= 6) {
+      order[input.dataset.slug] = val;
     }
-  } else {
-    AppState.localVideos.push(newVideo);
-    saveLocalVideos();
-    if (formStatus) formStatus.textContent = 'Saved locally. Sign in as admin to publish.';
-  }
-  resetForm();
-  refreshArchive();
+  });
+  saveHeroOrder(order);
+  if (formStatus) formStatus.textContent = 'Slideshow order saved.';
+  rebuildHero();
 }
 
-function resetForm() {
-  if (addVideoForm) addVideoForm.reset();
-  if (selectedVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedVideoUrl);
-  selectedVideoUrl = ''; selectedCoverUrl = '';
-  if (selectedFileText)  selectedFileText.textContent  = 'No file selected.';
-  if (selectedCoverText) selectedCoverText.textContent = 'No cover selected.';
-  if (autoGroupText)     autoGroupText.textContent     = 'Auto-grouping watches for names like Show Name S01E02.';
-  if (coverSearchPanel)  coverSearchPanel.hidden        = true;
-  if (framePicker)       framePicker.classList.remove('visible');
-  generatedFrames = [];
-}
-
-// ---------- Cover search ----------
-function debounce(fn, ms) {
-  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
-}
-
-function bestSearchQuery(title, collection) {
-  if (collection?.trim()) return collection.trim();
-  return (title || '').replace(/\s+S\d{1,2}\s*E\d{1,3}.*$/i, '').replace(/\s+(episode|ep)\s*\d+.*$/i, '').trim();
-}
-
-async function runCoverSearch(query) {
-  if (!query) { if (coverSearchPanel) coverSearchPanel.hidden = true; return; }
-  if (coverSearchPanel) coverSearchPanel.hidden = false;
-  if (coverSearchStatus) coverSearchStatus.textContent = `Searching "${query}"…`;
-  if (coverSearchResults) coverSearchResults.innerHTML = '';
-  const results = await searchJikan(query);
-  if (!results.length) { if (coverSearchStatus) coverSearchStatus.textContent = `No results for "${query}".`; return; }
-  if (coverSearchStatus) coverSearchStatus.textContent = `Pick a cover for "${query}"`;
-  if (coverSearchResults) {
-    coverSearchResults.innerHTML = results.map((r, i) => `
-      <button type="button" class="cover-search-result" data-i="${i}">
-        <img src="${escapeHtml(r.image)}" alt="${escapeHtml(r.title)}" loading="lazy">
-        <span class="cover-search-result-title">${escapeHtml(r.title)}${r.year ? ' · ' + r.year : ''}</span>
-      </button>`).join('');
-    coverSearchResults.querySelectorAll('.cover-search-result').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const r = results[Number(btn.dataset.i)];
-        selectedCoverUrl = r.image;
-        if (selectedCoverText) selectedCoverText.textContent = `Cover: "${r.title}"`;
-        coverSearchResults.querySelectorAll('.cover-search-result').forEach(b => b.classList.toggle('active', b === btn));
-      });
-    });
-  }
-}
-
-// ---------- Admin ----------
+// ---------- Admin auth ----------
 function updateAdminUi() {
   const unlocked = isAdminUnlocked();
   if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
+  if (unlocked) buildSlideshowManager();
 }
 
 function openAdminDialog() {
@@ -312,7 +213,7 @@ function openAdminDialog() {
   if (adminPasswordInput) adminPasswordInput.value  = '';
   if (typeof adminDialog.showModal === 'function') adminDialog.showModal();
   else adminDialog.setAttribute('open', '');
-  if (adminEmailInput) adminEmailInput.focus();
+  adminEmailInput?.focus();
 }
 
 function closeAdminDialog() {
@@ -340,6 +241,37 @@ async function handleAdminSubmit(e) {
   }
 }
 
+// ---------- Bulk metadata sync ----------
+async function bulkAutoSaveMetadata() {
+  if (!isAdminUnlocked()) return;
+  const groups  = groupVideos(AppState.videos);
+  const missing = groups.filter(g => g.videos.some(v => v.id && (!v.coverUrl || !v.description)));
+  if (!missing.length) { if (formStatus) formStatus.textContent = 'All covers already synced.'; return; }
+  if (formStatus) formStatus.textContent = `Syncing ${missing.length} shows…`;
+  for (const group of missing) {
+    try {
+      const details = await fetchJikanDetails(group.title);
+      if (!details) continue;
+      const toUpdate = group.videos.filter(v => v.id && (!v.coverUrl || !v.description));
+      for (const video of toUpdate) {
+        const updates = { ...video };
+        if (!video.coverUrl    && details.image)    updates.coverUrl    = details.image;
+        if (!video.description && details.synopsis) updates.description = details.synopsis;
+        if (updates.coverUrl === video.coverUrl && updates.description === video.description) continue;
+        try {
+          const saved = await supabaseUpdate(video.id, updates);
+          const idx   = AppState.baseVideos.findIndex(v => v.id === video.id);
+          if (idx >= 0) AppState.baseVideos[idx] = saved;
+          video.coverUrl    = saved.coverUrl;
+          video.description = saved.description;
+        } catch (err) { console.warn('Cover save failed:', video.title, err); }
+      }
+      syncVideos(); render(); rebuildHero();
+    } catch (err) { console.warn('Jikan failed:', group.title, err); }
+  }
+  if (formStatus) formStatus.textContent = 'Sync complete.';
+}
+
 // ---------- Theme toggle ----------
 function wireThemeToggle() {
   const btn = document.getElementById('themeToggle');
@@ -365,11 +297,12 @@ function wireTabs() {
   });
 }
 
-// ---------- Hero slideshow (single-slide swap approach) ----------
+// ---------- Hero slideshow ----------
 let heroIndex   = 0;
 let heroTimer   = null;
 let heroFeature = [];
-const HERO_INTERVAL    = 6000;
+let _sliding    = false;
+const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 
 function loadBannerOverrides() {
@@ -384,6 +317,8 @@ function renderHeroSlideInto(el, idx) {
   const overrides = loadBannerOverrides();
   const bannerUrl = overrides[g.slug] || g.firstCover;
   const desc      = g.videos[0]?.description || '';
+  const rData     = _ratingCache[g.slug];
+  const ratingEl  = rData ? `<div class="hero-rating">${starsHtml(rData.average, rData.count)}</div>` : '';
   const adminBtns = isAdminUnlocked() ? `
     <button class="hero-banner-override" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
     <button class="hero-delete-show danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
@@ -400,6 +335,7 @@ function renderHeroSlideInto(el, idx) {
         <div class="hero-slide-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h2 class="hero-slide-title">${escapeHtml(g.title)}</h2>
         ${desc ? `<p class="hero-slide-desc">${escapeHtml(desc)}</p>` : ''}
+        ${ratingEl}
         <div class="hero-slide-actions">
           <a class="hero-slide-link" href="detail.html?show=${encodeURIComponent(g.slug)}">▶ Watch Now</a>
           ${adminBtns}
@@ -442,289 +378,79 @@ function renderHeroSlide(idx) {
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
 }
 
-let _sliding = false;
-
 function goToSlide(idx, direction) {
   if (_sliding || idx === heroIndex) return;
   const slidesEl = document.getElementById('heroSlides');
   if (!slidesEl) return;
-
-  // Default direction: forward = left-to-right, backward = right-to-left
   if (direction === undefined) direction = idx > heroIndex ? 1 : -1;
-
   const fromSlide = slidesEl.querySelector('.hero-slide');
   heroIndex = idx;
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
-
   if (!fromSlide) { renderHeroSlide(idx); return; }
-
-  // Build incoming slide off-screen
   const incoming = document.createElement('div');
   incoming.style.cssText = `position:absolute;inset:0;transform:translateX(${direction > 0 ? '100%' : '-100%'});will-change:transform;`;
   slidesEl.appendChild(incoming);
   renderHeroSlideInto(incoming, idx);
-
   _sliding = true;
   const DURATION = 520;
   const start    = performance.now();
-
   function step(now) {
     const p    = Math.min((now - start) / DURATION, 1);
-    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p; // ease-in-out
+    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
     fromSlide.style.transform = `translateX(${-direction * ease * 100}%)`;
     incoming.style.transform  = `translateX(${direction * (1 - ease) * 100}%)`;
     if (p < 1) { requestAnimationFrame(step); return; }
-    // Done — replace from with incoming
     fromSlide.remove();
-    incoming.style.transform = '';
-    incoming.style.position  = '';
-    incoming.style.cssText   = '';
+    incoming.style.cssText = '';
     _sliding = false;
   }
   requestAnimationFrame(step);
 }
 
-function startHeroTimer() {
-  stopHeroTimer();
-  heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL);
-}
+function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL); }
+function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
-function stopHeroTimer() {
-  if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
-}
-
-// Called once on init. Wires prev/next/dot buttons once only.
 function buildHero(groups) {
   const section  = document.getElementById('heroSlideshow');
   const dotsEl   = document.getElementById('heroDots');
   if (!section || !dotsEl) return;
-
-  heroFeature = groups.filter(g => g.firstCover).slice(0, 6);
+  heroFeature = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
   if (!heroFeature.length) { section.hidden = true; return; }
   section.hidden = false;
   heroIndex = 0;
-
   dotsEl.innerHTML = heroFeature.map((_, i) =>
     `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
   ).join('');
-
   dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
     dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
   });
-
-  document.getElementById('heroPrev')?.addEventListener('click', () => {
-    stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer();
-  });
-  document.getElementById('heroNext')?.addEventListener('click', () => {
-    stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer();
-  });
-
+  document.getElementById('heroPrev')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer(); });
+  document.getElementById('heroNext')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer(); });
   renderHeroSlide(0);
   startHeroTimer();
 }
 
-// Called on refreshArchive — updates featured list and re-renders current slide without re-wiring buttons
 function rebuildHero() {
   const groups = groupVideos(AppState.videos);
-  heroFeature  = groups.filter(g => g.firstCover).slice(0, 6);
-  if (!heroFeature.length) {
-    const section = document.getElementById('heroSlideshow');
-    if (section) section.hidden = true;
-    return;
-  }
+  heroFeature  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
+  if (!heroFeature.length) { const s = document.getElementById('heroSlideshow'); if (s) s.hidden = true; return; }
   heroIndex = Math.min(heroIndex, heroFeature.length - 1);
   renderHeroSlide(heroIndex);
 }
 
-// ---------- Nav: sign in / account ----------
+// ---------- Nav auth ----------
 function wireNavAuth() {
   const signInBtn   = document.getElementById('signInNavBtn');
   const accountLink = document.getElementById('accountLink');
   getCurrentUser().then(user => {
-    if (user) {
-      if (signInBtn)   signInBtn.style.display = 'none';
-      if (accountLink) accountLink.hidden = false;
-    } else {
-      if (signInBtn)   { signInBtn.style.display = ''; signInBtn.addEventListener('click', () => window.location.href = 'account.html'); }
-      if (accountLink) accountLink.hidden = true;
-    }
+    if (user) { if (signInBtn) signInBtn.style.display = 'none'; if (accountLink) accountLink.hidden = false; }
+    else { if (signInBtn) { signInBtn.style.display = ''; signInBtn.onclick = () => window.location.href = 'account.html'; } if (accountLink) accountLink.hidden = true; }
   });
 }
 
-// ---------- Wire everything ----------
-// ---------- Jikan episode name lookup ----------
-const episodeCache = {}; // { malId: [{ mal_id, title, title_romanji }] }
-
-async function fetchEpisodeList(malId) {
-  if (episodeCache[malId]) return episodeCache[malId];
-  const episodes = [];
-  let page = 1;
-  try {
-    while (true) {
-      const wait = Date.now() - (window._lastJikan || 0);
-      if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
-      window._lastJikan = Date.now();
-      const res  = await fetch(`https://api.jikan.moe/v4/anime/${malId}/episodes?page=${page}`);
-      if (!res.ok) break;
-      const data = await res.json();
-      const items = data.data || [];
-      episodes.push(...items);
-      if (!data.pagination?.has_next_page) break;
-      page++;
-    }
-  } catch (err) { console.warn('Episode fetch failed:', err); }
-  episodeCache[malId] = episodes;
-  return episodes;
-}
-
-async function autoFillEpisodeTitle() {
-  const col = collectionInput?.value?.trim();
-  const ep  = episodeInput?.value?.trim();
-  if (!col || !ep) return;
-
-  const epNum = parseInt(ep, 10);
-  if (Number.isNaN(epNum) || epNum < 1) return;
-
-  // Find the MAL id from the Jikan cache
-  const cacheKey = col.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  const cached   = AppState.jikanCache[cacheKey];
-  let malId      = cached?.malId;
-
-  if (!malId) {
-    // Search for it
-    try {
-      const wait = Date.now() - (window._lastJikan || 0);
-      if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
-      window._lastJikan = Date.now();
-      const res  = await fetch(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(col)}&limit=1&sfw=true`);
-      const data = await res.json();
-      malId = data.data?.[0]?.mal_id;
-      if (malId && data.data?.[0]) {
-        AppState.jikanCache[cacheKey] = {
-          malId,
-          title: data.data[0].title_english || data.data[0].title
-        };
-      }
-    } catch (err) { console.warn('MAL search failed:', err); return; }
-  }
-
-  if (!malId) return;
-
-  const episodes = await fetchEpisodeList(malId);
-  const match    = episodes.find(e => e.mal_id === epNum);
-  if (!match) return;
-
-  const epTitle = match.title || match.title_romanji || '';
-  if (!epTitle) return;
-
-  // Set title as "Collection - Episode Name"
-  if (titleInput) titleInput.value = `${col} - ${epTitle}`;
-}
-
-// ---------- Auto-fill form from URL ----------
-async function autoFillFromUrl(url) {
-  if (!url || !url.startsWith('http')) return;
-
-  // Extract filename from URL
-  let filename = '';
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split('/');
-    filename = decodeURIComponent(parts[parts.length - 1] || '');
-  } catch { return; }
-
-  if (!filename) return;
-
-  // Detect format from extension
-  const ext = filename.split('.').pop()?.toUpperCase() || 'MP4';
-  if (fileTypeInput && !fileTypeInput.value) fileTypeInput.value = ext;
-
-  // Detect category from extension
-  const videoExts = ['MP4', 'MKV', 'AVI', 'MOV', 'WEBM', 'M4V', 'TS', 'OGV'];
-  if (categoryInput && !categoryInput.value) {
-    categoryInput.value = videoExts.includes(ext) ? 'Shows' : 'Other';
-  }
-
-  // Parse episode info from filename
-  const parsed = parseEpisodeInfo(filename);
-
-  if (collectionInput && !collectionInput.value && parsed.collection) {
-    collectionInput.value = parsed.collection;
-  }
-  if (episodeInput && !episodeInput.value && parsed.episode) {
-    // Store clean episode number (strip season prefix like "1.01" → "1")
-    const epStr = String(parsed.episode);
-    episodeInput.value = epStr.includes('.') ? String(parseInt(epStr.split('.')[1], 10)) : epStr;
-  }
-
-  // Try to fill title from Jikan using collection + episode
-  if (collectionInput?.value && episodeInput?.value) {
-    await autoFillEpisodeTitle();
-  } else if (collectionInput?.value && titleInput && !titleInput.value) {
-    titleInput.value = `${collectionInput.value} - `;
-  }
-
-  if (formStatus) formStatus.textContent = `Parsed: ${parsed.collection}${parsed.episode ? ` EP ${episodeInput?.value}` : ''}`;
-}
-
+// ---------- Wire ----------
 function wireAll() {
   if (search) search.addEventListener('input', render);
-
-  if (chooseVideoButton && videoFileInput) {
-    chooseVideoButton.addEventListener('click', () => videoFileInput.click());
-    videoFileInput.addEventListener('change', e => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (selectedVideoUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedVideoUrl);
-      selectedVideoUrl = URL.createObjectURL(file);
-      if (selectedFileText) selectedFileText.textContent = `${file.name} · ${formatBytes(file.size)}`;
-      const parsed = parseEpisodeInfo(file.name);
-      if (titleInput      && !titleInput.value)      titleInput.value      = parsed.title;
-      if (collectionInput && !collectionInput.value)  collectionInput.value = parsed.collection;
-      if (episodeInput    && !episodeInput.value)      episodeInput.value    = parsed.episode;
-      if (fileSizeInput   && !fileSizeInput.value)     fileSizeInput.value   = formatBytes(file.size);
-      if (fileTypeInput   && !fileTypeInput.value)     fileTypeInput.value   = (file.name.split('.').pop() || 'MP4').toUpperCase();
-      if (autoGroupText) autoGroupText.textContent = `Auto-grouped under "${parsed.collection}".`;
-      generateCoverFrames(selectedVideoUrl);
-    });
-  }
-
-  if (chooseCoverButton && coverFileInput) {
-    chooseCoverButton.addEventListener('click', () => coverFileInput.click());
-    coverFileInput.addEventListener('change', e => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      if (selectedCoverUrl?.startsWith('blob:')) URL.revokeObjectURL(selectedCoverUrl);
-      selectedCoverUrl = URL.createObjectURL(file);
-      if (selectedCoverText) selectedCoverText.textContent = `${file.name}`;
-    });
-  }
-
-  if (regenerateFramesButton) regenerateFramesButton.addEventListener('click', () => { if (selectedVideoUrl) generateCoverFrames(selectedVideoUrl); });
-  if (addVideoForm)     addVideoForm.addEventListener('submit', handleFormSubmit);
-  if (exportJsonButton) exportJsonButton.addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify([...AppState.baseVideos, ...AppState.localVideos], null, 2)], { type: 'application/json' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'videos.json' });
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 0);
-  });
-  if (clearLocalButton) clearLocalButton.addEventListener('click', () => {
-    if (!confirm('Clear all locally added videos?')) return;
-    AppState.localVideos = []; saveLocalVideos(); refreshArchive();
-    if (formStatus) formStatus.textContent = 'Local library cleared.';
-  });
-
-  const syncMetaButton = document.getElementById('syncMetaButton');
-  if (syncMetaButton) {
-    syncMetaButton.addEventListener('click', async () => {
-      syncMetaButton.disabled = true;
-      syncMetaButton.textContent = 'Syncing…';
-      if (formStatus) formStatus.textContent = 'Fetching covers from Jikan…';
-      await bulkAutoSaveMetadata();
-      syncMetaButton.disabled = false;
-      syncMetaButton.textContent = 'Sync All Covers';
-      if (formStatus) formStatus.textContent = 'Sync complete.';
-    });
-  }
 
   updateAdminUi();
   if (adminLoginButton) {
@@ -736,85 +462,21 @@ function wireAll() {
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
 
-  if (findCoverButton) findCoverButton.addEventListener('click', () => runCoverSearch(bestSearchQuery(titleInput?.value || '', collectionInput?.value || '')));
-  const debounced = debounce(() => { const q = bestSearchQuery(titleInput?.value || '', collectionInput?.value || ''); if (q.length >= 3) runCoverSearch(q); }, 800);
-  if (titleInput)      titleInput.addEventListener('input', debounced);
-  if (collectionInput) {
-    collectionInput.addEventListener('input', () => {
-      debounced();
-      const col = collectionInput.value.trim();
-      if (!col) return;
-      const prefix  = `${col} - `;
-      const current = titleInput?.value || '';
-      if (!current || /^.+ - /.test(current)) {
-        const episodePart = current.replace(/^.+ - /, '');
-        if (titleInput) titleInput.value = prefix + (episodePart === current ? '' : episodePart);
-      }
-      // Re-run episode lookup if episode number already filled
-      if (episodeInput?.value?.trim()) autoFillEpisodeTitle();
+  document.getElementById('saveSlideshowBtn')?.addEventListener('click', saveSlideshowOrder);
+
+  const syncMetaButton = document.getElementById('syncMetaButton');
+  if (syncMetaButton) {
+    syncMetaButton.addEventListener('click', async () => {
+      syncMetaButton.disabled = true;
+      syncMetaButton.textContent = 'Syncing…';
+      await bulkAutoSaveMetadata();
+      syncMetaButton.disabled = false;
+      syncMetaButton.textContent = 'Sync All Covers';
     });
   }
 
-  // Auto-fill from URL paste
-  if (hostedUrlInput) {
-    hostedUrlInput.addEventListener('input', () => autoFillFromUrl(hostedUrlInput.value.trim()));
-    hostedUrlInput.addEventListener('paste', e => {
-      // paste event fires before input value updates, so read from clipboard
-      const pasted = (e.clipboardData || window.clipboardData)?.getData('text')?.trim();
-      if (pasted) setTimeout(() => autoFillFromUrl(pasted), 0);
-    });
-  }
-
-  // Auto-fill title from Jikan when episode number is entered
-  if (episodeInput) {
-    episodeInput.addEventListener('change', () => autoFillEpisodeTitle());
-    episodeInput.addEventListener('blur',   () => autoFillEpisodeTitle());
-  }
-
-  wireThemeToggle();
   wireTabs();
-}
-
-// ---------- Bulk cover/description auto-save (runs in background for admin) ----------
-async function bulkAutoSaveMetadata() {
-  if (!isAdminUnlocked()) return;
-  const groups  = groupVideos(AppState.videos);
-  const missing = groups.filter(g => g.videos.some(v => v.id && (!v.coverUrl || !v.description)));
-  if (!missing.length) return;
-
-  console.log(`Aurum: auto-saving metadata for ${missing.length} shows…`);
-
-  for (const group of missing) {
-    try {
-      const details = await fetchJikanDetails(group.title);
-      if (!details) continue;
-
-      const toUpdate = group.videos.filter(v => v.id && (!v.coverUrl || !v.description));
-      for (const video of toUpdate) {
-        const updates = { ...video };
-        if (!video.coverUrl    && details.image)    updates.coverUrl    = details.image;
-        if (!video.description && details.synopsis) updates.description = details.synopsis;
-        if (updates.coverUrl === video.coverUrl && updates.description === video.description) continue;
-        try {
-          const saved = await supabaseUpdate(video.id, updates);
-          const idx   = AppState.baseVideos.findIndex(v => v.id === video.id);
-          if (idx >= 0) AppState.baseVideos[idx] = saved;
-          video.coverUrl    = saved.coverUrl;
-          video.description = saved.description;
-        } catch (err) {
-          console.warn('Cover save failed for', video.title, err);
-        }
-      }
-
-      // Update hero and grid after each show so covers appear progressively
-      syncVideos();
-      render();
-      rebuildHero();
-    } catch (err) {
-      console.warn('Jikan fetch failed for', group.title, err);
-    }
-  }
-  console.log('Aurum: metadata sync complete.');
+  wireThemeToggle();
 }
 
 // ---------- Bootstrap ----------
@@ -827,4 +489,8 @@ async function bulkAutoSaveMetadata() {
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
+
+  // Load ratings in background
+  const groups = groupVideos(AppState.videos);
+  loadRatings(groups);
 })();
