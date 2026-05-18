@@ -693,11 +693,27 @@ async function autoSaveMetadata(details) {
   wireAdmin();
   wireNavAuth();
 
+  // Fetch current show's Jikan data first
   fetchJikanDetails(currentGroup?.title || '').then(async details => {
     if (!details) return;
     currentJikan = details;
     renderDetail();
     renderRecommendations(groupVideos(AppState.videos));
     await autoSaveMetadata(details);
+
+    // Then fetch tags for all other shows in background for better recommendations
+    // Uses unique base titles to avoid fetching the same show multiple times for each season
+    const otherGroups = allGroups.filter(g => g.slug !== currentGroup.slug);
+    const seenBase    = new Set();
+    for (const g of otherGroups) {
+      const base = getBaseTitle(g.title);
+      if (seenBase.has(base)) continue;
+      seenBase.add(base);
+      try {
+        await fetchJikanDetails(g.title); // stores in AppState.jikanCache
+      } catch { /* silent */ }
+    }
+    // Re-render recommendations now that all tags are loaded
+    renderRecommendations(groupVideos(AppState.videos));
   });
 })();
