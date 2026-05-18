@@ -285,18 +285,18 @@ async function renderCommunityRating(container, collectionName) {
     ? `<div class="rating-average">${starsHtml(ratingData.average, ratingData.count)} ratings</div>`
     : `<div class="rating-average rating-none">No ratings yet</div>`;
 
-  const halfStars = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5];
   const inputHtml = user ? `
     <div class="rating-input-wrap">
-      <div class="rating-label">Your Rating</div>
-      <div class="rating-stars-input" id="ratingStarsInput">
-        ${halfStars.map(v => `
-          <button class="rating-star-btn ${userRating === v ? 'active' : ''}" data-value="${v}" type="button" title="${v} stars">
-            ${v % 1 === 0 ? '★' : '½'}
-          </button>
+      <div class="rating-label">Your Rating${userRating ? ` — <span class="rating-current-val">${userRating}</span> / 5` : ''}</div>
+      <div class="rating-track" id="ratingTrack" data-current="${userRating || 0}">
+        ${[1,2,3,4,5].map(i => `
+          <span class="rating-star-segment">
+            <span class="rating-half" data-value="${i - 0.5}">&#9733;</span>
+            <span class="rating-half" data-value="${i}">&#9733;</span>
+          </span>
         `).join('')}
-        ${userRating ? `<button class="rating-clear-btn" type="button" title="Clear rating">×</button>` : ''}
       </div>
+      ${userRating ? `<button class="rating-clear-btn" type="button">Clear rating</button>` : ''}
     </div>
   ` : `<div class="rating-signin"><button class="btn btn-outline btn-small" id="ratingSignInBtn" type="button">Sign in to rate</button></div>`;
 
@@ -307,27 +307,52 @@ async function renderCommunityRating(container, collectionName) {
     </div>
   `;
 
-  // Wire star buttons
-  container.querySelectorAll('.rating-star-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const val = parseFloat(btn.dataset.value);
-      try {
-        await setUserRating(collectionName, val);
-        renderCommunityRating(container, collectionName);
-      } catch (err) { alert(`Could not save rating: ${err.message}`); }
+  const track = document.getElementById('ratingTrack');
+  if (track) {
+    const current = parseFloat(track.dataset.current) || 0;
+    updateStarDisplay(track, current, current);
+
+    track.querySelectorAll('.rating-half').forEach(half => {
+      half.addEventListener('mouseenter', () => {
+        updateStarDisplay(track, parseFloat(half.dataset.value), current);
+      });
     });
-  });
+
+    track.addEventListener('mouseleave', () => {
+      updateStarDisplay(track, current, current);
+    });
+
+    track.querySelectorAll('.rating-half').forEach(half => {
+      half.addEventListener('click', async () => {
+        const val = parseFloat(half.dataset.value);
+        try {
+          await setUserRating(collectionName, val);
+          renderCommunityRating(container, collectionName);
+        } catch (err) { alert(`Could not save rating: ${err.message}`); }
+      });
+    });
+  }
 
   container.querySelector('.rating-clear-btn')?.addEventListener('click', async () => {
     try {
-      const sb = getSupabase();
+      const sb   = getSupabase();
       const user = await getCurrentUser();
       await sb.from('ratings').delete().eq('user_id', user.id).eq('collection', collectionName);
       renderCommunityRating(container, collectionName);
-    } catch (err) { alert(`Could not clear rating: ${err.message}`); }
+    } catch (err) { alert(`Could not clear: ${err.message}`); }
   });
 
   document.getElementById('ratingSignInBtn')?.addEventListener('click', () => openUserAuthDialog('signin'));
+}
+
+function updateStarDisplay(track, hoverVal, currentVal) {
+  track.querySelectorAll('.rating-half').forEach(half => {
+    const v = parseFloat(half.dataset.value);
+    // Full lit: value <= hover
+    // Locked: value <= current
+    half.classList.toggle('lit',    v <= hoverVal);
+    half.classList.toggle('locked', v <= currentVal);
+  });
 }
 
 // ---------- Player navigation ----------
