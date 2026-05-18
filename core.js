@@ -622,24 +622,24 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
   return results.slice(0, 8).map(x => x.group);
 }
 
-const scored = allGroups
-    .filter(g => g.slug !== k)
-    .map(g => {
-      const jikan     = AppState.jikanCache[slug(g.title)];
-      const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      // Sum weights of overlapping tags
-      const tagScore  = otherTags
-        .filter(t => lowerTags.includes(t))
-        .reduce((sum, t) => sum + tagWeight(t), 0);
-      const samecat   = g.category === currentCategory ? 2 : 0;
-      return { group: g, score: tagScore + samecat };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  const withTags = scored.filter(x => x.score > 0);
-  const results  = withTags.length >= 3 ? withTags : scored;
-  return results.slice(0, 8).map(x => x.group);
+// ---------- Community ratings ----------
+async function getRatingForCollection(collectionName) {
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
+    .select('rating')
+    .eq('collection', collectionName);
+  if (!data || !data.length) return { average: 0, count: 0 };
+  const avg = data.reduce((sum, r) => sum + Number(r.rating), 0) / data.length;
+  return { average: Math.round(avg * 2) / 2, count: data.length };
 }
+
+async function getUserRating(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const sb = getSupabase();
+  const { data } = await sb
+    .from('ratings')
     .select('rating')
     .eq('user_id', user.id)
     .eq('collection', collectionName)
