@@ -549,6 +549,28 @@ function removeTag(collectionName, tag) {
 }
 
 // ---------- Recommendations ----------
+// ---------- Tag weights ----------
+const TAG_WEIGHTS = {
+  // Core genres — 4 pts
+  'action': 4, 'romance': 4, 'drama': 4, 'horror': 4, 'comedy': 4,
+  'mystery': 4, 'sci-fi': 4, 'fantasy': 4, 'slice of life': 4,
+  // Thematic — 3 pts
+  'psychological': 3, 'supernatural': 3, 'thriller': 3, 'adventure': 3,
+  'sports': 3, 'isekai': 3, 'military': 3, 'tragedy': 3, 'survival': 3,
+  'gore': 3, 'violence': 3,
+  // Setting / tone — 2 pts
+  'school': 2, 'historical': 2, 'mecha': 2, 'music': 2, 'magic': 2,
+  'super power': 2, 'martial arts': 2, 'demons': 2, 'vampires': 2,
+  'time travel': 2, 'space': 2,
+  // Demographic — 1 pt
+  'shounen': 1, 'seinen': 1, 'shoujo': 1, 'josei': 1,
+};
+
+function tagWeight(tag) {
+  return TAG_WEIGHTS[tag.toLowerCase()] ?? 1;
+}
+
+// ---------- Recommendations ----------
 function getRecommendationsForCollection(collectionName, currentCategory, allGroups, currentTags = []) {
   const lowerTags = currentTags.map(t => t.toLowerCase());
   const k         = slug(collectionName);
@@ -558,13 +580,15 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
     .map(g => {
       const jikan     = AppState.jikanCache[slug(g.title)];
       const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      const overlap   = otherTags.filter(t => lowerTags.includes(t)).length;
-      const samecat   = g.category === currentCategory ? 1 : 0;
-      return { group: g, score: overlap * 2 + samecat };
+      // Sum weights of overlapping tags
+      const tagScore  = otherTags
+        .filter(t => lowerTags.includes(t))
+        .reduce((sum, t) => sum + tagWeight(t), 0);
+      const samecat   = g.category === currentCategory ? 2 : 0;
+      return { group: g, score: tagScore + samecat };
     })
     .sort((a, b) => b.score - a.score);
 
-  // If we have tag-scored results use them, otherwise fall back to all groups sorted by category match
   const withTags = scored.filter(x => x.score > 0);
   const results  = withTags.length >= 3 ? withTags : scored;
   return results.slice(0, 8).map(x => x.group);
