@@ -457,11 +457,22 @@ let lastJikanCall = 0;
 
 async function jikanRequest(url) {
   const wait = Date.now() - lastJikanCall;
-  if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
+  if (wait < 500) await new Promise(r => setTimeout(r, 500 - wait));
   lastJikanCall = Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Jikan ${res.status}`);
-  return res.json();
+
+  let attempts = 0;
+  while (attempts < 3) {
+    const res = await fetch(url);
+    if (res.status === 429) {
+      attempts++;
+      const delay = 2000 * attempts; // 2s, 4s, 6s backoff
+      await new Promise(r => setTimeout(r, delay));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Jikan ${res.status}`);
+    return res.json();
+  }
+  throw new Error('Jikan 429 — too many requests');
 }
 
 async function searchJikan(query) {
