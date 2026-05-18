@@ -701,8 +701,7 @@ async function autoSaveMetadata(details) {
     renderRecommendations(groupVideos(AppState.videos));
     await autoSaveMetadata(details);
 
-    // Then fetch tags for all other shows in background for better recommendations
-    // Uses unique base titles to avoid fetching the same show multiple times for each season
+    // Fetch tags for all other shows in background — with spacing to avoid 429s
     const otherGroups = allGroups.filter(g => g.slug !== currentGroup.slug);
     const seenBase    = new Set();
     for (const g of otherGroups) {
@@ -710,10 +709,10 @@ async function autoSaveMetadata(details) {
       if (seenBase.has(base)) continue;
       seenBase.add(base);
       try {
-        await fetchJikanDetails(g.title); // stores in AppState.jikanCache
+        await fetchJikanDetails(g.title);
+        await new Promise(r => setTimeout(r, 600)); // extra spacing on top of jikanRequest's own delay
       } catch { /* silent */ }
     }
-    // Re-render recommendations now that all tags are loaded
     renderRecommendations(groupVideos(AppState.videos));
   });
 })();
