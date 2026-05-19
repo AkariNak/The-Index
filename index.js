@@ -95,17 +95,20 @@ function getFilteredVideos() {
     const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchCat) return false;
 
-    // Genre filter — match against jikan cache tags
+    // Genre filter — only filter out if we have tag data and it doesn't match
     if (activeGenre !== 'all') {
       const needed = GENRE_TAG_MAP[activeGenre] || [];
       const jikan  = AppState.jikanCache[slug(video.collection)];
-      const raw    = jikan?.tags || [];
-      const DEMO   = new Set(['shounen','seinen','shoujo','josei','kids']);
-      const tags   = raw.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
-      const match  = needed.length === 1
-        ? tags.includes(needed[0])
-        : needed.every(n => tags.includes(n));
-      if (!match) return false;
+      const raw    = jikan?.tags;
+      // If no cache data yet, include the show (we don't know its tags)
+      if (raw && raw.length > 0) {
+        const DEMO = new Set(['shounen','seinen','shoujo','josei','kids']);
+        const tags = raw.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
+        const match = needed.length === 1
+          ? tags.includes(needed[0])
+          : needed.every(n => tags.includes(n));
+        if (!match) return false;
+      }
     }
 
     if (!query) return true;
@@ -582,4 +585,21 @@ function wireAll() {
   // Load ratings in background
   const groups = groupVideos(AppState.videos);
   loadRatings(groups);
+
+  // Fetch Jikan tags for all shows in background so genre filter works
+  (async () => {
+    const seenBase = new Set();
+    for (const g of groups) {
+      const base = getBaseTitle ? getBaseTitle(g.title) : g.title;
+      if (seenBase.has(base)) continue;
+      seenBase.add(base);
+      if (AppState.jikanCache[slug(g.title)]) continue; // already cached
+      try {
+        await fetchJikanDetails(g.title);
+        await new Promise(r => setTimeout(r, 600));
+      } catch { /* silent */ }
+    }
+    // Re-render with full tag data
+    render();
+  })();
 })();
