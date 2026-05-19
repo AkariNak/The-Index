@@ -231,7 +231,10 @@ function wireDetailEvents() {
   // Continue watching
   document.querySelector('.continue-btn')?.addEventListener('click', function() {
     const video = currentGroup.videos.find(v => v.title === this.dataset.title);
-    if (video) openPlayer(video);
+    if (video) {
+      const progress = getLastWatched(currentGroup.title);
+      openPlayer(video, progress?.timestamp || 0);
+    }
   });
 
   // Tags (admin)
@@ -356,13 +359,15 @@ function updateStarDisplay(track, hoverVal, currentVal) {
 }
 
 // ---------- Player navigation ----------
-function openPlayer(video) {
+function openPlayer(video, resumeTimestamp) {
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) { alert(`"${video.title}" has no video URL.`); return; }
   if (url.startsWith('blob:') && video.temporary) { alert(`"${video.title}" is a local-only preview.`); return; }
-  markEpisodeWatched(currentGroup.title, video.title, 0);
   const epIdx = currentGroup.videos.indexOf(video);
-  window.location.href = `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}`;
+  const ts    = resumeTimestamp || 0;
+  markEpisodeWatched(currentGroup.title, video.title, ts);
+  const tsParam = ts > 5 ? `&t=${Math.floor(ts)}` : '';
+  window.location.href = `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}${tsParam}`;
 }
 
 // ---------- Edit / Delete (admin) ----------
