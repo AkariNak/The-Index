@@ -99,7 +99,9 @@ function getFilteredVideos() {
     if (activeGenre !== 'all') {
       const needed = GENRE_TAG_MAP[activeGenre] || [];
       const jikan  = AppState.jikanCache[slug(video.collection)];
-      const tags   = filterTags(getTagsForCollection(video.collection, jikan?.tags || [])).map(t => t.toLowerCase());
+      const raw    = jikan?.tags || [];
+      const DEMO   = new Set(['shounen','seinen','shoujo','josei','kids']);
+      const tags   = raw.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
       const match  = needed.length === 1
         ? tags.includes(needed[0])
         : needed.every(n => tags.includes(n));
