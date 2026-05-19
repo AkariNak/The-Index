@@ -110,6 +110,26 @@
     }
     .fog-off-btn:hover { color: var(--ink); border-color: var(--ink-soft); }
 
+    /* Timestamp tooltip */
+    .video-container {
+      position: relative;
+    }
+    .video-timestamp-tip {
+      position: absolute;
+      bottom: 48px;
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      pointer-events: none;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      display: none;
+      z-index: 10;
+    }
+
     /* Player info */
     .player-info { padding: 0 2px; }
     .player-ep-meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 8px; }
@@ -195,7 +215,10 @@
 
     <div class="player-main">
       <div class="video-wrap">
-        <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture></video>
+        <div class="video-container">
+          <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture></video>
+          <div class="video-timestamp-tip" id="timestampTip"></div>
+        </div>
       </div>
       <div class="video-controls-bar">
         <div class="fog-control">
@@ -205,6 +228,11 @@
           </label>
           <button type="button" id="fogOffButton" class="fog-off-btn">Off</button>
         </div>
+      </div>
+
+      <div id="playerSeriesContainer" class="player-series-container" hidden>
+        <div class="player-series-label">More from This Series</div>
+        <div class="player-series-grid" id="playerSeriesGrid"></div>
       </div>
       <div class="player-info">
         <div class="player-ep-meta" id="playerEpMeta"></div>
@@ -250,12 +278,41 @@
       _tt.textContent = nowLight ? '☀' : '☾';
     });
   }
+
+  // Timestamp tooltip on progress bar hover
+  const video   = document.getElementById('playerVideo');
+  const tip     = document.getElementById('timestampTip');
+  if (video && tip) {
+    function formatTime(s) {
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = Math.floor(s % 60);
+      if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      return `${m}:${String(sec).padStart(2,'0')}`;
+    }
+    video.addEventListener('mousemove', e => {
+      if (!video.duration) return;
+      const rect   = video.getBoundingClientRect();
+      const y      = e.clientY - rect.top;
+      // Only show near the bottom 15% where the progress bar lives
+      if (y < rect.height * 0.82) { tip.style.display = 'none'; return; }
+      const x      = e.clientX - rect.left;
+      const pct    = Math.max(0, Math.min(1, x / rect.width));
+      const time   = pct * video.duration;
+      tip.textContent      = formatTime(time);
+      tip.style.display    = 'block';
+      tip.style.left       = `${x}px`;
+    });
+    video.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  }
+
   // Sync nav title
   const _st = document.getElementById('showTitle');
   const _nt = document.getElementById('navShowTitle');
   if (_st && _nt) {
     new MutationObserver(() => { _nt.textContent = _st.textContent; }).observe(_st, { childList: true, subtree: true, characterData: true });
   }
+
   // Nav auth
   getCurrentUser && getCurrentUser().then(user => {
     const signIn = document.getElementById('signInNavBtn');
