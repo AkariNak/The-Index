@@ -12,6 +12,10 @@ const collectionGrid  = document.getElementById('collectionGrid');
 const archiveList     = document.getElementById('archiveList');
 const search          = document.getElementById('search');
 const filters         = document.getElementById('filters');
+const genreFilters    = document.getElementById('genreFilters');
+const genreFiltersWrap = document.getElementById('genreFiltersWrap');
+const recentlyAddedSection = document.getElementById('recentlyAdded');
+const recentlyAddedGrid    = document.getElementById('recentlyAddedGrid');
 const count           = document.getElementById('count');
 const adminPanel      = document.getElementById('adminPanel');
 const adminDialog     = document.getElementById('adminDialog');
@@ -30,6 +34,7 @@ if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
 // ---------- State ----------
 let activeCategory = 'all';
+let activeGenre    = 'all';
 let _ratingCache   = {}; // { collectionSlug: { average, count } }
 
 // ---------- Skeleton ----------
@@ -59,14 +64,92 @@ function starsHtml(rating, count) {
 }
 
 // ---------- Filter / render ----------
+// ---------- Genre definitions ----------
+const GENRE_FILTERS = [
+  'Action', 'Adventure', 'Action & Adventure', 'Romance', 'Drama',
+  'Comedy', 'Fantasy', 'Sci-Fi', 'Horror', 'Mystery',
+  'Psychological', 'Supernatural', 'Slice of Life', 'Isekai', 'Thriller'
+];
+
+const GENRE_TAG_MAP = {
+  'Action':            ['action'],
+  'Adventure':         ['adventure'],
+  'Action & Adventure':['action','adventure'],
+  'Romance':           ['romance'],
+  'Drama':             ['drama'],
+  'Comedy':            ['comedy'],
+  'Fantasy':           ['fantasy'],
+  'Sci-Fi':            ['sci-fi'],
+  'Horror':            ['horror'],
+  'Mystery':           ['mystery'],
+  'Psychological':     ['psychological'],
+  'Supernatural':      ['supernatural'],
+  'Slice of Life':     ['slice of life'],
+  'Isekai':            ['isekai'],
+  'Thriller':          ['thriller'],
+};
+
 function getFilteredVideos() {
   const query = (search?.value || '').trim().toLowerCase();
   return AppState.videos.filter(video => {
     const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchCat) return false;
+
+    // Genre filter — match against jikan cache tags
+    if (activeGenre !== 'all') {
+      const needed = GENRE_TAG_MAP[activeGenre] || [];
+      const jikan  = AppState.jikanCache[slug(video.collection)];
+      const tags   = filterTags(getTagsForCollection(video.collection, jikan?.tags || [])).map(t => t.toLowerCase());
+      const match  = needed.length === 1
+        ? tags.includes(needed[0])
+        : needed.every(n => tags.includes(n));
+      if (!match) return false;
+    }
+
     if (!query) return true;
     return [video.title, video.description, video.collection, video.category].join(' ').toLowerCase().includes(query);
   });
+}
+
+function buildGenreFilters() {
+  if (!genreFilters) return;
+  genreFilters.innerHTML = GENRE_FILTERS.map(g =>
+    `<button class="genre-chip ${g === activeGenre ? 'active' : ''}" data-genre="${escapeHtml(g)}" type="button">${escapeHtml(g)}</button>`
+  ).join('');
+  genreFilters.querySelectorAll('.genre-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeGenre = btn.dataset.genre === activeGenre ? 'all' : btn.dataset.genre;
+      genreFilters.querySelectorAll('.genre-chip').forEach(c => c.classList.toggle('active', c.dataset.genre === activeGenre));
+      render();
+    });
+  });
+}
+
+// ---------- Recently added ----------
+function renderRecentlyAdded() {
+  if (!recentlyAddedSection || !recentlyAddedGrid) return;
+  const groups = groupVideos(AppState.videos);
+  // Sort by most recent date_added across any episode in the group
+  const sorted = [...groups].sort((a, b) => {
+    const aDate = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+    const bDate = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+    return bDate - aDate;
+  }).slice(0, 8);
+
+  if (!sorted.length) { recentlyAddedSection.hidden = true; return; }
+  recentlyAddedSection.hidden = false;
+  recentlyAddedGrid.innerHTML = sorted.map(group => {
+    const cover = group.firstCover
+      ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
+      : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
+    return `
+      <a class="recent-card" href="detail.html?show=${encodeURIComponent(group.slug)}">
+        <div class="recent-cover">${cover}</div>
+        <div class="recent-title">${escapeHtml(group.title)}</div>
+        <div class="recent-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
+      </a>
+    `;
+  }).join('');
 }
 
 function buildFilters() {
@@ -131,7 +214,9 @@ function render() {
 function refreshArchive() {
   syncVideos();
   buildFilters();
+  buildGenreFilters();
   render();
+  renderRecentlyAdded();
   rebuildHero();
 }
 
@@ -485,7 +570,9 @@ function wireAll() {
   await coreInit();
   hideSkeleton();
   buildFilters();
+  buildGenreFilters();
   render();
+  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
