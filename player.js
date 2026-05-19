@@ -50,7 +50,7 @@ function stopTimestampSaving() {
 }
 
 // ---------- Load video ----------
-function loadVideo(video) {
+function loadVideo(video, overrideTs) {
   if (!video) return;
   stopTimestampSaving();
 
@@ -61,10 +61,16 @@ function loadVideo(video) {
     return;
   }
 
-  // Read saved timestamp BEFORE changing state
-  const saved     = getLastWatched(currentGroup?.title);
-  const savedTs   = (saved && saved.lastEpisodeTitle === video.title && typeof saved.timestamp === 'number' && saved.timestamp > 5)
-    ? saved.timestamp : 0;
+  // Use override timestamp if provided, otherwise fall back to saved progress
+  let startTs = 0;
+  if (typeof overrideTs === 'number' && overrideTs > 5) {
+    startTs = overrideTs;
+  } else {
+    const saved = getLastWatched(currentGroup?.title);
+    if (saved && saved.lastEpisodeTitle === video.title && typeof saved.timestamp === 'number' && saved.timestamp > 5) {
+      startTs = saved.timestamp;
+    }
+  }
 
   currentVideo = video;
 
@@ -72,8 +78,8 @@ function loadVideo(video) {
   playerVideoEl.load();
 
   playerVideoEl.addEventListener('loadedmetadata', () => {
-    if (savedTs > 0 && savedTs < playerVideoEl.duration - 5) {
-      playerVideoEl.currentTime = savedTs;
+    if (startTs > 0 && startTs < playerVideoEl.duration - 5) {
+      playerVideoEl.currentTime = startTs;
     }
     playerVideoEl.play().catch(() => {});
     startTimestampSaving();
@@ -415,22 +421,15 @@ function wireFog() {
     if (!startVideo) startVideo = currentGroup.videos[0];
   }
 
-  // If a t param was passed (from resume button), override the saved timestamp
-  if (tParam) {
-    const ts = parseInt(tParam, 10);
-    if (!Number.isNaN(ts) && ts > 0) {
-      const k = slug(currentGroup.title);
-      AppState.progress[k] = { ...AppState.progress[k], lastEpisodeTitle: startVideo.title, timestamp: ts };
-      saveProgress();
-    }
-  }
+  // If a t param was passed (from resume button), use it as override
+  const resumeTs = tParam ? parseInt(tParam, 10) : 0;
 
   renderShowInfo(currentGroup, null);
   renderSidebar(currentGroup, allGroups);
   wireAutoAdvance(currentGroup);
   wireFog();
   renderSeriesOnPlayer(allGroups);
-  loadVideo(startVideo);
+  loadVideo(startVideo, resumeTs > 5 ? resumeTs : undefined);
 
   fetchJikanDetails(currentGroup.title).then(details => {
     if (!details) return;
