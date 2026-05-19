@@ -590,7 +590,7 @@ function wireAll() {
   (async () => {
     const seenBase = new Set();
     for (const g of groups) {
-      const base = getBaseTitle ? getBaseTitle(g.title) : g.title;
+      const base = g.title.replace(/\s+season\s+\d+/i,'').replace(/\s+part\s+\d+/i,'').replace(/\s+S\d+$/i,'').trim();
       if (seenBase.has(base)) continue;
       seenBase.add(base);
       if (AppState.jikanCache[slug(g.title)]) continue; // already cached
