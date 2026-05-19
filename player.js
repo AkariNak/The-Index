@@ -33,7 +33,7 @@ let _tsInterval  = null;
 // ---------- URL ----------
 function getParams() {
   const p = new URLSearchParams(window.location.search);
-  return { show: p.get('show'), ep: p.get('ep') };
+  return { show: p.get('show'), ep: p.get('ep'), t: p.get('t') };
 }
 
 // ---------- Timestamp ----------
@@ -395,7 +395,7 @@ function wireFog() {
 // ---------- Bootstrap ----------
 (async function init() {
   await coreInit();
-  const { show: showSlug, ep: epParam } = getParams();
+  const { show: showSlug, ep: epParam, t: tParam } = getParams();
   if (!showSlug) { if (playerTitleEl) playerTitleEl.textContent = 'No show specified.'; return; }
 
   const allGroups = groupVideos(AppState.videos);
@@ -413,6 +413,16 @@ function wireFog() {
     const progress = getLastWatched(currentGroup.title);
     if (progress) startVideo = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
     if (!startVideo) startVideo = currentGroup.videos[0];
+  }
+
+  // If a t param was passed (from resume button), override the saved timestamp
+  if (tParam) {
+    const ts = parseInt(tParam, 10);
+    if (!Number.isNaN(ts) && ts > 0) {
+      const k = slug(currentGroup.title);
+      AppState.progress[k] = { ...AppState.progress[k], lastEpisodeTitle: startVideo.title, timestamp: ts };
+      saveProgress();
+    }
   }
 
   renderShowInfo(currentGroup, null);
