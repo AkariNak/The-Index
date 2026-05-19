@@ -37,14 +37,17 @@ function getParams() {
 }
 
 // ---------- Timestamp ----------
+function saveCurrentTimestamp() {
+  if (!playerVideoEl || !currentVideo || !currentGroup) return;
+  if (playerVideoEl.currentTime < 5) return;
+  saveTimestamp(currentGroup.title, currentVideo.title, Math.floor(playerVideoEl.currentTime));
+}
+
 function startTimestampSaving() {
   stopTimestampSaving();
-  _tsInterval = setInterval(() => {
-    if (!playerVideoEl || !currentVideo || !currentGroup) return;
-    if (playerVideoEl.paused || playerVideoEl.ended || playerVideoEl.currentTime < 5) return;
-    saveTimestamp(currentGroup.title, currentVideo.title, Math.floor(playerVideoEl.currentTime));
-  }, 4000);
+  _tsInterval = setInterval(saveCurrentTimestamp, 4000);
 }
+
 function stopTimestampSaving() {
   if (_tsInterval) { clearInterval(_tsInterval); _tsInterval = null; }
 }
@@ -423,6 +426,11 @@ function wireFog() {
 
   // If a t param was passed (from resume button), use it as override
   const resumeTs = tParam ? parseInt(tParam, 10) : 0;
+
+  playerVideoEl.addEventListener('seeked',  saveCurrentTimestamp);
+  playerVideoEl.addEventListener('pause',   saveCurrentTimestamp);
+  window.addEventListener('beforeunload',   saveCurrentTimestamp);
+  window.addEventListener('pagehide',       saveCurrentTimestamp);
 
   renderShowInfo(currentGroup, null);
   renderSidebar(currentGroup, allGroups);
