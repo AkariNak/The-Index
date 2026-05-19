@@ -87,7 +87,7 @@ function loadVideo(video, overrideTs) {
 
   // Mark watched + auto-set status
   if (currentGroup) {
-    markEpisodeWatched(currentGroup.title, video.title, savedTs);
+    markEpisodeWatched(currentGroup.title, video.title, startTs);
     getCurrentUser().then(user => {
       if (!user) return;
       getWatchStatus(currentGroup.title).then(status => {
