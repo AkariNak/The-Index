@@ -1306,6 +1306,17 @@ body.light .mobile-search-bar { background: var(--paper-2); }
   color: var(--ink-mute);
 }
 
+/* ============ DRAG AND DROP ============ */
+.series-card[draggable="true"] { cursor: grab; }
+.series-card[draggable="true"]:active { cursor: grabbing; }
+.series-card.drag-active { opacity: 0.4; transform: scale(0.97); }
+.series-card.drag-over {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transform: scale(1.03);
+  transition: transform 0.1s;
+}
+
 /* ============ POSTER RATING ============ */
 .poster-rating {
   display: flex;
