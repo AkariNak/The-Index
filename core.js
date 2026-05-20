@@ -657,6 +657,44 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
   return results.slice(0, 8).map(x => x.group);
 }
 
+// ---------- Site settings (global, stored in Supabase) ----------
+const _settingsCache = {};
+
+async function getSiteSetting(key) {
+  if (_settingsCache[key] !== undefined) return _settingsCache[key];
+  const { data } = await getSupabase().from('site_settings').select('value').eq('key', key).maybeSingle();
+  const val = data?.value ?? null;
+  _settingsCache[key] = val;
+  return val;
+}
+
+async function setSiteSetting(key, value) {
+  _settingsCache[key] = value;
+  await getSupabase().from('site_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+}
+
+// Cover overrides: { slug: coverUrl }
+async function getCoverOverrides() {
+  return (await getSiteSetting('cover_overrides')) || {};
+}
+async function setCoverOverride(slug, url) {
+  const overrides = await getCoverOverrides();
+  overrides[slug] = url;
+  _settingsCache['cover_overrides'] = overrides;
+  await setSiteSetting('cover_overrides', overrides);
+}
+
+// Season order: { seriesBase: [slug, slug, ...] }
+async function getSeasonOrder() {
+  return (await getSiteSetting('season_order')) || {};
+}
+async function setSeasonOrder(seriesBase, slugArray) {
+  const order = await getSeasonOrder();
+  order[seriesBase] = slugArray;
+  _settingsCache['season_order'] = order;
+  await setSiteSetting('season_order', order);
+}
+
 // ---------- Community ratings ----------
 async function getRatingForCollection(collectionName) {
   const sb = getSupabase();
