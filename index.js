@@ -134,10 +134,10 @@ function buildGenreFilters() {
 function renderRecentlyAdded() {
   if (!recentlyAddedSection || !recentlyAddedGrid) return;
   const groups = groupVideos(AppState.videos);
-  // Sort by most recent date_added across any episode in the group
+  // Sort by most recent created_at across any episode in the group
   const sorted = [...groups].sort((a, b) => {
-    const aDate = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-    const bDate = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+    const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+    const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     return bDate - aDate;
   }).slice(0, 8);
 
