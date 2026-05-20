@@ -154,8 +154,12 @@ function renderSidebar(group, allGroups) {
     const seriesGroups = allGroups
       .filter(g => getSeriesBase(g.title) === baseTitle)
       .sort((a, b) => {
-        const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 1; };
-        return n(a.title) - n(b.title);
+        const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
+        const na = n(a.title), nb = n(b.title);
+        if (na !== nb) return na - nb;
+        const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+        const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+        return da - db;
       });
     if (seriesGroups.length > 1) {
       const getLabel = t => {
@@ -218,8 +222,12 @@ function renderSeriesOnPlayer(allGroups) {
   const seriesGroups = allGroups
     .filter(g => getSeriesBase(g.title) === baseTitle)
     .sort((a, b) => {
-      const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 1; };
-      return getNum(a.title) - getNum(b.title);
+      const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
+      const na = getNum(a.title), nb = getNum(b.title);
+      if (na !== nb) return na - nb;
+      const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+      const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+      return da - db;
     });
 
   if (seriesGroups.length <= 1) { container.hidden = true; return; }
