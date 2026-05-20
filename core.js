@@ -349,6 +349,10 @@ async function getWatchStatus(collectionName) {
 async function setWatchStatus(collectionName, status) {
   const user = await getCurrentUser();
   if (!user) return;
+  if (status === null) {
+    await getSupabase().from('watch_status').delete().eq('user_id', user.id).eq('collection', collectionName);
+    return;
+  }
   await getSupabase().from('watch_status').upsert({
     user_id: user.id, collection: collectionName, status,
     updated_at: new Date().toISOString()
