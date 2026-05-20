@@ -120,7 +120,8 @@ function normalizeVideo(video) {
     temporary:   Boolean(video.temporary),
     season:      video.season || parsed?.season || 1,
     type:        video.type   || parsed?.type   || 'Episode',
-    sources:     video.sources || null
+    sources:     video.sources || null,
+    createdAt:   video.created_at || null
   };
 }
 
