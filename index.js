@@ -671,6 +671,10 @@ function wireNavAuth() {
 function wireAll() {
   if (search) search.addEventListener('input', render);
 
+  // Prevent accidental drag-and-drop on the main grid
+  collectionGrid?.addEventListener('dragover', e => e.preventDefault());
+  collectionGrid?.addEventListener('drop', e => e.preventDefault());
+
   // Mobile search toggle
   const mobileSearchBtn  = document.getElementById('mobileSearchBtn');
   const mobileSearchBar  = document.getElementById('mobileSearchBar');
@@ -725,6 +729,13 @@ function wireAll() {
 (async function init() {
   showSkeleton();
   await coreInit();
+  // Apply any global cover overrides from site_settings
+  getCoverOverrides().then(overrides => {
+    Object.entries(overrides).forEach(([s, url]) => {
+      AppState.baseVideos.filter(v => slug(v.collection) === s).forEach(v => v.coverUrl = url);
+    });
+    syncVideos(); render(); rebuildHero();
+  });
   hideSkeleton();
   buildFilters();
   buildGenreFilters();
