@@ -308,45 +308,28 @@
     video.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
   }
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — only add what native controls don't handle
   document.addEventListener('keydown', e => {
     if (!playerVideoEl) return;
-    // Don't fire if user is typing in an input
     if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
     switch (e.key) {
-      case ' ':
-      case 'k':
-        e.preventDefault();
-        playerVideoEl.paused ? playerVideoEl.play() : playerVideoEl.pause();
-        break;
-      case 'ArrowRight':
-      case 'l':
-        e.preventDefault();
-        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
-        break;
-      case 'ArrowLeft':
-      case 'j':
-        e.preventDefault();
-        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        playerVideoEl.volume = Math.min(1, playerVideoEl.volume + 0.1);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        playerVideoEl.volume = Math.max(0, playerVideoEl.volume - 0.1);
-        break;
       case 'f':
       case 'F':
         e.preventDefault();
         if (document.fullscreenElement) document.exitFullscreen();
         else playerVideoEl.requestFullscreen?.();
         break;
-      case 'm':
-      case 'M':
+      case 'k':
         e.preventDefault();
-        playerVideoEl.muted = !playerVideoEl.muted;
+        playerVideoEl.paused ? playerVideoEl.play() : playerVideoEl.pause();
+        break;
+      case 'l':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
+        break;
+      case 'j':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
         break;
     }
   });
