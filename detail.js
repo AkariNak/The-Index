@@ -358,6 +358,103 @@ function updateStarDisplay(track, hoverVal, currentVal) {
   });
 }
 
+// ---------- Global cover overrides ----------
+let _coverOverrides = {};
+let _seasonOrder    = {};
+
+async function loadGlobalSettings() {
+  [_coverOverrides, _seasonOrder] = await Promise.all([getCoverOverrides(), getSeasonOrder()]);
+}
+
+function applySeasonOrder(seriesGroups, baseTitle) {
+  const order = _seasonOrder[baseTitle];
+  if (!order || !order.length) return seriesGroups;
+  const ordered   = order.map(s => seriesGroups.find(g => g.slug === s)).filter(Boolean);
+  const remaining = seriesGroups.filter(g => !order.includes(g.slug));
+  return [...ordered, ...remaining];
+}
+
+// ---------- Drag and drop ----------
+function wireDragDrop(seriesGroups, baseTitle) {
+  const cards = document.querySelectorAll('.series-card[data-slug]');
+  if (cards.length < 2) return;
+
+  let dragging = null;
+
+  cards.forEach(card => {
+    card.setAttribute('draggable', 'true');
+
+    card.addEventListener('dragstart', e => {
+      dragging = card;
+      card.classList.add('drag-active');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.slug);
+    });
+
+    card.addEventListener('dragend', () => {
+      dragging = null;
+      cards.forEach(c => c.classList.remove('drag-active', 'drag-over'));
+    });
+
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card !== dragging) card.classList.add('drag-over');
+    });
+
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+
+    card.addEventListener('drop', async e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if (!dragging || dragging === card) return;
+
+      const container = card.closest('.detail-series-grid, .series-grid');
+      if (!container) return;
+
+      const allCards  = [...container.querySelectorAll('.series-card[data-slug]')];
+      const fromIdx   = allCards.indexOf(dragging);
+      const toIdx     = allCards.indexOf(card);
+      if (fromIdx < 0 || toIdx < 0) return;
+
+      // Reorder in DOM
+      if (fromIdx < toIdx) container.insertBefore(dragging, card.nextSibling);
+      else container.insertBefore(dragging, card);
+
+      // Save new order
+      const newOrder = [...container.querySelectorAll('.series-card[data-slug]')].map(c => c.dataset.slug);
+      await setSeasonOrder(baseTitle, newOrder);
+    });
+
+    // Cover swap: drag one cover image onto another card
+    card.addEventListener('dragover', e => {
+      if (e.dataTransfer.types.includes('text/uri-list') || e.dataTransfer.types.includes('text/plain')) {
+        e.preventDefault();
+        card.classList.add('drag-over');
+      }
+    });
+  });
+
+  // Also wire cover image drag-onto-card from external sources
+  cards.forEach(card => {
+    card.addEventListener('drop', async e => {
+      const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      if (!url || !url.startsWith('http')) return;
+      // Only treat as cover swap if it looks like an image URL
+      if (!/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const targetSlug = card.dataset.slug;
+      if (!targetSlug) return;
+      await setCoverOverride(targetSlug, url);
+      // Update in AppState
+      AppState.baseVideos.filter(v => slug(v.collection) === targetSlug).forEach(v => v.coverUrl = url);
+      syncVideos();
+      renderDetail();
+    });
+  });
+}
+
 // ---------- Player navigation ----------
 function openPlayer(video, resumeTimestamp) {
   const url = video.downloadUrl;
@@ -496,23 +593,34 @@ function renderRecommendations(allGroups) {
     `;
   }).join('');
 
-  const allSeriesGroups = allGroups
-    .filter(g => getBaseTitle(g.title) === baseTitle)
-    .sort((a, b) => {
-      const na = extractSeriesNum(a.title);
-      const nb = extractSeriesNum(b.title);
-      if (na !== nb) return na - nb;
-      // Same number (e.g. both return 999 for movie/special) — fall back to date
-      const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-      const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-      return da - db;
-    });
+  const allSeriesGroups = applySeasonOrder(
+    allGroups
+      .filter(g => getBaseTitle(g.title) === baseTitle)
+      .sort((a, b) => {
+        const na = extractSeriesNum(a.title);
+        const nb = extractSeriesNum(b.title);
+        if (na !== nb) return na - nb;
+        const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+        const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+        return da - db;
+      }),
+    baseTitle
+  );
+
+  // Apply global cover overrides
+  allSeriesGroups.forEach(g => {
+    if (_coverOverrides[g.slug]) g.firstCover = _coverOverrides[g.slug];
+  });
 
   // Render inside detail hero under cover
   const detailSeriesGrid = document.getElementById('detailSeriesGrid');
   if (detailSeriesGrid) {
     detailSeriesGrid.innerHTML = allSeriesGroups.length > 1
       ? seriesCardsHtml(allSeriesGroups) : '';
+    detailSeriesGrid.querySelectorAll('.series-card').forEach((card, i) => {
+      if (allSeriesGroups[i]) card.dataset.slug = allSeriesGroups[i].slug;
+    });
+    if (allSeriesGroups.length > 1) wireDragDrop(allSeriesGroups, baseTitle);
   }
 
   // Hide the standalone section since we show inline now
@@ -716,6 +824,7 @@ async function autoSaveMetadata(details) {
 // ---------- Bootstrap ----------
 (async function init() {
   await coreInit();
+  await loadGlobalSettings();
   const showSlug = getShowSlug();
   if (!showSlug) {
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="index.html" class="btn btn-outline">Back to Aurum</a></div>`;
