@@ -374,10 +374,24 @@ async function renderComments(container, collectionName, episodeTitle) {
 function wireAutoAdvance(group) {
   if (!playerVideoEl || !group) return;
   playerVideoEl.addEventListener('pause', stopTimestampSaving);
-  playerVideoEl.addEventListener('ended', () => {
+  playerVideoEl.addEventListener('ended', async () => {
     stopTimestampSaving();
     if (!currentVideo) return;
-    const next = group.videos[group.videos.indexOf(currentVideo) + 1];
+    const idx  = group.videos.indexOf(currentVideo);
+    const next = group.videos[idx + 1];
+    const isLast = !next;
+
+    // Auto-complete if this was the last episode
+    if (isLast) {
+      const user = await getCurrentUser();
+      if (user) {
+        const status = await getWatchStatus(group.title);
+        if (status === 'watching') {
+          await setWatchStatus(group.title, 'completed');
+        }
+      }
+    }
+
     if (next) loadVideo(next);
   });
 }
