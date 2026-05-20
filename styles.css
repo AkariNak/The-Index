@@ -1262,6 +1262,30 @@ body.light .mobile-search-bar { background: var(--paper-2); }
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 14px;
 }
+.cw-card-wrap {
+  position: relative;
+}
+.cw-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background var(--transition);
+  padding: 0;
+}
+.cw-remove:hover { background: #e05252; border-color: #e05252; }
+.cw-card-wrap:hover .cw-remove { display: flex; }
 .cw-card {
   text-decoration: none;
   display: flex;
