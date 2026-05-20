@@ -173,20 +173,52 @@ function renderContentBody() {
     const group = groups.find(g => g.title === entry.collection);
     const cover = group?.firstCover;
     return `
-      <article class="poster-card">
-        <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(slug(entry.collection))}">
-          <div class="poster-cover">
-            ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(entry.collection)}" loading="lazy">` : `<div class="cover-placeholder">${escapeHtml(entry.collection.charAt(0).toUpperCase())}</div>`}
-            <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
-          </div>
-          <div class="poster-info">
-            <div class="poster-cat">${escapeHtml(STATUS_LABELS[entry.status] || entry.status)}</div>
-            <h3 class="poster-title">${escapeHtml(entry.collection)}</h3>
-          </div>
-        </a>
-      </article>
+      <div class="watchlist-card-wrap">
+        <article class="poster-card">
+          <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(slug(entry.collection))}">
+            <div class="poster-cover">
+              ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(entry.collection)}" loading="lazy">` : `<div class="cover-placeholder">${escapeHtml(entry.collection.charAt(0).toUpperCase())}</div>`}
+              <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
+            </div>
+            <div class="poster-info">
+              <div class="poster-cat">${escapeHtml(STATUS_LABELS[entry.status] || entry.status)}</div>
+              <h3 class="poster-title">${escapeHtml(entry.collection)}</h3>
+            </div>
+          </a>
+        </article>
+        <button class="wl-remove" data-collection="${escapeHtml(entry.collection)}" type="button" title="Remove">✕</button>
+      </div>
     `;
   }).join('')}</div>`;
+
+  // Wire remove buttons
+  body.querySelectorAll('.wl-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const collection = btn.dataset.collection;
+      try {
+        await setWatchStatus(collection, null);
+        watchList = watchList.filter(w => w.collection !== collection);
+        btn.closest('.watchlist-card-wrap')?.remove();
+        const remaining = body.querySelectorAll('.watchlist-card-wrap');
+        if (!remaining.length) body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`;
+        // Update sidebar counts
+        document.querySelectorAll('.account-nav-item[data-tab]').forEach(navBtn => {
+          const tab = navBtn.dataset.tab;
+          if (tab === 'ratings') return;
+          const count = watchList.filter(w => w.status === tab).length;
+          const badge = navBtn.querySelector('.account-nav-count');
+          if (badge) badge.textContent = count;
+        });
+        // Update stats
+        const stats = computeStats();
+        document.querySelectorAll('.profile-stat').forEach((el, i) => {
+          const vals = [stats.completed, stats.watching, stats.planToWatch, stats.rated, stats.avgRating];
+          const valEl = el.querySelector('.profile-stat-value');
+          if (valEl && vals[i] !== undefined) valEl.textContent = vals[i];
+        });
+      } catch (err) { console.warn('Remove failed:', err); }
+    });
+  });
 }
 
 function renderRatingsTab(body) {
@@ -384,6 +416,8 @@ async function bootAccount() {
     getUserWatchList(),
     getSupabase().from('ratings').select('collection, rating').eq('user_id', currentUser.id).then(({ data }) => data || [])
   ]);
+  // Safety — if profile row doesn't exist yet create a blank one
+  if (!currentProfile) currentProfile = { username: currentUser.email?.split('@')[0] || 'User', avatar_url: null };
   await renderAccount();
 }
 
