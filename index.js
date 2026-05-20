@@ -130,7 +130,68 @@ function buildGenreFilters() {
   });
 }
 
-// ---------- Recently added ----------
+// ---------- Continue watching ----------
+async function renderContinueWatching() {
+  const section = document.getElementById('continueWatching');
+  const grid    = document.getElementById('continueWatchingGrid');
+  if (!section || !grid) return;
+
+  const user = await getCurrentUser();
+  if (!user) { section.hidden = true; return; }
+
+  // Get all shows the user is currently watching
+  const watchList = await getUserWatchList();
+  const watching  = watchList.filter(w => w.status === 'watching');
+  if (!watching.length) { section.hidden = true; return; }
+
+  const groups = groupVideos(AppState.videos);
+
+  const cards = watching.map(w => {
+    const group    = groups.find(g => g.title === w.collection);
+    if (!group) return null;
+    const progress = getLastWatched(w.collection);
+    const cover    = group.firstCover
+      ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
+      : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
+
+    // Find the last watched episode
+    const lastEp = progress?.lastEpisodeTitle
+      ? group.videos.find(v => v.title === progress.lastEpisodeTitle)
+      : group.videos[0];
+    const epIdx  = lastEp ? group.videos.indexOf(lastEp) : 0;
+
+    // Progress bar — how far through the series
+    const totalEps   = group.videos.length;
+    const watchedIdx = epIdx + 1;
+    const pct        = Math.round((watchedIdx / totalEps) * 100);
+
+    const epLabel = lastEp
+      ? `EP ${lastEp.episode || watchedIdx}`
+      : 'EP 1';
+
+    return `
+      <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}">
+        <div class="cw-cover">
+          ${cover}
+          <div class="cw-overlay">
+            <span class="cw-play">▶</span>
+          </div>
+          <div class="cw-progress-bar">
+            <div class="cw-progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="cw-info">
+          <div class="cw-title">${escapeHtml(group.title)}</div>
+          <div class="cw-ep">${escapeHtml(epLabel)}</div>
+        </div>
+      </a>
+    `;
+  }).filter(Boolean);
+
+  if (!cards.length) { section.hidden = true; return; }
+  section.hidden = false;
+  grid.innerHTML = cards.join('');
+}
 function renderRecentlyAdded() {
   if (!recentlyAddedSection || !recentlyAddedGrid) return;
   const groups = groupVideos(AppState.videos);
@@ -222,6 +283,7 @@ function refreshArchive() {
   buildGenreFilters();
   render();
   renderRecentlyAdded();
+  renderContinueWatching();
   rebuildHero();
 }
 
@@ -744,6 +806,7 @@ function wireAll() {
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
+  renderContinueWatching();
 
   // Load ratings in background
   const groups = groupVideos(AppState.videos);
