@@ -170,27 +170,45 @@ async function renderContinueWatching() {
       : 'EP 1';
 
     return `
-      <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}">
-        <div class="cw-cover">
-          ${cover}
-          <div class="cw-overlay">
-            <span class="cw-play">▶</span>
+      <div class="cw-card-wrap">
+        <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}">
+          <div class="cw-cover">
+            ${cover}
+            <div class="cw-overlay">
+              <span class="cw-play">▶</span>
+            </div>
+            <div class="cw-progress-bar">
+              <div class="cw-progress-fill" style="width:${pct}%"></div>
+            </div>
           </div>
-          <div class="cw-progress-bar">
-            <div class="cw-progress-fill" style="width:${pct}%"></div>
+          <div class="cw-info">
+            <div class="cw-title">${escapeHtml(group.title)}</div>
+            <div class="cw-ep">${escapeHtml(epLabel)}</div>
           </div>
-        </div>
-        <div class="cw-info">
-          <div class="cw-title">${escapeHtml(group.title)}</div>
-          <div class="cw-ep">${escapeHtml(epLabel)}</div>
-        </div>
-      </a>
+        </a>
+        <button class="cw-remove" data-collection="${escapeHtml(w.collection)}" type="button" title="Remove from Watching">✕</button>
+      </div>
     `;
   }).filter(Boolean);
 
   if (!cards.length) { section.hidden = true; return; }
   section.hidden = false;
   grid.innerHTML = cards.join('');
+
+  // Wire remove buttons
+  grid.querySelectorAll('.cw-remove').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const collection = btn.dataset.collection;
+      try {
+        await setWatchStatus(collection, null);
+        btn.closest('.cw-card-wrap')?.remove();
+        const remaining = grid.querySelectorAll('.cw-card-wrap');
+        if (!remaining.length) section.hidden = true;
+      } catch (err) { console.warn('Could not remove watch status:', err); }
+    });
+  });
 }
 function renderRecentlyAdded() {
   if (!recentlyAddedSection || !recentlyAddedGrid) return;
