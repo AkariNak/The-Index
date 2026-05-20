@@ -666,19 +666,29 @@ const STATUS_LABELS = {
 
 async function renderWatchStatus(container, collectionName) {
   if (!container) return;
-  const user   = await getCurrentUser();
-  const status = user ? await getWatchStatus(collectionName) : null;
+  const user     = await getCurrentUser();
+  const status   = user ? await getWatchStatus(collectionName) : null;
+  const progress = getLastWatched(collectionName);
+  const epLabel  = progress?.lastEpisodeTitle && currentGroup
+    ? (() => {
+        const v = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
+        return v ? `EP ${v.episode || (currentGroup.videos.indexOf(v) + 1)}` : '';
+      })()
+    : '';
+
   container.innerHTML = `
     <div class="watch-status-wrap">
       <select class="watch-status-select" id="watchStatusSelect" ${!user ? 'disabled title="Sign in to track"' : ''}>
         <option value="">— Add to list —</option>
         ${Object.entries(STATUS_LABELS).map(([val, label]) => `<option value="${val}" ${status === val ? 'selected' : ''}>${label}</option>`).join('')}
       </select>
+      ${status === 'watching' && epLabel ? `<span class="watch-status-ep">${escapeHtml(epLabel)}</span>` : ''}
     </div>
   `;
   if (user) {
     document.getElementById('watchStatusSelect')?.addEventListener('change', async e => {
       if (e.target.value) await setWatchStatus(collectionName, e.target.value);
+      else await setWatchStatus(collectionName, null);
     });
   }
 }
