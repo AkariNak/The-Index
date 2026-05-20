@@ -429,13 +429,12 @@ function posterCardHtml(g) {
 }
 
 function getBaseTitle(title) {
-  // Strip common season/part suffixes to find the base series name
-  // e.g. "Attack on Titan Season 2" → "Attack on Titan"
   return title
     .replace(/\s+(season|part|cour|arc)\s+\w+.*$/i, '')
     .replace(/\s+S\d+.*$/i, '')
     .replace(/\s+\d+(st|nd|rd|th)\s+(season|part|cour).*$/i, '')
-    .replace(/:\s+.+$/, '') // "Show: Subtitle" → "Show"
+    .replace(/\s+(code|movie|film|ova|special|the\s+\w+\s+(movie|film|arc)).*$/i, '')
+    .replace(/:\s*.+$/, '')
     .trim()
     .toLowerCase();
 }
