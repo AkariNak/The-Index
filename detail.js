@@ -211,7 +211,14 @@ function wireDetailEvents() {
   document.querySelectorAll('.episode-row .play-btn').forEach(btn => {
     const row = btn.closest('.episode-row');
     const video = AppState.videos[Number(row?.dataset.idx)];
-    if (video) btn.addEventListener('click', () => openPlayer(video));
+    if (video) btn.addEventListener('click', async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        const status = await getWatchStatus(currentGroup.title);
+        if (!status) await setWatchStatus(currentGroup.title, 'watching');
+      }
+      openPlayer(video);
+    });
   });
 
   // Edit (admin)
@@ -581,12 +588,26 @@ function renderRecommendations(allGroups) {
     const isCurrent = g.slug === currentSlug;
     const label     = extractSeriesLabel(g.title);
     const epCount   = g.videos.length;
+    const progress  = getLastWatched(g.title);
+    const watchStatus = isCurrent ? currentWatchStatus : null;
+    
+    // Show episode progress if watching
+    let progressHtml = '';
+    if (progress?.lastEpisodeTitle) {
+      const lastVid = g.videos.find(v => v.title === progress.lastEpisodeTitle);
+      if (lastVid) {
+        const epNum = lastVid.episode || g.videos.indexOf(lastVid) + 1;
+        progressHtml = `<div class="series-card-progress">EP ${epNum}</div>`;
+      }
+    }
+
     return `
       <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
         <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
         <div class="series-card-info">
           <div class="series-card-label">${escapeHtml(label)}</div>
           <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'}</div>
+          ${progressHtml}
         </div>
         ${isCurrent ? '<div class="series-card-now">Watching</div>' : ''}
       </a>
