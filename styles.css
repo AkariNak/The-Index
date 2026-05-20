@@ -1437,6 +1437,37 @@ body.light .mobile-search-bar { background: var(--paper-2); }
 }
 .slideshow-rank-input:focus { border-color: var(--accent); }
 
+/* ============ EPISODE FIXER ============ */
+.ep-fixer-preview {
+  background: var(--paper-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.ep-fixer-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.ep-fixer-list { display: flex; flex-direction: column; gap: 8px; }
+.ep-fixer-row {
+  display: grid;
+  grid-template-columns: 1fr 20px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 12px;
+}
+.ep-fixer-old { color: var(--ink-mute); font-family: var(--mono); font-size: 10px; }
+.ep-fixer-arrow { color: var(--accent); text-align: center; }
+.ep-fixer-new { color: var(--ink); font-family: var(--mono); font-size: 10px; }
+.ep-fixer-more { font-family: var(--mono); font-size: 10px; color: var(--ink-mute); margin-top: 8px; font-style: italic; }
+
 /* ============ USERNAME AVAILABILITY ============ */
 .username-availability { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
 .username-availability.available { color: #5cb85c; }
