@@ -542,6 +542,26 @@ function wireNavAuth() {
 function wireAll() {
   if (search) search.addEventListener('input', render);
 
+  // Mobile search toggle
+  const mobileSearchBtn  = document.getElementById('mobileSearchBtn');
+  const mobileSearchBar  = document.getElementById('mobileSearchBar');
+  const mobileSearchInput = document.getElementById('mobileSearch');
+  const mobileSearchClose = document.getElementById('mobileSearchClose');
+  if (mobileSearchBtn && mobileSearchBar) {
+    mobileSearchBtn.addEventListener('click', () => {
+      mobileSearchBar.hidden = false;
+      mobileSearchInput?.focus();
+    });
+    mobileSearchClose?.addEventListener('click', () => {
+      mobileSearchBar.hidden = true;
+      if (mobileSearchInput) { mobileSearchInput.value = ''; render(); }
+    });
+    mobileSearchInput?.addEventListener('input', () => {
+      if (search) search.value = mobileSearchInput.value;
+      render();
+    });
+  }
+
   updateAdminUi();
   if (adminLoginButton) {
     adminLoginButton.addEventListener('click', () => {
