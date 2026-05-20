@@ -308,7 +308,48 @@
     video.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
   }
 
-  // Sync nav title
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (!playerVideoEl) return;
+    // Don't fire if user is typing in an input
+    if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+    switch (e.key) {
+      case ' ':
+      case 'k':
+        e.preventDefault();
+        playerVideoEl.paused ? playerVideoEl.play() : playerVideoEl.pause();
+        break;
+      case 'ArrowRight':
+      case 'l':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
+        break;
+      case 'ArrowLeft':
+      case 'j':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        playerVideoEl.volume = Math.min(1, playerVideoEl.volume + 0.1);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        playerVideoEl.volume = Math.max(0, playerVideoEl.volume - 0.1);
+        break;
+      case 'f':
+      case 'F':
+        e.preventDefault();
+        if (document.fullscreenElement) document.exitFullscreen();
+        else playerVideoEl.requestFullscreen?.();
+        break;
+      case 'm':
+      case 'M':
+        e.preventDefault();
+        playerVideoEl.muted = !playerVideoEl.muted;
+        break;
+    }
+  });
   const _st = document.getElementById('showTitle');
   const _nt = document.getElementById('navShowTitle');
   if (_st && _nt) {
@@ -316,12 +357,14 @@
   }
 
   // Nav auth
-  getCurrentUser && getCurrentUser().then(user => {
-    const signIn = document.getElementById('signInNavBtn');
-    const acct   = document.getElementById('accountLink');
-    if (user) { if (signIn) signIn.style.display = 'none'; if (acct) acct.hidden = false; }
-    else { if (signIn) { signIn.style.display = ''; signIn.onclick = () => window.location.href = 'account.html'; } if (acct) acct.hidden = true; }
-  });
+  try {
+    getCurrentUser().then(user => {
+      const signIn = document.getElementById('signInNavBtn');
+      const acct   = document.getElementById('accountLink');
+      if (user) { if (signIn) signIn.style.display = 'none'; if (acct) acct.hidden = false; }
+      else { if (signIn) { signIn.style.display = ''; signIn.onclick = () => window.location.href = 'account.html'; } if (acct) acct.hidden = true; }
+    });
+  } catch(e) {}
 </script>
 </body>
 </html>
