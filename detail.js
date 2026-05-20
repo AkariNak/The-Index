@@ -500,7 +500,15 @@ function renderRecommendations(allGroups) {
 
   const allSeriesGroups = allGroups
     .filter(g => getBaseTitle(g.title) === baseTitle)
-    .sort((a, b) => extractSeriesNum(a.title) - extractSeriesNum(b.title));
+    .sort((a, b) => {
+      const na = extractSeriesNum(a.title);
+      const nb = extractSeriesNum(b.title);
+      if (na !== nb) return na - nb;
+      // Same number (e.g. both return 999 for movie/special) — fall back to date
+      const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+      const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+      return da - db;
+    });
 
   // Render inside detail hero under cover
   const detailSeriesGrid = document.getElementById('detailSeriesGrid');
