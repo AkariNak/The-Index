@@ -209,6 +209,7 @@ function getSeriesBase(title) {
     .replace(/\s+(season|part|cour)\s*\w+.*$/i, '')
     .replace(/\s+S\d+.*$/i, '')
     .replace(/\s+\d+(st|nd|rd|th)?\s*(season|part|cour).*$/i, '')
+    .replace(/\s+(code|movie|film|ova|special|the\s+\w+\s+(movie|film|arc)).*$/i, '')
     .replace(/:\s*.+$/, '')
     .trim().toLowerCase();
 }
