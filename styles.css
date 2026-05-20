@@ -1255,6 +1255,83 @@ body.light .mobile-search-bar { background: var(--paper-2); }
 .genre-chip:hover { border-color: var(--accent-soft); color: var(--accent-soft); }
 .genre-chip.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
 
+/* ============ CONTINUE WATCHING ============ */
+.continue-watching-section { margin: 0 0 32px; }
+.continue-watching-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.cw-card {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  transition: opacity var(--transition);
+}
+.cw-card:hover { opacity: 0.85; }
+.cw-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--paper-3);
+}
+.cw-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cw-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition);
+}
+.cw-card:hover .cw-overlay { background: rgba(0,0,0,0.45); }
+.cw-play {
+  font-size: 28px;
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--transition);
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));
+}
+.cw-card:hover .cw-play { opacity: 1; }
+.cw-progress-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.2);
+}
+.cw-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.cw-info { padding: 0 2px; }
+.cw-title {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cw-ep {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .continue-watching-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+}
+
 /* ============ RECENTLY ADDED ============ */
 .recently-added-section {
   margin: 0 0 32px;
