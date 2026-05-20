@@ -2,7 +2,6 @@
 // Aurum — account.js
 // ============================================================
 
-// ---------- Theme ----------
 (function() {
   document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
   const btn = document.getElementById('themeToggle');
@@ -28,17 +27,18 @@ const STATUS_LABELS = {
   dropped:       'Dropped'
 };
 
-let activeStatus   = 'watching';
+let activeTab      = 'watching';
 let currentUser    = null;
 let currentProfile = null;
 let watchList      = [];
+let userRatings    = [];
 
 // ---------- Gate ----------
 function renderGate() {
   accountMain.innerHTML = `
     <div class="account-gate">
       <h2>Your Account</h2>
-      <p>Sign in to track your watch history, leave comments, and manage your profile.</p>
+      <p>Sign in to track your watch history, rate shows, and manage your profile.</p>
       <div class="account-gate-actions">
         <button class="btn btn-solid" id="gateSignInBtn" type="button">Sign In</button>
         <button class="btn btn-outline" id="gateSignUpBtn" type="button">Create Account</button>
@@ -49,65 +49,127 @@ function renderGate() {
   document.getElementById('gateSignUpBtn').addEventListener('click', () => openAuthDialog('signup'));
 }
 
-// ---------- Account ----------
+// ---------- Stats ----------
+function computeStats() {
+  const completed   = watchList.filter(w => w.status === 'completed').length;
+  const watching    = watchList.filter(w => w.status === 'watching').length;
+  const planToWatch = watchList.filter(w => w.status === 'plan_to_watch').length;
+  const rated       = userRatings.length;
+  const avgRating   = rated
+    ? (userRatings.reduce((s, r) => s + Number(r.rating), 0) / rated).toFixed(1)
+    : '—';
+  return { completed, watching, planToWatch, rated, avgRating };
+}
+
+function starsDisplay(rating) {
+  const full  = Math.floor(rating);
+  const half  = (rating % 1) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+}
+
+// ---------- Render account ----------
 async function renderAccount() {
+  const stats = computeStats();
   const avatarHtml = currentProfile?.avatar_url
     ? `<img class="profile-avatar" src="${escapeHtml(currentProfile.avatar_url)}" alt="Avatar">`
     : `<div class="profile-avatar-placeholder">${escapeHtml((currentProfile?.username || '?').charAt(0).toUpperCase())}</div>`;
 
   accountMain.innerHTML = `
-    <div class="profile-header">
-      <div class="profile-avatar-wrap">
-        ${avatarHtml}
-        <label class="profile-avatar-edit" title="Change avatar">✎<input type="file" id="avatarFileInput" accept="image/*"></label>
-      </div>
-      <div class="profile-info">
-        <div class="profile-username" id="displayUsername">${escapeHtml(currentProfile?.username || '')}</div>
-        <div class="profile-email">${escapeHtml(currentUser?.email || '')}</div>
-        <div class="profile-actions">
-          <button class="btn btn-outline btn-small" id="editUsernameBtn" type="button">Change Username</button>
+    <div class="profile-banner"><div class="profile-banner-accent"></div></div>
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar-wrap">
+          ${avatarHtml}
+          <label class="profile-avatar-edit" title="Change avatar">✎<input type="file" id="avatarFileInput" accept="image/*"></label>
         </div>
-        <div id="usernameEditArea" hidden>
-          <div class="username-edit-row">
-            <input type="text" id="newUsernameInput" placeholder="New username" maxlength="24">
-            <button class="btn btn-solid btn-small" id="saveUsernameBtn" type="button">Save</button>
-            <button class="btn btn-outline btn-small" id="cancelUsernameBtn" type="button">Cancel</button>
+        <div class="profile-identity">
+          <div class="profile-username" id="displayUsername">${escapeHtml(currentProfile?.username || '')}</div>
+          <div class="profile-email">${escapeHtml(currentUser?.email || '')}</div>
+          <div class="profile-actions">
+            <button class="btn btn-outline btn-small" id="editUsernameBtn" type="button">Change Username</button>
           </div>
-          <div class="username-availability" id="usernameAvailMsg"></div>
+          <div id="usernameEditArea" hidden>
+            <div class="username-edit-row">
+              <input type="text" id="newUsernameInput" placeholder="New username" maxlength="24">
+              <button class="btn btn-solid btn-small" id="saveUsernameBtn" type="button">Save</button>
+              <button class="btn btn-outline btn-small" id="cancelUsernameBtn" type="button">Cancel</button>
+            </div>
+            <div class="username-availability" id="usernameAvailMsg"></div>
+          </div>
+          <div class="profile-status-msg" id="profileStatusMsg"></div>
         </div>
-        <div class="profile-status-msg" id="profileStatusMsg"></div>
+      </div>
+
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <span class="profile-stat-value">${stats.completed}</span>
+          <span class="profile-stat-label">Completed</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-value">${stats.watching}</span>
+          <span class="profile-stat-label">Watching</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-value">${stats.planToWatch}</span>
+          <span class="profile-stat-label">Plan to Watch</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-value">${stats.rated}</span>
+          <span class="profile-stat-label">Rated</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-value">${stats.avgRating}</span>
+          <span class="profile-stat-label">Avg Rating</span>
+        </div>
       </div>
     </div>
 
-    <div class="watchlist-tabs" id="watchlistTabs">
-      ${Object.entries(STATUS_LABELS).map(([key, label]) => {
-        const c = watchList.filter(w => w.status === key).length;
-        return `<button class="watchlist-tab ${key === activeStatus ? 'active' : ''}" data-status="${key}" type="button">
-          ${label}<span class="watchlist-count">${c}</span>
-        </button>`;
-      }).join('')}
-    </div>
+    <div class="account-body">
+      <nav class="account-sidebar-nav">
+        ${Object.entries(STATUS_LABELS).map(([key, label]) => {
+          const c = watchList.filter(w => w.status === key).length;
+          return `<button class="account-nav-item ${key === activeTab ? 'active' : ''}" data-tab="${key}" type="button">
+            ${label}<span class="account-nav-count">${c}</span>
+          </button>`;
+        }).join('')}
+        <button class="account-nav-item ${activeTab === 'ratings' ? 'active' : ''}" data-tab="ratings" type="button">
+          Ratings<span class="account-nav-count">${userRatings.length}</span>
+        </button>
+      </nav>
 
-    <div class="watchlist-grid" id="watchlistGrid"></div>
+      <div class="account-content">
+        <div class="account-content-title" id="contentTitle">${activeTab === 'ratings' ? 'My Ratings' : STATUS_LABELS[activeTab] || activeTab}</div>
+        <div id="accountContentBody"></div>
+      </div>
+    </div>
 
     <div class="account-signout">
       <button class="btn btn-outline btn-small danger" id="signOutBtn" type="button">Sign Out</button>
     </div>
   `;
 
-  renderWatchlistGrid();
+  renderContentBody();
   wireAccountEvents();
 }
 
-function renderWatchlistGrid() {
-  const grid    = document.getElementById('watchlistGrid');
-  if (!grid) return;
-  const entries = watchList.filter(w => w.status === activeStatus);
+function renderContentBody() {
+  const body   = document.getElementById('accountContentBody');
+  const title  = document.getElementById('contentTitle');
+  if (!body) return;
+  if (title) title.textContent = activeTab === 'ratings' ? 'My Ratings' : (STATUS_LABELS[activeTab] || activeTab);
+
+  if (activeTab === 'ratings') {
+    renderRatingsTab(body);
+    return;
+  }
+
+  const entries = watchList.filter(w => w.status === activeTab);
   const groups  = groupVideos(AppState.videos);
 
-  if (!entries.length) { grid.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`; return; }
+  if (!entries.length) { body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`; return; }
 
-  grid.innerHTML = entries.map(entry => {
+  body.innerHTML = `<div class="watchlist-grid">${entries.map(entry => {
     const group = groups.find(g => g.title === entry.collection);
     const cover = group?.firstCover;
     return `
@@ -124,7 +186,26 @@ function renderWatchlistGrid() {
         </a>
       </article>
     `;
-  }).join('');
+  }).join('')}</div>`;
+}
+
+function renderRatingsTab(body) {
+  const groups = groupVideos(AppState.videos);
+  if (!userRatings.length) { body.innerHTML = `<div class="watchlist-empty">No ratings yet.</div>`; return; }
+  const sorted = [...userRatings].sort((a, b) => b.rating - a.rating);
+  body.innerHTML = `<div class="ratings-list">${sorted.map(r => {
+    const group = groups.find(g => g.title === r.collection);
+    const cover = group?.firstCover;
+    return `
+      <div class="rating-row">
+        <div class="rating-row-cover">
+          ${cover ? `<img src="${escapeHtml(cover)}" alt="">` : `<div class="cover-placeholder" style="height:100%;font-size:18px">${escapeHtml(r.collection.charAt(0))}</div>`}
+        </div>
+        <a class="rating-row-title" href="detail.html?show=${encodeURIComponent(slug(r.collection))}">${escapeHtml(r.collection)}</a>
+        <div class="rating-row-stars" title="${r.rating} / 5">${starsDisplay(Number(r.rating))} ${Number(r.rating).toFixed(1)}</div>
+      </div>
+    `;
+  }).join('')}</div>`;
 }
 
 function wireAccountEvents() {
@@ -142,13 +223,13 @@ function wireAccountEvents() {
   });
 
   // Username edit
-  const editBtn    = document.getElementById('editUsernameBtn');
-  const editArea   = document.getElementById('usernameEditArea');
-  const saveBtn    = document.getElementById('saveUsernameBtn');
-  const cancelBtn  = document.getElementById('cancelUsernameBtn');
-  const input      = document.getElementById('newUsernameInput');
-  const availMsg   = document.getElementById('usernameAvailMsg');
-  const statusMsg  = document.getElementById('profileStatusMsg');
+  const editBtn   = document.getElementById('editUsernameBtn');
+  const editArea  = document.getElementById('usernameEditArea');
+  const saveBtn   = document.getElementById('saveUsernameBtn');
+  const cancelBtn = document.getElementById('cancelUsernameBtn');
+  const input     = document.getElementById('newUsernameInput');
+  const availMsg  = document.getElementById('usernameAvailMsg');
+  const statusMsg = document.getElementById('profileStatusMsg');
 
   editBtn?.addEventListener('click',   () => { editArea.hidden = false; input?.focus(); });
   cancelBtn?.addEventListener('click', () => { editArea.hidden = true; if (input) input.value = ''; if (availMsg) availMsg.textContent = ''; });
@@ -180,19 +261,20 @@ function wireAccountEvents() {
     finally { saveBtn.disabled = false; }
   });
 
-  // Watch list tabs
-  document.getElementById('watchlistTabs')?.querySelectorAll('.watchlist-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      activeStatus = tab.dataset.status;
-      document.querySelectorAll('.watchlist-tab').forEach(t => t.classList.toggle('active', t === tab));
-      renderWatchlistGrid();
+  // Nav tabs
+  document.querySelectorAll('.account-nav-item[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      document.querySelectorAll('.account-nav-item').forEach(b => b.classList.toggle('active', b === btn));
+      renderContentBody();
     });
   });
 
   // Sign out
   document.getElementById('signOutBtn')?.addEventListener('click', async () => {
     await supabaseSignOut();
-    window.location.href = 'index.html';
+    currentUser = null; currentProfile = null; watchList = []; userRatings = [];
+    renderGate();
   });
 }
 
@@ -200,79 +282,10 @@ function wireAccountEvents() {
 function openAuthDialog(mode) {
   const inner = document.getElementById('authDialogInner');
   if (!inner) return;
-  const closeX = `<button type="button" class="dialog-close" id="authClose">×</button>`;
-
-  if (mode === 'signin') {
-    inner.innerHTML = `
-      ${closeX}<h3>Sign In</h3>
-      <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
-      <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
-      <p id="authError" class="admin-error" hidden></p>
-      <div class="admin-actions">
-        <button type="button" class="btn btn-outline btn-small" id="authSwitch">Create account</button>
-        <button type="button" class="btn btn-solid btn-small" id="authSubmit">Sign In</button>
-      </div>`;
-    document.getElementById('authClose').addEventListener('click', closeAuthDialog);
-    document.getElementById('authSwitch').addEventListener('click', () => openAuthDialog('signup'));
-    document.getElementById('authSubmit').addEventListener('click', async () => {
-      const errEl = document.getElementById('authError');
-      try {
-        await supabaseSignIn(document.getElementById('authEmail').value.trim(), document.getElementById('authPassword').value.trim());
-        closeAuthDialog(); await init();
-      } catch (err) { errEl.textContent = err.message; errEl.hidden = false; }
-    });
-  } else {
-    inner.innerHTML = `
-      ${closeX}<h3>Create Account</h3>
-      <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
-      <input id="authUsername" type="text" placeholder="Username" maxlength="24">
-      <input id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
-      <div id="authUsernameAvail" class="username-availability"></div>
-      <p id="authError" class="admin-error" hidden></p>
-      <div class="admin-actions">
-        <button type="button" class="btn btn-outline btn-small" id="authSwitch">Sign in instead</button>
-        <button type="button" class="btn btn-solid btn-small" id="authSubmit">Create Account</button>
-      </div>`;
-    document.getElementById('authClose').addEventListener('click', closeAuthDialog);
-    document.getElementById('authSwitch').addEventListener('click', () => openAuthDialog('signin'));
-    let timer = null;
-    document.getElementById('authUsername').addEventListener('input', e => {
-      clearTimeout(timer);
-      const el = document.getElementById('authUsernameAvail');
-      el.textContent = ''; el.className = 'username-availability';
-      if (e.target.value.trim().length < 3) return;
-      timer = setTimeout(async () => {
-        const ok = await checkUsernameAvailable(e.target.value.trim());
-        el.textContent = ok ? '✓ Available' : '✗ Already taken';
-        el.className   = `username-availability ${ok ? 'available' : 'taken'}`;
-      }, 500);
-    });
-    document.getElementById('authSubmit').addEventListener('click', async () => {
-      const errEl    = document.getElementById('authError');
-      const submitBtn = document.getElementById('authSubmit');
-      const username = document.getElementById('authUsername').value.trim();
-      const email    = document.getElementById('authEmail').value.trim();
-      const password = document.getElementById('authPassword').value.trim();
-      if (username.length < 3) { errEl.textContent = 'Username must be at least 3 characters.'; errEl.hidden = false; return; }
-      if (!email || !password) { errEl.textContent = 'Email and password are required.'; errEl.hidden = false; return; }
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Creating…';
-      errEl.hidden = true;
-      try {
-        await supabaseSignUp(email, password, username);
-        closeAuthDialog();
-        await init();
-      } catch (err) {
-        errEl.textContent = err.message;
-        errEl.hidden = false;
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Account';
-      }
-    });
-  }
-
+  inner.innerHTML = mode === 'signin' ? signInFormHtml() : signUpFormHtml();
   if (typeof authDialog.showModal === 'function') authDialog.showModal();
   else authDialog.setAttribute('open', '');
+  wireAuthDialog(mode);
 }
 
 function closeAuthDialog() {
@@ -280,14 +293,98 @@ function closeAuthDialog() {
   else authDialog?.removeAttribute('open');
 }
 
-// ---------- Bootstrap ----------
-async function init() {
+function signInFormHtml() {
+  return `
+    <h3>Sign In</h3>
+    <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+    <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <p id="authError" class="admin-error" hidden></p>
+    <div class="admin-actions">
+      <button type="button" id="authCancel" class="btn btn-outline btn-small">Cancel</button>
+      <button type="button" id="authSubmit" class="btn btn-solid btn-small">Sign In</button>
+    </div>
+    <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--ink-mute)">
+      No account? <button type="button" id="switchToSignUp" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0">Create one</button>
+    </p>
+  `;
+}
+
+function signUpFormHtml() {
+  return `
+    <h3>Create Account</h3>
+    <input id="authUsername" type="text" placeholder="Username" maxlength="24">
+    <div class="username-availability" id="authUsernameAvail"></div>
+    <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+    <input id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
+    <p id="authError" class="admin-error" hidden></p>
+    <div class="admin-actions">
+      <button type="button" id="authCancel" class="btn btn-outline btn-small">Cancel</button>
+      <button type="button" id="authSubmit" class="btn btn-solid btn-small">Create Account</button>
+    </div>
+    <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--ink-mute)">
+      Have an account? <button type="button" id="switchToSignIn" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0">Sign in</button>
+    </p>
+  `;
+}
+
+function wireAuthDialog(mode) {
+  document.getElementById('authCancel')?.addEventListener('click', closeAuthDialog);
+  document.getElementById('switchToSignUp')?.addEventListener('click', () => { closeAuthDialog(); openAuthDialog('signup'); });
+  document.getElementById('switchToSignIn')?.addEventListener('click', () => { closeAuthDialog(); openAuthDialog('signin'); });
+
+  // Username availability check for signup
+  let checkTimer = null;
+  document.getElementById('authUsername')?.addEventListener('input', e => {
+    clearTimeout(checkTimer);
+    const avail = document.getElementById('authUsernameAvail');
+    if (!avail) return;
+    avail.textContent = ''; avail.className = 'username-availability';
+    const val = e.target.value.trim();
+    if (val.length < 3) return;
+    checkTimer = setTimeout(async () => {
+      const ok = await checkUsernameAvailable(val);
+      avail.textContent = ok ? '✓ Available' : '✗ Already taken';
+      avail.className = `username-availability ${ok ? 'available' : 'taken'}`;
+    }, 500);
+  });
+
+  document.getElementById('authSubmit')?.addEventListener('click', async () => {
+    const email    = document.getElementById('authEmail')?.value?.trim() || '';
+    const password = document.getElementById('authPassword')?.value?.trim() || '';
+    const errorEl  = document.getElementById('authError');
+    const submitBtn = document.getElementById('authSubmit');
+    if (!email || !password) return;
+    if (submitBtn) submitBtn.disabled = true;
+    if (errorEl) errorEl.hidden = true;
+    try {
+      if (mode === 'signin') {
+        await supabaseSignIn(email, password);
+      } else {
+        const username = document.getElementById('authUsername')?.value?.trim() || '';
+        if (!username || username.length < 3) { throw new Error('Username must be at least 3 characters.'); }
+        await supabaseSignUp(email, password, username);
+      }
+      closeAuthDialog();
+      await bootAccount();
+    } catch (err) {
+      if (errorEl) { errorEl.textContent = err.message || 'Something went wrong.'; errorEl.hidden = false; }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+// ---------- Boot ----------
+async function bootAccount() {
   await coreInit();
-  currentUser    = await getCurrentUser();
-  currentProfile = currentUser ? await getCurrentProfile() : null;
-  if (!currentUser || !currentProfile) { renderGate(); return; }
-  watchList = await getUserWatchList();
+  currentUser = await getCurrentUser();
+  if (!currentUser) { renderGate(); return; }
+  [currentProfile, watchList, userRatings] = await Promise.all([
+    getCurrentProfile(),
+    getUserWatchList(),
+    getSupabase().from('ratings').select('collection, rating').eq('user_id', currentUser.id).then(({ data }) => data || [])
+  ]);
   await renderAccount();
 }
 
-init();
+bootAccount();
