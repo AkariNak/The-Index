@@ -455,13 +455,37 @@ function groupVideos(videoList) {
 const JIKAN_BASE = 'https://api.jikan.moe/v4/anime';
 let lastJikanCall = 0;
 
+const JIKAN_CACHE_KEY = 'aurum-jikan-cache';
+
+function loadJikanCache() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(JIKAN_CACHE_KEY) || '{}');
+    Object.assign(AppState.jikanCache, saved);
+  } catch {}
+}
+
+function saveJikanCache() {
+  try { localStorage.setItem(JIKAN_CACHE_KEY, JSON.stringify(AppState.jikanCache)); }
+  catch {}
+}
+
 async function jikanRequest(url) {
   const wait = Date.now() - lastJikanCall;
-  if (wait < 400) await new Promise(r => setTimeout(r, 400 - wait));
+  if (wait < 500) await new Promise(r => setTimeout(r, 500 - wait));
   lastJikanCall = Date.now();
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Jikan ${res.status}`);
-  return res.json();
+
+  let attempts = 0;
+  while (attempts < 3) {
+    const res = await fetch(url);
+    if (res.status === 429) {
+      attempts++;
+      await new Promise(r => setTimeout(r, 2000 * attempts));
+      continue;
+    }
+    if (!res.ok) throw new Error(`Jikan ${res.status}`);
+    return res.json();
+  }
+  throw new Error('Jikan 429 — too many requests');
 }
 
 async function searchJikan(query) {
@@ -473,6 +497,41 @@ async function searchJikan(query) {
       type: item.type, image: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || ''
     })).filter(r => r.image);
   } catch (err) { console.warn('Jikan search failed:', err); return []; }
+}
+
+async function fetchJikanDetailsExact(query) {
+  if (!query) return null;
+  const cacheKey = slug(query) + '-exact';
+  if (AppState.jikanCache[cacheKey]) return AppState.jikanCache[cacheKey];
+  try {
+    const search = await jikanRequest(`${JIKAN_BASE}?q=${encodeURIComponent(query)}&limit=5&sfw=true`);
+    const results = search.data || [];
+    if (!results.length) return null;
+
+    // Try to find a result whose title contains the season number
+    const seasonMatch = query.match(/season\s*(\d+)/i);
+    const seasonNum   = seasonMatch ? seasonMatch[1] : null;
+    let best = results[0];
+    if (seasonNum) {
+      const specific = results.find(r => {
+        const t = (r.title_english || r.title || '').toLowerCase();
+        return t.includes(`season ${seasonNum}`) || t.includes(`${seasonNum}nd season`) || t.includes(`${seasonNum}rd season`) || t.includes(`${seasonNum}th season`) || (r.season && String(r.season) === seasonNum);
+      });
+      if (specific) best = specific;
+    }
+
+    const details = {
+      malId: best.mal_id, title: best.title_english || best.title,
+      synopsis: best.synopsis || '', year: best.year, type: best.type,
+      episodes: best.episodes, score: best.score,
+      image: best.images?.jpg?.large_image_url || '',
+      tags: (best.genres || []).concat(best.themes || []).concat(best.demographics || [])
+        .map(g => g.name).filter(Boolean)
+    };
+    AppState.jikanCache[cacheKey] = details;
+    saveJikanCache();
+    return details;
+  } catch (err) { return null; }
 }
 
 async function fetchJikanDetails(query) {
@@ -492,6 +551,7 @@ async function fetchJikanDetails(query) {
         .map(g => g.name).filter(Boolean)
     };
     AppState.jikanCache[cacheKey] = details;
+    saveJikanCache(); // persist so next page load skips the fetch
     return details;
   } catch (err) { console.warn('Jikan details failed:', err); return null; }
 }
@@ -548,22 +608,53 @@ function removeTag(collectionName, tag) {
   saveTagsOverride();
 }
 
+// ---------- Tag weights ----------
+const DEMOGRAPHIC_TAGS = new Set(['shounen', 'seinen', 'shoujo', 'josei', 'kids']);
+
+const TAG_WEIGHTS = {
+  // Core genres — 4 pts
+  'action': 4, 'romance': 4, 'drama': 4, 'horror': 4, 'comedy': 4,
+  'mystery': 4, 'sci-fi': 4, 'fantasy': 4, 'slice of life': 4,
+  // Thematic — 3 pts
+  'psychological': 3, 'supernatural': 3, 'thriller': 3, 'adventure': 3,
+  'sports': 3, 'isekai': 3, 'military': 3, 'tragedy': 3, 'survival': 3,
+  'gore': 3, 'violence': 3,
+  // Setting / tone — 2 pts
+  'school': 2, 'historical': 2, 'mecha': 2, 'music': 2, 'magic': 2,
+  'super power': 2, 'martial arts': 2, 'demons': 2, 'vampires': 2,
+  'time travel': 2, 'space': 2,
+};
+
+function tagWeight(tag) {
+  return TAG_WEIGHTS[tag.toLowerCase()] ?? 1;
+}
+
+function filterTags(tags) {
+  return tags.filter(t => !DEMOGRAPHIC_TAGS.has(t.toLowerCase()));
+}
+
 // ---------- Recommendations ----------
 function getRecommendationsForCollection(collectionName, currentCategory, allGroups, currentTags = []) {
-  const lowerTags = currentTags.map(t => t.toLowerCase());
+  const filtered  = filterTags(currentTags);
+  const lowerTags = filtered.map(t => t.toLowerCase());
   const k         = slug(collectionName);
-  return allGroups
+
+  const scored = allGroups
     .filter(g => g.slug !== k)
     .map(g => {
-      const jikan     = AppState.jikanCache[g.slug];
-      const otherTags = getTagsForCollection(g.title, jikan?.tags || []).map(t => t.toLowerCase());
-      const overlap   = otherTags.filter(t => lowerTags.includes(t)).length;
-      return { group: g, overlap };
+      const jikan     = AppState.jikanCache[slug(g.title)];
+      const otherTags = filterTags(getTagsForCollection(g.title, jikan?.tags || [])).map(t => t.toLowerCase());
+      const tagScore  = otherTags
+        .filter(t => lowerTags.includes(t))
+        .reduce((sum, t) => sum + tagWeight(t), 0);
+      const samecat   = g.category === currentCategory ? 2 : 0;
+      return { group: g, score: tagScore + samecat };
     })
-    .filter(x => x.overlap > 0)
-    .sort((a, b) => b.overlap - a.overlap)
-    .slice(0, 8)
-    .map(x => x.group);
+    .sort((a, b) => b.score - a.score);
+
+  const withTags = scored.filter(x => x.score > 0);
+  const results  = withTags.length >= 3 ? withTags : scored;
+  return results.slice(0, 8).map(x => x.group);
 }
 
 // ---------- Community ratings ----------
@@ -626,6 +717,7 @@ async function coreInit() {
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
+  loadJikanCache();
   await loadBaseVideos();
   syncVideos();
 }
