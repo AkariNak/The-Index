@@ -690,7 +690,14 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
 .tag-add input:focus { border-color: var(--accent); }
 
 /* Watch status */
-.watch-status-wrap { margin: 4px 0 8px; }
+.watch-status-wrap { margin: 4px 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.watch-status-ep {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
 .watch-status-select {
   background: var(--paper-3);
   border: 1px solid var(--accent);
