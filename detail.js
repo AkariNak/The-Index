@@ -589,9 +589,7 @@ function renderRecommendations(allGroups) {
     const label     = extractSeriesLabel(g.title);
     const epCount   = g.videos.length;
     const progress  = getLastWatched(g.title);
-    const watchStatus = isCurrent ? currentWatchStatus : null;
-    
-    // Show episode progress if watching
+
     let progressHtml = '';
     if (progress?.lastEpisodeTitle) {
       const lastVid = g.videos.find(v => v.title === progress.lastEpisodeTitle);
