@@ -241,7 +241,113 @@ async function loadRatings(groups) {
   }
 }
 
-// ---------- Admin: slideshow manager ----------
+// ---------- Episode name fixer ----------
+const EP_GENERIC_RE = /^.+ - Episode \d+(\.\d+)?$/i;
+
+function isGenericTitle(title) {
+  return EP_GENERIC_RE.test(title.trim());
+}
+
+let _epFixerQueue = []; // { video, newTitle }
+
+async function epFixerScan() {
+  const status  = document.getElementById('epFixerStatus');
+  const preview = document.getElementById('epFixerPreview');
+  const runBtn  = document.getElementById('epFixerRunBtn');
+  if (status)  status.textContent = 'Scanning…';
+  if (preview) { preview.hidden = true; preview.innerHTML = ''; }
+  if (runBtn)  runBtn.hidden = true;
+  _epFixerQueue = [];
+
+  const generic = AppState.baseVideos.filter(v => isGenericTitle(v.title));
+  if (!generic.length) {
+    if (status) status.textContent = 'No generic episode titles found — everything looks good!';
+    return;
+  }
+
+  if (status) status.textContent = `Found ${generic.length} generic titles. Fetching episode names from MAL…`;
+
+  // Group by collection so we only fetch each show once
+  const byCollection = {};
+  for (const v of generic) {
+    if (!byCollection[v.collection]) byCollection[v.collection] = [];
+    byCollection[v.collection].push(v);
+  }
+
+  for (const [collection, videos] of Object.entries(byCollection)) {
+    try {
+      // Get MAL ID first
+      const search = await jikanRequest(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(collection)}&limit=1&sfw=true`);
+      const malId  = search.data?.[0]?.mal_id;
+      if (!malId) continue;
+
+      // Fetch episodes list from Jikan
+      await new Promise(r => setTimeout(r, 500));
+      const epData = await jikanRequest(`https://api.jikan.moe/v4/anime/${malId}/episodes`);
+      const epList = epData.data || [];
+
+      for (const v of videos) {
+        const epNum = parseFloat(String(v.episode));
+        const match = epList.find(e => e.mal_id === epNum || e.mal_id === Math.floor(epNum));
+        if (!match || !match.title) continue;
+        const newTitle = `${v.collection} - ${match.title}`;
+        _epFixerQueue.push({ video: v, newTitle });
+      }
+      await new Promise(r => setTimeout(r, 600));
+    } catch { /* silent, try next show */ }
+  }
+
+  if (!_epFixerQueue.length) {
+    if (status) status.textContent = `Found ${generic.length} generic titles but Jikan had no episode names for them. Try visiting each show's detail page first to cache their MAL data.`;
+    return;
+  }
+
+  // Show preview
+  if (preview) {
+    preview.hidden = false;
+    preview.innerHTML = `
+      <div class="ep-fixer-count">${_epFixerQueue.length} of ${generic.length} episodes matched</div>
+      <div class="ep-fixer-list">
+        ${_epFixerQueue.slice(0, 20).map(({ video, newTitle }) => `
+          <div class="ep-fixer-row">
+            <span class="ep-fixer-old">${escapeHtml(video.title)}</span>
+            <span class="ep-fixer-arrow">→</span>
+            <span class="ep-fixer-new">${escapeHtml(newTitle)}</span>
+          </div>
+        `).join('')}
+        ${_epFixerQueue.length > 20 ? `<div class="ep-fixer-more">…and ${_epFixerQueue.length - 20} more</div>` : ''}
+      </div>
+    `;
+  }
+
+  if (runBtn)  runBtn.hidden = false;
+  if (status)  status.textContent = `Ready to update ${_epFixerQueue.length} episode names.`;
+}
+
+async function epFixerRun() {
+  const status = document.getElementById('epFixerStatus');
+  const runBtn = document.getElementById('epFixerRunBtn');
+  if (!_epFixerQueue.length) return;
+  if (runBtn) runBtn.disabled = true;
+  if (status) status.textContent = `Updating 0 / ${_epFixerQueue.length}…`;
+
+  let done = 0;
+  for (const { video, newTitle } of _epFixerQueue) {
+    try {
+      await supabaseUpdate(video.id, { ...video, title: newTitle });
+      const idx = AppState.baseVideos.findIndex(v => v.id === video.id);
+      if (idx >= 0) AppState.baseVideos[idx] = { ...AppState.baseVideos[idx], title: newTitle };
+      done++;
+      if (status) status.textContent = `Updating ${done} / ${_epFixerQueue.length}…`;
+    } catch { /* silent */ }
+  }
+
+  syncVideos();
+  render();
+  _epFixerQueue = [];
+  if (runBtn)  { runBtn.hidden = true; runBtn.disabled = false; }
+  if (status)  status.textContent = `Done — updated ${done} episode names.`;
+}
 function buildSlideshowManager() {
   const manager = document.getElementById('slideshowManager');
   if (!manager) return;
@@ -571,6 +677,9 @@ function wireAll() {
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
+
+  document.getElementById('epFixerScanBtn')?.addEventListener('click', epFixerScan);
+  document.getElementById('epFixerRunBtn')?.addEventListener('click', epFixerRun);
 
   document.getElementById('saveSlideshowBtn')?.addEventListener('click', saveSlideshowOrder);
 
