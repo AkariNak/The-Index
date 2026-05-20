@@ -190,35 +190,6 @@ function renderContentBody() {
       </div>
     `;
   }).join('')}</div>`;
-
-  // Wire remove buttons
-  body.querySelectorAll('.wl-remove').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const collection = btn.dataset.collection;
-      try {
-        await setWatchStatus(collection, null);
-        watchList = watchList.filter(w => w.collection !== collection);
-        btn.closest('.watchlist-card-wrap')?.remove();
-        const remaining = body.querySelectorAll('.watchlist-card-wrap');
-        if (!remaining.length) body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`;
-        // Update sidebar counts
-        document.querySelectorAll('.account-nav-item[data-tab]').forEach(navBtn => {
-          const tab = navBtn.dataset.tab;
-          if (tab === 'ratings') return;
-          const count = watchList.filter(w => w.status === tab).length;
-          const badge = navBtn.querySelector('.account-nav-count');
-          if (badge) badge.textContent = count;
-        });
-        // Update stats
-        const stats = computeStats();
-        document.querySelectorAll('.profile-stat').forEach((el, i) => {
-          const vals = [stats.completed, stats.watching, stats.planToWatch, stats.rated, stats.avgRating];
-          const valEl = el.querySelector('.profile-stat-value');
-          if (valEl && vals[i] !== undefined) valEl.textContent = vals[i];
-        });
-      } catch (err) { console.warn('Remove failed:', err); }
-    });
-  });
 }
 
 function renderRatingsTab(body) {
@@ -241,8 +212,92 @@ function renderRatingsTab(body) {
 }
 
 function wireAccountEvents() {
-  // Avatar
-  document.getElementById('avatarFileInput')?.addEventListener('change', async e => {
+  // Use event delegation on accountMain to handle all clicks
+  accountMain.addEventListener('click', async e => {
+    const target = e.target;
+
+    // Avatar upload trigger
+    if (target.closest('.profile-avatar-edit')) return; // let label handle it
+
+    // Edit username button
+    if (target.id === 'editUsernameBtn') {
+      document.getElementById('usernameEditArea').hidden = false;
+      document.getElementById('newUsernameInput')?.focus();
+    }
+
+    // Cancel username edit
+    if (target.id === 'cancelUsernameBtn') {
+      document.getElementById('usernameEditArea').hidden = true;
+      const input = document.getElementById('newUsernameInput');
+      if (input) input.value = '';
+      const avail = document.getElementById('usernameAvailMsg');
+      if (avail) avail.textContent = '';
+    }
+
+    // Save username
+    if (target.id === 'saveUsernameBtn') {
+      const input   = document.getElementById('newUsernameInput');
+      const val     = input?.value?.trim();
+      const statusMsg = document.getElementById('profileStatusMsg');
+      if (!val || val.length < 3) return;
+      target.disabled = true;
+      try {
+        await updateUsername(val);
+        currentProfile.username = val;
+        if (statusMsg) statusMsg.textContent = 'Username updated!';
+        document.getElementById('usernameEditArea').hidden = true;
+        const display = document.getElementById('displayUsername');
+        if (display) display.textContent = val;
+      } catch (err) {
+        if (statusMsg) statusMsg.textContent = err.message;
+      } finally { target.disabled = false; }
+    }
+
+    // Sign out
+    if (target.id === 'signOutBtn') {
+      await supabaseSignOut();
+      currentUser = null; currentProfile = null; watchList = []; userRatings = [];
+      renderGate();
+    }
+
+    // Nav tabs
+    if (target.dataset.tab) {
+      activeTab = target.dataset.tab;
+      document.querySelectorAll('.account-nav-item').forEach(b => b.classList.toggle('active', b === target));
+      renderContentBody();
+    }
+
+    // Watchlist remove
+    if (target.classList.contains('wl-remove')) {
+      const collection = target.dataset.collection;
+      try {
+        await setWatchStatus(collection, null);
+        watchList = watchList.filter(w => w.collection !== collection);
+        target.closest('.watchlist-card-wrap')?.remove();
+        const body = document.getElementById('accountContentBody');
+        if (body && !body.querySelector('.watchlist-card-wrap')) {
+          body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`;
+        }
+        document.querySelectorAll('.account-nav-item[data-tab]').forEach(navBtn => {
+          const tab = navBtn.dataset.tab;
+          if (tab === 'ratings') return;
+          const count = watchList.filter(w => w.status === tab).length;
+          const badge = navBtn.querySelector('.account-nav-count');
+          if (badge) badge.textContent = count;
+        });
+        const stats = computeStats();
+        document.querySelectorAll('.profile-stat').forEach((el, i) => {
+          const vals = [stats.completed, stats.watching, stats.planToWatch, stats.rated, stats.avgRating];
+          const valEl = el.querySelector('.profile-stat-value');
+          if (valEl && vals[i] !== undefined) valEl.textContent = vals[i];
+        });
+      } catch (err) { console.warn('Remove failed:', err); }
+    }
+  }, { once: false });
+
+  // Avatar file input
+  accountMain.addEventListener('change', async e => {
+    if (e.target.id !== 'avatarFileInput') return;
     const file = e.target.files?.[0];
     if (!file) return;
     const msg = document.getElementById('profileStatusMsg');
@@ -250,63 +305,37 @@ function wireAccountEvents() {
     try {
       currentProfile.avatar_url = await uploadAvatar(file);
       if (msg) msg.textContent = 'Avatar updated!';
-      await renderAccount();
-    } catch (err) { if (msg) msg.textContent = `Upload failed: ${err.message}`; }
+      // Update avatar display without full re-render
+      const wrap = document.querySelector('.profile-avatar-wrap');
+      if (wrap) {
+        const existing = wrap.querySelector('.profile-avatar, .profile-avatar-placeholder');
+        if (existing) {
+          const img = document.createElement('img');
+          img.className = 'profile-avatar';
+          img.src = currentProfile.avatar_url;
+          img.alt = 'Avatar';
+          existing.replaceWith(img);
+        }
+      }
+    } catch (err) {
+      if (msg) msg.textContent = `Upload failed: ${err.message}`;
+    }
   });
 
-  // Username edit
-  const editBtn   = document.getElementById('editUsernameBtn');
-  const editArea  = document.getElementById('usernameEditArea');
-  const saveBtn   = document.getElementById('saveUsernameBtn');
-  const cancelBtn = document.getElementById('cancelUsernameBtn');
-  const input     = document.getElementById('newUsernameInput');
-  const availMsg  = document.getElementById('usernameAvailMsg');
-  const statusMsg = document.getElementById('profileStatusMsg');
-
-  editBtn?.addEventListener('click',   () => { editArea.hidden = false; input?.focus(); });
-  cancelBtn?.addEventListener('click', () => { editArea.hidden = true; if (input) input.value = ''; if (availMsg) availMsg.textContent = ''; });
-
-  let checkTimer = null;
-  input?.addEventListener('input', () => {
-    clearTimeout(checkTimer);
-    if (availMsg) { availMsg.textContent = ''; availMsg.className = 'username-availability'; }
-    const val = input.value.trim();
+  // Username availability check
+  accountMain.addEventListener('input', async e => {
+    if (e.target.id !== 'newUsernameInput') return;
+    const avail = document.getElementById('usernameAvailMsg');
+    if (!avail) return;
+    avail.textContent = ''; avail.className = 'username-availability';
+    const val = e.target.value.trim();
     if (val.length < 3) return;
-    checkTimer = setTimeout(async () => {
+    clearTimeout(accountMain._checkTimer);
+    accountMain._checkTimer = setTimeout(async () => {
       const ok = await checkUsernameAvailable(val);
-      if (availMsg) { availMsg.textContent = ok ? '✓ Available' : '✗ Already taken'; availMsg.className = `username-availability ${ok ? 'available' : 'taken'}`; }
+      avail.textContent = ok ? '✓ Available' : '✗ Already taken';
+      avail.className = `username-availability ${ok ? 'available' : 'taken'}`;
     }, 500);
-  });
-
-  saveBtn?.addEventListener('click', async () => {
-    const val = input?.value?.trim();
-    if (!val || val.length < 3) return;
-    saveBtn.disabled = true;
-    try {
-      await updateUsername(val);
-      currentProfile.username = val;
-      if (statusMsg) statusMsg.textContent = 'Username updated!';
-      if (editArea) editArea.hidden = true;
-      const display = document.getElementById('displayUsername');
-      if (display) display.textContent = val;
-    } catch (err) { if (statusMsg) statusMsg.textContent = err.message; }
-    finally { saveBtn.disabled = false; }
-  });
-
-  // Nav tabs
-  document.querySelectorAll('.account-nav-item[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeTab = btn.dataset.tab;
-      document.querySelectorAll('.account-nav-item').forEach(b => b.classList.toggle('active', b === btn));
-      renderContentBody();
-    });
-  });
-
-  // Sign out
-  document.getElementById('signOutBtn')?.addEventListener('click', async () => {
-    await supabaseSignOut();
-    currentUser = null; currentProfile = null; watchList = []; userRatings = [];
-    renderGate();
   });
 }
 
