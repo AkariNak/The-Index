@@ -84,6 +84,17 @@
       <button id="syncMetaButton" type="button" class="btn btn-outline">Sync All Covers</button>
       <p id="formStatus" class="form-status"></p>
     </div>
+
+    <hr style="border-color:var(--line);margin:32px 0">
+
+    <h2 class="add-title">Episode Name Fixer</h2>
+    <p class="add-sub">Finds all episodes with generic titles like "Show - Episode 1" and replaces them with real episode names from Jikan/MAL.</p>
+    <div id="epFixerPreview" class="ep-fixer-preview" hidden></div>
+    <div class="form-actions" style="margin-top:12px">
+      <button id="epFixerScanBtn" type="button" class="btn btn-outline">Scan for Generic Titles</button>
+      <button id="epFixerRunBtn" type="button" class="btn btn-solid" hidden>Fix Episode Names</button>
+      <p id="epFixerStatus" class="form-status"></p>
+    </div>
   </section>
 
   <footer class="site-foot">
