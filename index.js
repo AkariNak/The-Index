@@ -444,15 +444,38 @@ async function bulkAutoSaveMetadata() {
   const missing = groups.filter(g => g.videos.some(v => v.id && (!v.coverUrl || !v.description)));
   if (!missing.length) { if (formStatus) formStatus.textContent = 'All covers already synced.'; return; }
   if (formStatus) formStatus.textContent = `Syncing ${missing.length} shows…`;
+
+  // Track used cover URLs to prevent duplicates across seasons of the same show
+  const usedCovers = new Set(
+    groups.filter(g => g.firstCover).map(g => g.firstCover)
+  );
+
   for (const group of missing) {
     try {
-      const details = await fetchJikanDetails(group.title);
+      // Try with full title first (includes "Season 2" etc for better MAL match)
+      let details = await fetchJikanDetailsExact(group.title);
+      // Fall back to base title if no result
+      if (!details) details = await fetchJikanDetails(group.title);
       if (!details) continue;
+
+      // If this cover is already used by another show, try AniList for a unique one
+      let coverUrl = details.image;
+      if (coverUrl && usedCovers.has(coverUrl)) {
+        const anilist = await fetchAniListBanner(group.title);
+        if (anilist?.cover && !usedCovers.has(anilist.cover)) {
+          coverUrl = anilist.cover;
+        } else {
+          // Skip cover update to avoid duplication, only update description
+          coverUrl = null;
+        }
+      }
+      if (coverUrl) usedCovers.add(coverUrl);
+
       const toUpdate = group.videos.filter(v => v.id && (!v.coverUrl || !v.description));
       for (const video of toUpdate) {
         const updates = { ...video };
-        if (!video.coverUrl    && details.image)    updates.coverUrl    = details.image;
-        if (!video.description && details.synopsis) updates.description = details.synopsis;
+        if (!video.coverUrl    && coverUrl)          updates.coverUrl    = coverUrl;
+        if (!video.description && details.synopsis)  updates.description = details.synopsis;
         if (updates.coverUrl === video.coverUrl && updates.description === video.description) continue;
         try {
           const saved = await supabaseUpdate(video.id, updates);
