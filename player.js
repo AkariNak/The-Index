@@ -426,6 +426,7 @@ function wireFog() {
 // ---------- Bootstrap ----------
 (async function init() {
   await coreInit();
+  initGlobalSearch();
   const { show: showSlug, ep: epParam, t: tParam } = getParams();
   if (!showSlug) { if (playerTitleEl) playerTitleEl.textContent = 'No show specified.'; return; }
 
