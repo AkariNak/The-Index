@@ -779,7 +779,7 @@ function initGlobalSearch() {
 
   btn.addEventListener('click', openSearch);
   close?.addEventListener('click', closeSearch);
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeSearch(); });
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) closeSearch(); });
 
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !overlay.hidden) closeSearch();
