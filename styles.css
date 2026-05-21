@@ -1551,6 +1551,100 @@ body.light .mobile-search-bar { background: var(--paper-2); }
   color: var(--ink-mute);
 }
 
+/* ============ ACHIEVEMENT TOAST ============ */
+.achievement-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  background: var(--paper-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 24px rgba(201,150,58,0.15);
+  transform: translateX(120%);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 320px;
+}
+.achievement-toast-show { transform: translateX(0); }
+.achievement-toast-icon { font-size: 28px; flex-shrink: 0; }
+.achievement-toast-label {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.achievement-toast-name {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+.achievement-toast-desc {
+  font-family: var(--body);
+  font-size: 11px;
+  color: var(--ink-mute);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+/* ============ ACHIEVEMENTS GRID ============ */
+.achievements-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.achievement-card {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  transition: all var(--transition);
+}
+.achievement-card.unlocked {
+  background: rgba(201,150,58,0.06);
+  border-color: rgba(201,150,58,0.3);
+}
+.achievement-card.locked { opacity: 0.45; }
+.achievement-card-icon { font-size: 24px; text-align: center; }
+.achievement-card-name {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+.achievement-card-desc {
+  font-family: var(--body);
+  font-size: 12px;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+.achievement-card-date {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.achievement-card-check {
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+}
+.achievement-card-lock { font-size: 14px; opacity: 0.4; }
+
 /* ============ DRAG AND DROP ============ */
 .series-card[draggable="true"] { cursor: grab; }
 .series-card[draggable="true"]:active { cursor: grabbing; }
