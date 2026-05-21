@@ -129,6 +129,7 @@ function renderDetail() {
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
         <div id="watchStatusContainer"></div>
+        <div id="episodeProgressContainer"></div>
         <div id="communityRatingContainer"></div>
         <div class="tag-list">${tagsHtml}</div>
         ${adminAddTag}
@@ -155,6 +156,7 @@ function renderDetail() {
 
   wireDetailEvents();
   renderWatchStatus(document.getElementById('watchStatusContainer'), g.title);
+  renderEpisodeProgress(document.getElementById('episodeProgressContainer'), g);
   renderCommunityRating(document.getElementById('communityRatingContainer'), g.title);
 }
 
@@ -462,7 +464,41 @@ function wireDragDrop(seriesGroups, baseTitle) {
   });
 }
 
-// ---------- Player navigation ----------
+// ---------- Episode progress ----------
+async function renderEpisodeProgress(container, group) {
+  if (!container || !group) return;
+  const user = await getCurrentUser();
+  if (!user) { container.innerHTML = ''; return; }
+
+  const status   = await getWatchStatus(group.title);
+  const progress = getLastWatched(group.title);
+  const total    = group.videos.length;
+
+  if (!status && !progress) { container.innerHTML = ''; return; }
+
+  let watched = 0;
+  if (progress?.lastEpisodeTitle) {
+    const idx = group.videos.findIndex(v => v.title === progress.lastEpisodeTitle);
+    if (idx >= 0) watched = idx + 1;
+  }
+
+  if (status === 'completed') watched = total;
+  if (!watched && !status) { container.innerHTML = ''; return; }
+
+  const pct = total > 0 ? Math.round((watched / total) * 100) : 0;
+
+  container.innerHTML = `
+    <div class="ep-progress-wrap">
+      <div class="ep-progress-label">
+        <span class="ep-progress-count">${watched} / ${total} Episodes</span>
+        <span class="ep-progress-pct">${pct}%</span>
+      </div>
+      <div class="ep-progress-bar">
+        <div class="ep-progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>
+  `;
+}
 function openPlayer(video, resumeTimestamp) {
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) { alert(`"${video.title}" has no video URL.`); return; }
