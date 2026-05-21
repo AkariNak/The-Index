@@ -88,14 +88,20 @@ function loadVideo(video, overrideTs) {
     startTimestampSaving();
   }, { once: true });
 
-  // Mark watched + auto-set status
+  // Mark watched + auto-set status + check achievements
   if (currentGroup) {
     markEpisodeWatched(currentGroup.title, video.title, startTs);
-    getCurrentUser().then(user => {
+    getCurrentUser().then(async user => {
       if (!user) return;
-      getWatchStatus(currentGroup.title).then(status => {
-        if (!status) setWatchStatus(currentGroup.title, 'watching');
-      });
+      const status = await getWatchStatus(currentGroup.title);
+      if (!status) setWatchStatus(currentGroup.title, 'watching');
+
+      // Count total watched episodes from progress
+      const progress = AppState.progress || {};
+      const totalWatched = Object.keys(progress).length;
+
+      // Check achievements
+      checkAchievements({ episodeWatched: true, totalWatched });
     });
   }
 
