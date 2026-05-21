@@ -331,10 +331,22 @@
 <nav class="topnav">
   <a class="topnav-brand" href="index.html">AURUM</a>
   <div class="topnav-right">
+    <button id="globalSearchBtn" class="global-search-btn" type="button" aria-label="Search">⌕</button>
     <a href="https://ko-fi.com/aurumadmins" target="_blank" rel="noopener" class="kofi-btn">☕ <span>Support</span></a>
     <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
   </div>
 </nav>
+
+<div id="globalSearchOverlay" class="global-search-overlay" hidden>
+  <div class="global-search-box">
+    <div class="global-search-input-wrap">
+      <span class="global-search-icon">⌕</span>
+      <input id="globalSearchInput" type="search" placeholder="Search shows…" autocomplete="off" autofocus>
+      <button id="globalSearchClose" type="button">✕</button>
+    </div>
+    <div id="globalSearchResults" class="global-search-results"></div>
+  </div>
+</div>
 
 <div class="account-page">
   <div id="accountMain"><div class="detail-loading">Loading…</div></div>
