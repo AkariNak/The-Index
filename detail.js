@@ -854,6 +854,7 @@ async function autoSaveMetadata(details) {
 (async function init() {
   await coreInit();
   await loadGlobalSettings();
+  initGlobalSearch();
   const showSlug = getShowSlug();
   if (!showSlug) {
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="index.html" class="btn btn-outline">Back to Aurum</a></div>`;
