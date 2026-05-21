@@ -27,11 +27,24 @@ const STATUS_LABELS = {
   dropped:       'Dropped'
 };
 
+const ACHIEVEMENT_DISPLAY = [
+  { key: 'first_watch',   label: 'First Watch',    desc: 'Watch your first episode',             icon: '▶' },
+  { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',         icon: '🔥' },
+  { key: 'completionist', label: 'Completionist',  desc: 'Complete 5 shows',                     icon: '✓' },
+  { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',             icon: '💯' },
+  { key: 'loyal_fan',     label: 'Loyal Fan',      desc: 'Rate 10 shows',                        icon: '★' },
+  { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 shows to your list',             icon: '🗺' },
+  { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch between 1am and 5am',            icon: '🦉' },
+  { key: 'speed_runner',  label: 'Speed Runner',   desc: 'Complete a show in under 3 days',      icon: '⚡' },
+  { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',         icon: '📝' },
+];
+
 let activeTab      = 'watching';
 let currentUser    = null;
 let currentProfile = null;
 let watchList      = [];
 let userRatings    = [];
+let userAchievements = [];
 
 // ---------- Gate ----------
 function renderGate() {
@@ -136,6 +149,9 @@ async function renderAccount() {
         <button class="account-nav-item ${activeTab === 'ratings' ? 'active' : ''}" data-tab="ratings" type="button">
           Ratings<span class="account-nav-count">${userRatings.length}</span>
         </button>
+        <button class="account-nav-item ${activeTab === 'achievements' ? 'active' : ''}" data-tab="achievements" type="button">
+          Achievements<span class="account-nav-count">${userAchievements.length}</span>
+        </button>
       </nav>
 
       <div class="account-content">
@@ -161,6 +177,11 @@ function renderContentBody() {
 
   if (activeTab === 'ratings') {
     renderRatingsTab(body);
+    return;
+  }
+
+  if (activeTab === 'achievements') {
+    renderAchievementsTab(body);
     return;
   }
 
@@ -190,6 +211,30 @@ function renderContentBody() {
       </div>
     `;
   }).join('')}</div>`;
+}
+
+function renderAchievementsTab(body) {
+  const unlocked = new Set(userAchievements.map(a => a.achievement_key));
+  body.innerHTML = `
+    <div class="achievements-grid">
+      ${ACHIEVEMENT_DISPLAY.map(a => {
+        const isUnlocked = unlocked.has(a.key);
+        const unlockedAt = userAchievements.find(u => u.achievement_key === a.key)?.unlocked_at;
+        const date = unlockedAt ? new Date(unlockedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        return `
+          <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}">
+            <div class="achievement-card-icon">${a.icon}</div>
+            <div class="achievement-card-info">
+              <div class="achievement-card-name">${escapeHtml(a.label)}</div>
+              <div class="achievement-card-desc">${escapeHtml(a.desc)}</div>
+              ${isUnlocked && date ? `<div class="achievement-card-date">${date}</div>` : ''}
+            </div>
+            ${isUnlocked ? '<div class="achievement-card-check">✓</div>' : '<div class="achievement-card-lock">🔒</div>'}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function renderRatingsTab(body) {
@@ -441,10 +486,11 @@ async function bootAccount() {
   initGlobalSearch();
   currentUser = await getCurrentUser();
   if (!currentUser) { renderGate(); return; }
-  [currentProfile, watchList, userRatings] = await Promise.all([
+  [currentProfile, watchList, userRatings, userAchievements] = await Promise.all([
     getCurrentProfile(),
     getUserWatchList(),
-    getSupabase().from('ratings').select('collection, rating').eq('user_id', currentUser.id).then(({ data }) => data || [])
+    getSupabase().from('ratings').select('collection, rating').eq('user_id', currentUser.id).then(({ data }) => data || []),
+    getUnlockedAchievements()
   ]);
   // Safety — if profile row doesn't exist yet create a blank one
   if (!currentProfile) currentProfile = { username: currentUser.email?.split('@')[0] || 'User', avatar_url: null };
