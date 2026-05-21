@@ -1,5 +1,5 @@
 /* ============================================================
-   AniAurum — styles.css
+   Aurum — styles.css
    Dark by default · Gold accent · Cinzel display font
    ============================================================ */
 
@@ -1585,6 +1585,40 @@ body.light .mobile-search-bar { background: var(--paper-2); }
   color: var(--accent-soft);
   letter-spacing: 0.04em;
   margin-bottom: 8px;
+}
+
+/* ============ EPISODE PROGRESS ============ */
+.ep-progress-wrap { margin: 4px 0 10px; }
+.ep-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.ep-progress-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.ep-progress-pct {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+}
+.ep-progress-bar {
+  height: 4px;
+  background: var(--paper-3);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ep-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.4s ease;
 }
 
 /* ============ COMMUNITY RATING (detail page) ============ */
