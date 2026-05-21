@@ -438,6 +438,7 @@ function wireAuthDialog(mode) {
 // ---------- Boot ----------
 async function bootAccount() {
   await coreInit();
+  initGlobalSearch();
   currentUser = await getCurrentUser();
   if (!currentUser) { renderGate(); return; }
   [currentProfile, watchList, userRatings] = await Promise.all([
