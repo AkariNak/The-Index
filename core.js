@@ -755,6 +755,70 @@ function applyHeroOrder(groups) {
   return [...ranked, ...unranked];
 }
 
+// ---------- Global search overlay ----------
+function initGlobalSearch() {
+  const btn     = document.getElementById('globalSearchBtn');
+  const overlay = document.getElementById('globalSearchOverlay');
+  const input   = document.getElementById('globalSearchInput');
+  const close   = document.getElementById('globalSearchClose');
+  const results = document.getElementById('globalSearchResults');
+  if (!btn || !overlay) return;
+
+  function openSearch() {
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => input?.focus(), 50);
+  }
+
+  function closeSearch() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+    if (input) input.value = '';
+    if (results) results.innerHTML = '';
+  }
+
+  btn.addEventListener('click', openSearch);
+  close?.addEventListener('click', closeSearch);
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeSearch(); });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !overlay.hidden) closeSearch();
+    if ((e.key === '/' || (e.key === 'k' && (e.metaKey || e.ctrlKey))) && overlay.hidden) {
+      e.preventDefault();
+      openSearch();
+    }
+  });
+
+  input?.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q || q.length < 2) { results.innerHTML = ''; return; }
+
+    const groups  = groupVideos(AppState.videos);
+    const matches = groups.filter(g =>
+      g.title.toLowerCase().includes(q) ||
+      g.category?.toLowerCase().includes(q)
+    ).slice(0, 10);
+
+    if (!matches.length) {
+      results.innerHTML = `<div class="global-search-empty">No results for "${escapeHtml(input.value)}"</div>`;
+      return;
+    }
+
+    results.innerHTML = matches.map(g => `
+      <a class="global-search-result" href="detail.html?show=${encodeURIComponent(g.slug)}">
+        <div class="global-search-result-cover">
+          ${g.firstCover ? `<img src="${escapeHtml(g.firstCover)}" alt="">` : `<div class="cover-placeholder" style="height:100%;font-size:16px">${escapeHtml(g.title.charAt(0))}</div>`}
+        </div>
+        <div class="global-search-result-info">
+          <div class="global-search-result-title">${escapeHtml(g.title)}</div>
+          <div class="global-search-result-meta">${escapeHtml((g.category || 'Show').toUpperCase())} · ${g.videos.length} ${g.videos.length === 1 ? 'ep' : 'eps'}</div>
+        </div>
+        <span class="global-search-result-arrow">→</span>
+      </a>
+    `).join('');
+  });
+}
+
 // ---------- Init ----------
 async function coreInit() {
   loadLocalVideos();
