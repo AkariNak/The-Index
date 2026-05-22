@@ -196,9 +196,22 @@ function syncVideos() {
 async function loadBaseVideos() {
   try {
     const sb = getSupabase();
-    const { data, error } = await sb.from('videos').select('*').order('date_added', { ascending: false });
-    if (error) throw error;
-    AppState.baseVideos = Array.isArray(data) ? data.map(normalizeVideo) : [];
+    let allData = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await sb
+        .from('videos')
+        .select('*')
+        .order('date_added', { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allData = allData.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    AppState.baseVideos = allData.map(normalizeVideo);
   } catch (err) {
     console.warn('Could not load videos:', err);
     AppState.baseVideos = [];
