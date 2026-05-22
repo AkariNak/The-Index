@@ -678,14 +678,14 @@ function getRecommendationsForCollection(collectionName, currentCategory, allGro
 // ---------- Achievements ----------
 const ACHIEVEMENTS = {
   first_watch:   { key: 'first_watch',   label: 'First Watch',    desc: 'Watch your first episode',                icon: '▶', color: '#c9963a' },
-  binge_mode:    { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',            icon: '🔥', color: '#e05252' },
+  binge_mode:    { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',            icon: '×15', color: '#e05252' },
   completionist: { key: 'completionist', label: 'Completionist',  desc: 'Complete 5 shows',                        icon: '✓', color: '#52c07a' },
-  century:       { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',                icon: '💯', color: '#c9963a' },
+  century:       { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',                icon: '100', color: '#c9963a' },
   loyal_fan:     { key: 'loyal_fan',     label: 'Loyal Fan',      desc: 'Rate 10 shows',                           icon: '★', color: '#e8c97a' },
-  explorer:      { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 different shows to your list',      icon: '🗺', color: '#52a0c0' },
-  night_owl:     { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch an episode between 1am and 5am',    icon: '🦉', color: '#7a52c0' },
+  explorer:      { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 different shows to your list',      icon: '◈', color: '#52a0c0' },
+  night_owl:     { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch an episode between 1am and 5am',    icon: '◑', color: '#7a52c0' },
   speed_runner:  { key: 'speed_runner',  label: 'Speed Runner',   desc: 'Complete a show in under 3 days',         icon: '⚡', color: '#c0a052' },
-  critic:        { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',            icon: '📝', color: '#52c0a0' },
+  critic:        { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',            icon: '✎', color: '#52c0a0' },
 };
 
 async function getUnlockedAchievements() {
