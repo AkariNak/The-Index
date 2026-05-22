@@ -29,14 +29,14 @@ const STATUS_LABELS = {
 
 const ACHIEVEMENT_DISPLAY = [
   { key: 'first_watch',   label: 'First Watch',    desc: 'Watch your first episode',             icon: '▶' },
-  { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',         icon: '🔥' },
+  { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',         icon: '×15' },
   { key: 'completionist', label: 'Completionist',  desc: 'Complete 5 shows',                     icon: '✓' },
-  { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',             icon: '💯' },
+  { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',             icon: '100' },
   { key: 'loyal_fan',     label: 'Loyal Fan',      desc: 'Rate 10 shows',                        icon: '★' },
-  { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 shows to your list',             icon: '🗺' },
-  { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch between 1am and 5am',            icon: '🦉' },
+  { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 shows to your list',             icon: '◈' },
+  { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch between 1am and 5am',            icon: '◑' },
   { key: 'speed_runner',  label: 'Speed Runner',   desc: 'Complete a show in under 3 days',      icon: '⚡' },
-  { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',         icon: '📝' },
+  { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',         icon: '✎' },
 ];
 
 let activeTab      = 'watching';
