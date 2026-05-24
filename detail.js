@@ -116,8 +116,9 @@ function renderDetail() {
   if (currentJikan?.type)     meta.push(currentJikan.type);
   if (currentJikan?.episodes) meta.push(`${currentJikan.episodes} eps`);
   if (currentJikan?.score)    meta.push(`★ ${currentJikan.score}`);
-  if (/\(dubbed\)/i.test(g.title))  meta.push('Dubbed');
-  else if (/\(subbed\)/i.test(g.title)) meta.push('Subbed');
+  const lang = g.videos[0]?.language;
+  if (lang === 'dubbed') meta.push('Dubbed');
+  else if (lang === 'subbed') meta.push('Subbed');
 
   detailMain.innerHTML = `
     <div class="detail-hero">
