@@ -121,7 +121,8 @@ function normalizeVideo(video) {
     season:      video.season || parsed?.season || 1,
     type:        video.type   || parsed?.type   || 'Episode',
     sources:     video.sources || null,
-    createdAt:   video.created_at || null
+    createdAt:   video.created_at || null,
+    language:    video.language || null
   };
 }
 
