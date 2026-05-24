@@ -287,6 +287,43 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   margin: 4px 0 20px;
 }
 
+/* ============ GENRE ROWS ============ */
+.genre-row { margin-bottom: 36px; }
+.genre-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.genre-row-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0;
+}
+.genre-row-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+.all-shows-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 600px) {
+  .genre-row-track,
+  .all-shows-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .genre-row-title { font-size: 13px; }
+}
+
 /* ============ POSTER GRID ============ */
 .collections { margin-bottom: 64px; }
 .poster-grid {
