@@ -276,18 +276,110 @@ function posterCardHtml(group) {
   `;
 }
 
+// ---------- Genre row definitions ----------
+const GENRE_ROWS = [
+  { label: 'Action',          tags: ['action'] },
+  { label: 'Adventure',       tags: ['adventure'] },
+  { label: 'Fantasy',         tags: ['fantasy'] },
+  { label: 'Romance',         tags: ['romance'] },
+  { label: 'Comedy',          tags: ['comedy'] },
+  { label: 'Drama',           tags: ['drama'] },
+  { label: 'Sci-Fi',          tags: ['sci-fi'] },
+  { label: 'Psychological',   tags: ['psychological'] },
+  { label: 'Supernatural',    tags: ['supernatural'] },
+  { label: 'Slice of Life',   tags: ['slice of life'] },
+  { label: 'Horror',          tags: ['horror'] },
+  { label: 'Mystery',         tags: ['mystery'] },
+];
+
+function getTagsForGroup(group) {
+  const jikan = AppState.jikanCache[slug(group.title)];
+  if (!jikan?.tags) return [];
+  const DEMO = new Set(['shounen','seinen','shoujo','josei','kids']);
+  return jikan.tags.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
+}
+
+function groupMatchesGenre(group, tags) {
+  const groupTags = getTagsForGroup(group);
+  if (!groupTags.length) return false;
+  return tags.every(t => groupTags.includes(t));
+}
+
+function renderGenreRows(groups) {
+  if (!collectionGrid) return;
+  hideSkeleton();
+
+  const query = (search?.value || '').trim().toLowerCase();
+  const isFiltered = activeCategory !== 'all' || activeGenre !== 'all' || query;
+
+  // If filters/search active — just show flat grid
+  if (isFiltered) {
+    const filtered = getFilteredVideos();
+    const filteredGroups = applyHeroOrder(groupVideos(filtered));
+    const showCount = filteredGroups.length;
+    const epCount = filtered.length;
+    if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
+    if (!filteredGroups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
+    collectionGrid.innerHTML = `<div class="poster-grid">${filteredGroups.map(posterCardHtml).join('')}</div>`;
+    return;
+  }
+
+  // Genre rows mode
+  const totalShows = groups.length;
+  const totalEps   = AppState.videos.length;
+  if (count) count.textContent = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} · ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
+
+  let html = '';
+
+  // Recently Added row
+  const recentGroups = [...groups].sort((a, b) => {
+    const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+    const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+    return bDate - aDate;
+  }).slice(0, 12);
+
+  html += genreRowHtml('Recently Added', recentGroups);
+
+  // Genre rows
+  for (const row of GENRE_ROWS) {
+    const rowGroups = groups.filter(g => groupMatchesGenre(g, row.tags)).slice(0, 12);
+    if (rowGroups.length >= 3) html += genreRowHtml(row.label, rowGroups);
+  }
+
+  // All Shows row at bottom
+  html += `
+    <div class="genre-row">
+      <div class="genre-row-header">
+        <h2 class="genre-row-title">All Shows</h2>
+      </div>
+      <div class="poster-grid all-shows-grid">${groups.map(posterCardHtml).join('')}</div>
+    </div>
+  `;
+
+  collectionGrid.innerHTML = html;
+}
+
+function genreRowHtml(label, groups) {
+  if (!groups.length) return '';
+  return `
+    <div class="genre-row">
+      <div class="genre-row-header">
+        <h2 class="genre-row-title">${escapeHtml(label)}</h2>
+      </div>
+      <div class="genre-row-track">
+        ${groups.map(posterCardHtml).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function render() {
   if (!collectionGrid) return;
   hideSkeleton();
-  const filtered = getFilteredVideos();
-  const groups   = applyHeroOrder(groupVideos(filtered));
-  const showCount = groups.length;
-  const epCount   = filtered.length;
-  if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
-  if (!groups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
-  collectionGrid.innerHTML = `<div class="poster-grid">${groups.map(posterCardHtml).join('')}</div>`;
+  const allGroups = applyHeroOrder(groupVideos(AppState.videos));
+  renderGenreRows(allGroups);
   if (archiveList) {
-    archiveList.innerHTML = filtered.map(v => `
+    archiveList.innerHTML = AppState.videos.map(v => `
       <li class="archive-row">
         <span class="archive-row-title">${escapeHtml(v.title)}</span>
         <span class="archive-row-meta">${escapeHtml(v.collection)} · ${escapeHtml(v.fileType)} · ${escapeHtml(formatDate(v.dateAdded))}</span>
