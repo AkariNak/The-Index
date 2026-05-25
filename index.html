@@ -94,7 +94,34 @@
 
     <hr style="border-color:var(--line);margin:32px 0">
 
-    <h2 class="add-title">Episode Name Fixer</h2>
+    <h2 class="add-title">Genre Manager</h2>
+    <p class="add-sub">Manually assign shows to genre rows. Overrides automatic tag detection.</p>
+    <div class="genre-manager-row">
+      <select id="genreManagerShow" class="genre-manager-select">
+        <option value="">— Select a show —</option>
+      </select>
+      <select id="genreManagerGenre" class="genre-manager-select">
+        <option value="">— Select genre —</option>
+        <option>Action</option>
+        <option>Adventure</option>
+        <option>Fantasy</option>
+        <option>Romance</option>
+        <option>Comedy</option>
+        <option>Drama</option>
+        <option>Sci-Fi</option>
+        <option>Psychological</option>
+        <option>Supernatural</option>
+        <option>Slice of Life</option>
+        <option>Horror</option>
+        <option>Mystery</option>
+        <option>Isekai</option>
+        <option>Thriller</option>
+      </select>
+      <button id="genreManagerAdd" type="button" class="btn btn-solid btn-small">Add</button>
+      <button id="genreManagerRemove" type="button" class="btn btn-outline btn-small">Remove</button>
+    </div>
+    <div id="genreManagerPreview" class="genre-manager-preview"></div>
+    <p id="genreManagerStatus" class="form-status"></p>
     <p class="add-sub">Finds all episodes with generic titles like "Show - Episode 1" and replaces them with real episode names from Jikan/MAL.</p>
     <div id="epFixerPreview" class="ep-fixer-preview" hidden></div>
     <div class="form-actions" style="margin-top:12px">
