@@ -758,7 +758,7 @@ let heroIndex   = 0;
 let heroTimer   = null;
 let heroFeature = [];
 let _sliding    = false;
-const HERO_INTERVAL       = 6000;
+const HERO_INTERVAL       = 7500;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 
 function loadBannerOverrides() {
