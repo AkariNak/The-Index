@@ -834,27 +834,25 @@ function renderHeroSlide(idx) {
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
 }
 
-function goToSlide(idx, direction) {
+function goToSlide(idx) {
   if (_sliding || idx === heroIndex) return;
   const slidesEl = document.getElementById('heroSlides');
   if (!slidesEl) return;
-  if (direction === undefined) direction = idx > heroIndex ? 1 : -1;
   const fromSlide = slidesEl.querySelector('.hero-slide');
   heroIndex = idx;
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
   if (!fromSlide) { renderHeroSlide(idx); return; }
   const incoming = document.createElement('div');
-  incoming.style.cssText = `position:absolute;inset:0;transform:translateX(${direction > 0 ? '100%' : '-100%'});will-change:transform;`;
+  incoming.style.cssText = 'position:absolute;inset:0;opacity:0;';
   slidesEl.appendChild(incoming);
   renderHeroSlideInto(incoming, idx);
   _sliding = true;
-  const DURATION = 520;
+  const DURATION = 600;
   const start    = performance.now();
   function step(now) {
-    const p    = Math.min((now - start) / DURATION, 1);
-    const ease = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
-    fromSlide.style.transform = `translateX(${-direction * ease * 100}%)`;
-    incoming.style.transform  = `translateX(${direction * (1 - ease) * 100}%)`;
+    const p = Math.min((now - start) / DURATION, 1);
+    incoming.style.opacity  = p;
+    fromSlide.style.opacity = 1 - p;
     if (p < 1) { requestAnimationFrame(step); return; }
     fromSlide.remove();
     incoming.style.cssText = '';
