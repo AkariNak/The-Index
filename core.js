@@ -830,6 +830,18 @@ async function setSeasonOrder(seriesBase, slugArray) {
   await setSiteSetting('season_order', order);
 }
 
+// Genre overrides: { slug: ['Action', 'Fantasy'] }
+async function getGenreOverrides() {
+  return (await getSiteSetting('genre_overrides')) || {};
+}
+async function setGenreOverride(slug, genres) {
+  const overrides = await getGenreOverrides();
+  if (!genres || !genres.length) delete overrides[slug];
+  else overrides[slug] = genres;
+  _settingsCache['genre_overrides'] = overrides;
+  await setSiteSetting('genre_overrides', overrides);
+}
+
 // ---------- Community ratings ----------
 async function getRatingForCollection(collectionName) {
   const sb = getSupabase();
