@@ -300,6 +300,12 @@ function getTagsForGroup(group) {
 }
 
 function groupMatchesGenre(group, tags) {
+  // Check manual override first
+  const overrideGenres = _genreOverrides[group.slug] || [];
+  if (overrideGenres.length) {
+    return tags.every(t => overrideGenres.map(g => g.toLowerCase()).includes(t.toLowerCase()));
+  }
+  // Fall back to Jikan tags
   const groupTags = getTagsForGroup(group);
   if (!groupTags.length) return false;
   return tags.every(t => groupTags.includes(t));
@@ -520,6 +526,65 @@ async function epFixerRun() {
   if (runBtn)  { runBtn.hidden = true; runBtn.disabled = false; }
   if (status)  status.textContent = `Done — updated ${done} episode names.`;
 }
+// ---------- Genre manager ----------
+let _genreOverrides = {};
+
+async function initGenreManager() {
+  _genreOverrides = await getGenreOverrides();
+  const showSelect   = document.getElementById('genreManagerShow');
+  const genreSelect  = document.getElementById('genreManagerGenre');
+  const addBtn       = document.getElementById('genreManagerAdd');
+  const removeBtn    = document.getElementById('genreManagerRemove');
+  const preview      = document.getElementById('genreManagerPreview');
+  const status       = document.getElementById('genreManagerStatus');
+  if (!showSelect) return;
+
+  const groups = groupVideos(AppState.videos);
+  showSelect.innerHTML = '<option value="">— Select a show —</option>' +
+    [...groups].sort((a, b) => a.title.localeCompare(b.title))
+      .map(g => `<option value="${escapeHtml(g.slug)}">${escapeHtml(g.title)}</option>`).join('');
+
+  function updatePreview() {
+    const s = showSelect.value;
+    if (!s) { preview.innerHTML = ''; return; }
+    const assigned = _genreOverrides[s] || [];
+    preview.innerHTML = assigned.length
+      ? `<div class="genre-manager-tags">${assigned.map(g => `<span class="genre-manager-tag">${escapeHtml(g)}</span>`).join('')}</div>`
+      : '<span style="color:var(--ink-mute);font-size:12px;font-style:italic">No genres assigned</span>';
+  }
+
+  showSelect.addEventListener('change', updatePreview);
+
+  addBtn?.addEventListener('click', async () => {
+    const s = showSelect.value;
+    const g = genreSelect.value;
+    if (!s || !g) return;
+    const current = _genreOverrides[s] || [];
+    if (current.includes(g)) return;
+    current.push(g);
+    await setGenreOverride(s, current);
+    _genreOverrides[s] = current;
+    updatePreview();
+    render();
+    if (status) status.textContent = `Added "${g}" to ${showSelect.options[showSelect.selectedIndex].text}`;
+  });
+
+  removeBtn?.addEventListener('click', async () => {
+    const s = showSelect.value;
+    const g = genreSelect.value;
+    if (!s || !g) return;
+    const current = (_genreOverrides[s] || []).filter(x => x !== g);
+    await setGenreOverride(s, current);
+    _genreOverrides[s] = current;
+    updatePreview();
+    render();
+    if (status) status.textContent = `Removed "${g}" from ${showSelect.options[showSelect.selectedIndex].text}`;
+  });
+
+  updatePreview();
+}
+
+// ---------- Admin: slideshow manager ----------
 function buildSlideshowManager() {
   const manager = document.getElementById('slideshowManager');
   if (!manager) return;
@@ -571,7 +636,7 @@ function updateAdminUi() {
   const unlocked = isAdminUnlocked();
   if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
-  if (unlocked) buildSlideshowManager();
+  if (unlocked) { buildSlideshowManager(); initGenreManager(); }
 }
 
 function openAdminDialog() {
@@ -901,13 +966,14 @@ function wireAll() {
 (async function init() {
   showSkeleton();
   await coreInit();
-  // Apply any global cover overrides from site_settings
+  // Load global settings
   getCoverOverrides().then(overrides => {
     Object.entries(overrides).forEach(([s, url]) => {
       AppState.baseVideos.filter(v => slug(v.collection) === s).forEach(v => v.coverUrl = url);
     });
     syncVideos(); render(); rebuildHero();
   });
+  getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
   hideSkeleton();
   buildFilters();
   buildGenreFilters();
