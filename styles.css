@@ -437,9 +437,9 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   margin: 0;
   color: var(--ink);
   transition: color var(--transition);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  
+  
+  
   overflow: hidden;
   letter-spacing: 0.02em;
 }
@@ -546,9 +546,9 @@ body.light .topnav { background: rgba(245,240,232,0.92); }
   line-height: 1.55;
   margin: 0 0 16px;
   max-width: 540px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  
+  
+  
   overflow: hidden;
 }
 .hero-slide-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
