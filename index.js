@@ -617,7 +617,7 @@ function buildSlideshowManager() {
   `;
 }
 
-function saveSlideshowOrder() {
+async function saveSlideshowOrder() {
   const inputs = document.querySelectorAll('.slideshow-rank-input');
   const order  = {};
   inputs.forEach(input => {
@@ -626,7 +626,7 @@ function saveSlideshowOrder() {
       order[input.dataset.slug] = val;
     }
   });
-  saveHeroOrder(order);
+  await saveHeroOrder(order);
   if (formStatus) formStatus.textContent = 'Slideshow order saved.';
   rebuildHero();
 }
@@ -758,14 +758,32 @@ let heroIndex   = 0;
 let heroTimer   = null;
 let heroFeature = [];
 let _sliding    = false;
-const HERO_INTERVAL       = 7500;
+const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
+let _bannerOverrides = {};
 
 function loadBannerOverrides() {
-  try { return JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'); } catch { return {}; }
+  // Fall back to localStorage cache while Supabase loads
+  try { return { ...JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'), ..._bannerOverrides }; } catch { return _bannerOverrides; }
 }
-function saveBannerOverride(s, url) {
-  const o = loadBannerOverrides(); o[s] = url; localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(o));
+async function saveBannerOverride(s, url) {
+  _bannerOverrides[s] = url;
+  localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(_bannerOverrides));
+  const all = await getBannerOverrides();
+  all[s] = url;
+  await setSiteSetting('banner_overrides', all);
+}
+async function getBannerOverrides() {
+  return (await getSiteSetting('banner_overrides')) || {};
+}
+async function loadBannerOverridesFromSupabase() {
+  try {
+    _bannerOverrides = await getBannerOverrides();
+    // Also persist to localStorage as cache
+    localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(_bannerOverrides));
+  } catch (e) {
+    console.warn('Could not load banner overrides from Supabase:', e);
+  }
 }
 
 function renderHeroSlideInto(el, idx) {
@@ -800,10 +818,10 @@ function renderHeroSlideInto(el, idx) {
     </div>
   `;
 
-  el.querySelector('.hero-banner-override')?.addEventListener('click', () => {
+  el.querySelector('.hero-banner-override')?.addEventListener('click', async () => {
     const url = prompt('Enter banner image URL (wide, ~1900×500):');
     if (!url) return;
-    saveBannerOverride(g.slug, url.trim());
+    await saveBannerOverride(g.slug, url.trim());
     el.querySelector('.hero-slide-bg').style.backgroundImage = `url('${escapeHtml(url.trim())}')`;
   });
   el.querySelector('.hero-delete-show')?.addEventListener('click', async () => {
@@ -972,6 +990,8 @@ function wireAll() {
     syncVideos(); render(); rebuildHero();
   });
   getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
+  loadBannerOverridesFromSupabase().then(() => rebuildHero());
+  loadHeroOrderFromSupabase().then(() => rebuildHero());
   hideSkeleton();
   buildFilters();
   buildGenreFilters();
