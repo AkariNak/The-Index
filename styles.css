@@ -155,15 +155,13 @@ textarea:focus-visible,
 body.light .topnav { background: rgba(240,244,255,0.95); }
 
 .topnav-brand {
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: -0.02em;
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+  color: var(--ink);
   transition: color var(--transition);
+  display: flex;
+  align-items: center;
 }
 .topnav-brand:hover { color: var(--accent); }
 
