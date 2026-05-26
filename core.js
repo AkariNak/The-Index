@@ -882,15 +882,30 @@ async function setUserRating(collectionName, rating) {
 }
 
 // ---------- Slideshow order ----------
-const HERO_ORDER_KEY = 'aurum-hero-order'; // { slug: rank (1-6) }
+const HERO_ORDER_KEY = 'aurum-hero-order';
+let _heroOrder = {};
 
 function loadHeroOrder() {
+  // Use in-memory cache (populated from Supabase) with localStorage fallback
+  if (Object.keys(_heroOrder).length) return _heroOrder;
   try { return JSON.parse(localStorage.getItem(HERO_ORDER_KEY) || '{}'); }
   catch { return {}; }
 }
 
-function saveHeroOrder(order) {
+async function saveHeroOrder(order) {
+  _heroOrder = order;
   localStorage.setItem(HERO_ORDER_KEY, JSON.stringify(order));
+  await setSiteSetting('hero_slideshow_order', order);
+}
+
+async function loadHeroOrderFromSupabase() {
+  try {
+    const order = (await getSiteSetting('hero_slideshow_order')) || {};
+    _heroOrder = order;
+    localStorage.setItem(HERO_ORDER_KEY, JSON.stringify(order));
+  } catch (e) {
+    console.warn('Could not load hero order from Supabase:', e);
+  }
 }
 
 function applyHeroOrder(groups) {
