@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Onyx — Restricted</title>
+<link rel="icon" type="image/png" href="favicon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --red:#dc2626;
+  --red-dim:rgba(220,38,38,0.15);
+  --red-mid:rgba(220,38,38,0.4);
+  --paper:#070508;
+  --paper2:#0d080c;
+  --paper3:#130b10;
+  --ink:#f8f8f8;
+  --ink-soft:#9ca3af;
+  --ink-mute:#374151;
+  --mono:'Share Tech Mono',monospace;
+  --vt:'VT323','Share Tech Mono',monospace;
+  --display:'Syne',sans-serif;
+}
+
+html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:hidden}
+
+/* ── SKIP LINK ── */
+.skip-link{position:absolute;top:-100%;left:16px;background:var(--red);color:#fff;padding:8px 16px;font-family:var(--mono);font-size:12px;z-index:9999;text-decoration:none}
+.skip-link:focus{top:8px}
+
+/* ── GLOBAL EFFECTS ── */
+@keyframes scanmove{0%{top:-4px}100%{top:100%}}
+@keyframes flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}}
+@keyframes vhsline{0%{transform:translateY(0)}100%{transform:translateY(600px)}}
+@keyframes blink{0%,100%{opacity:1}49%{opacity:1}50%{opacity:0}}
+@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,0.2)}50%{box-shadow:0 0 16px rgba(220,38,38,0.5)}}
+@keyframes shake{0%,100%{transform:translateX(0)}10%{transform:translateX(-3px)}20%{transform:translateX(3px)}30%{transform:translateX(-2px)}40%{transform:translateX(2px)}50%{transform:translateX(0)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glitchslide{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}66%{clip-path:inset(60% 0 15% 0);transform:translateX(5px)}}
+@keyframes glitchslide2{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(40% 0 30% 0);transform:translateX(4px)}66%{clip-path:inset(20% 0 55% 0);transform:translateX(-4px)}}
+
+.scanline-wrap{position:fixed;inset:0;pointer-events:none;z-index:100;overflow:hidden}
+.scanline{position:absolute;left:0;right:0;height:3px;background:rgba(255,255,255,0.025);animation:scanmove 5s linear infinite}
+.crt-lines{position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.12) 3px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:99}
+.vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,0.7) 100%);pointer-events:none;z-index:98}
+
+/* ── WARNING GATE ── */
+#warningGate{
+  position:fixed;inset:0;z-index:1000;
+  background:#070508;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:0;
+  animation:flicker 10s infinite;
+}
+.gate-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none}
+.gate-corner{position:absolute;width:16px;height:16px;border-color:var(--red);border-style:solid;opacity:.4}
+.gate-corner.tl{top:24px;left:24px;border-width:1px 0 0 1px}
+.gate-corner.tr{top:24px;right:24px;border-width:1px 1px 0 0}
+.gate-corner.bl{bottom:24px;left:24px;border-width:0 0 1px 1px}
+.gate-corner.br{bottom:24px;right:24px;border-width:0 1px 1px 0}
+.gate-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:20px;max-width:480px;padding:0 24px;text-align:center}
+.gate-icon{font-family:var(--vt);font-size:64px;color:var(--red);line-height:1;animation:shake 4s infinite 2s}
+.gate-eyebrow{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.4em;text-transform:uppercase}
+.gate-title{font-family:var(--vt);font-size:48px;color:var(--red);letter-spacing:.15em;line-height:1;position:relative}
+.gate-title::before{content:'WARNING';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 3s infinite;opacity:.5}
+.gate-title::after{content:'WARNING';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 3s infinite .2s;opacity:.4}
+.gate-divider{width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.gate-body{font-family:var(--mono);font-size:12px;color:#6b7280;letter-spacing:.08em;line-height:1.9;text-align:center}
+.gate-sub{font-family:var(--mono);font-size:9px;color:var(--ink-mute);letter-spacing:.2em;text-transform:uppercase}
+.gate-btns{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:8px}
+.gate-enter{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--red-dim);border:1px solid var(--red-mid);padding:12px 40px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;animation:redpulse 2.5s infinite}
+.gate-enter:hover{background:rgba(220,38,38,0.25);border-color:var(--red)}
+.gate-back{font-family:var(--mono);font-size:10px;color:var(--ink-mute);background:transparent;border:none;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
+.gate-back:hover{color:var(--ink-soft)}
+.gate-ticker{position:absolute;bottom:0;left:0;right:0;font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.1em;border-top:1px solid rgba(220,38,38,0.1);padding:6px 16px;white-space:nowrap;overflow:hidden}
+
+/* ── MAIN PAGE ── */
+#mainPage{display:none;min-height:100vh;animation:fadeIn .6s ease}
+
+/* NAV */
+.void-nav{
+  display:flex;align-items:center;gap:14px;
+  padding:10px 24px;
+  border-bottom:1px solid rgba(220,38,38,0.2);
+  background:rgba(7,5,8,0.95);
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(8px);
+  animation:flicker 12s infinite;
+}
+.void-brand{font-family:var(--vt);font-size:28px;color:var(--red);letter-spacing:.2em;line-height:1;position:relative;text-decoration:none}
+.void-brand::before{content:'VOID';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 4s infinite;opacity:.5}
+.void-brand::after{content:'VOID';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 4s infinite .3s;opacity:.4}
+.void-tag{font-family:var(--mono);font-size:8px;color:#7f1d1d;border:1px solid #7f1d1d;padding:2px 8px;letter-spacing:.2em;text-transform:uppercase}
+.void-nav-right{margin-left:auto;display:flex;gap:16px;align-items:center}
+.void-nav-link{font-family:var(--mono);font-size:9px;color:var(--ink-mute);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;cursor:pointer;background:none;border:none}
+.void-nav-link:hover{color:var(--red)}
+.void-nav-link.main{color:var(--ink-soft)}
+.void-nav-link.main:hover{color:var(--ink)}
+
+/* HERO */
+.void-hero{
+  position:relative;height:260px;overflow:hidden;
+  background:var(--paper2);
+  border-bottom:1px solid rgba(220,38,38,0.15);
+}
+.void-hero-bg{
+  position:absolute;inset:-4px;
+  background:linear-gradient(135deg,#1a0810 0%,#0d0608 35%,#08040c 65%,#0a0610 100%);
+}
+.void-hero-grid{
+  position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(220,38,38,0.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(220,38,38,0.04) 1px,transparent 1px);
+  background-size:48px 48px;
+}
+.void-hero-vhs{position:absolute;left:0;right:0;height:4px;background:rgba(220,38,38,0.15);animation:vhsline 6s linear infinite;pointer-events:none}
+.void-hero-content{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:24px 28px;background:linear-gradient(to top,rgba(7,5,8,0.98) 0%,rgba(7,5,8,0.6) 60%,transparent 100%)}
+.void-hero-eyebrow{font-family:var(--mono);font-size:9px;color:#7f1d1d;letter-spacing:.3em;text-transform:uppercase;margin-bottom:6px}
+.void-hero-title{font-family:var(--display);font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin-bottom:4px}
+.void-hero-meta{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.1em}
+.void-hero-btn{
+  display:inline-block;margin-top:12px;
+  font-family:var(--mono);font-size:10px;color:var(--ink);
+  background:var(--red-dim);border:1px solid var(--red-mid);
+  padding:7px 20px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;
+  transition:all .2s;
+}
+.void-hero-btn:hover{background:rgba(220,38,38,0.25)}
+
+/* SECTION HEADERS */
+.void-section{padding:20px 24px 0}
+.void-section-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.void-section-label{font-family:var(--mono);font-size:9px;color:#7f1d1d;letter-spacing:.3em;text-transform:uppercase;white-space:nowrap}
+.void-section-line{flex:1;height:1px;background:linear-gradient(90deg,rgba(220,38,38,0.25),transparent)}
+
+/* CARDS */
+.void-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:8px;
+  padding:0 24px 20px;
+}
+.void-card{
+  background:var(--paper2);
+  border:1px solid rgba(220,38,38,0.12);
+  border-radius:4px;overflow:hidden;cursor:pointer;
+  transition:border-color .2s,transform .15s;
+  position:relative;
+}
+.void-card:hover{border-color:rgba(220,38,38,0.45);transform:translateY(-2px)}
+.void-card-img{aspect-ratio:2/3;position:relative;overflow:hidden;background:var(--paper3)}
+.void-card-cover{width:100%;height:100%;object-fit:cover;filter:saturate(.35) contrast(1.15) brightness(.65)}
+.void-card-glitch{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0;transition:opacity .1s}
+.void-card:hover .void-card-glitch{opacity:1}
+.void-card-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#110810,#0d060c)}
+.void-card-placeholder-text{font-family:var(--vt);font-size:20px;color:#1f1014;letter-spacing:.2em}
+.void-card-info{padding:7px 8px}
+.void-card-title{font-family:var(--mono);font-size:10px;color:#d1d5db;letter-spacing:.02em;line-height:1.4}
+.void-card-meta{font-family:var(--mono);font-size:9px;color:var(--ink-mute);margin-top:2px;letter-spacing:.06em}
+.void-card-lang{font-size:8px;color:#7f1d1d;letter-spacing:.1em;text-transform:uppercase}
+
+/* STATUS BAR */
+.void-statusbar{
+  font-family:var(--mono);font-size:9px;color:#1f1014;
+  letter-spacing:.12em;
+  border-top:1px solid rgba(220,38,38,0.08);
+  padding:7px 24px;
+  display:flex;justify-content:space-between;
+  margin-top:8px;
+}
+
+/* GLITCH TEXT EFFECT */
+.glitch-text{position:relative;display:inline}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#mainPage">Skip to main content</a>
+
+<div class="scanline-wrap"><div class="scanline"></div></div>
+<div class="crt-lines"></div>
+<div class="vignette"></div>
+
+<!-- WARNING GATE -->
+<div id="warningGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+  <div class="gate-noise"></div>
+  <div class="gate-corner tl"></div>
+  <div class="gate-corner tr"></div>
+  <div class="gate-corner bl"></div>
+  <div class="gate-corner br"></div>
+  <div class="gate-inner">
+    <div class="gate-icon" aria-hidden="true">⚠</div>
+    <div class="gate-eyebrow">// sector_7 · access restricted</div>
+    <div class="gate-title" id="gateTitle" aria-label="Warning">WARNING</div>
+    <div class="gate-divider"></div>
+    <div class="gate-body">
+      this section contains <span class="gate-corrupt" data-real="mature themes">mature themes</span> and<br>
+      content not appropriate for all viewers.<br>
+      including <span class="gate-corrupt" data-real="graphic violence">graphic violence</span>, dark subject matter,<br>
+      <span class="gate-corrupt" data-real="disturbing psychological content">disturbing psychological content</span>,<br>
+      and <span class="gate-corrupt" data-real="extreme horror">extreme horror</span>.
+    </div>
+    <div class="gate-sub">by continuing you confirm you are 18+</div>
+    <div class="gate-btns">
+      <button class="gate-enter" id="gateEnter" onclick="enterVoid()">I UNDERSTAND — ENTER</button>
+      <button class="gate-back" onclick="window.location.href='index.html'">take me back to safety</button>
+    </div>
+  </div>
+  <div class="gate-ticker" aria-hidden="true" id="gateTicker">SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED ·&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
+</div>
+
+<!-- MAIN VOID PAGE -->
+<div id="mainPage" aria-label="Restricted content library">
+
+  <nav class="void-nav" role="navigation" aria-label="Void navigation">
+    <a class="void-brand" href="void.html" aria-label="Void restricted section">VOID</a>
+    <div class="void-tag" aria-label="Restricted section">RESTRICTED</div>
+    <div class="void-nav-right">
+      <a class="void-nav-link main" href="index.html">← back to onyx</a>
+      <span class="void-nav-link" aria-hidden="true" id="navCorrupt">DARK SECTOR</span>
+    </div>
+  </nav>
+
+  <div class="void-hero" role="banner">
+    <div class="void-hero-bg"></div>
+    <div class="void-hero-grid"></div>
+    <div class="void-hero-vhs"></div>
+    <div class="void-hero-content">
+      <div class="void-hero-eyebrow">// now featured</div>
+      <div class="void-hero-title" id="heroTitle">Higurashi: When They Cry</div>
+      <div class="void-hero-meta" id="heroMeta">psychological horror · 2006 · subbed</div>
+      <button class="void-hero-btn" id="heroBtn">▶ WATCH NOW</button>
+    </div>
+  </div>
+
+  <div class="void-section" id="horrorSection">
+    <div class="void-section-head">
+      <div class="void-section-label" id="label1">// psychological horror</div>
+      <div class="void-section-line"></div>
+    </div>
+  </div>
+
+  <div class="void-grid" id="horrorGrid"></div>
+
+  <div class="void-section">
+    <div class="void-section-head">
+      <div class="void-section-label" id="label2">// dark drama &amp; mature</div>
+      <div class="void-section-line"></div>
+    </div>
+  </div>
+
+  <div class="void-grid" id="dramaGrid"></div>
+
+  <div class="void-section">
+    <div class="void-section-head">
+      <div class="void-section-label" id="label3">// all shows</div>
+      <div class="void-section-line"></div>
+    </div>
+  </div>
+
+  <div class="void-grid" id="allGrid"></div>
+
+  <div class="void-statusbar" aria-hidden="true">
+    <span id="statusLeft">SYS://VOID · ACCESS GRANTED · <span style="animation:blink 1s infinite;color:#7f1d1d;display:inline-block">█</span></span>
+    <span id="statusRight">SECTOR_7 · RESTRICTED</span>
+  </div>
+
+</div>
+
+<script>
+const GLITCH_CHARS = '▓░╗╬Ω∆█╪▒╝╔╠╣║╦╩╤╡╢╟╞╥╨╧╦╤╣╟▀▄▌▐■□▪▫◘◙◦◎●◉▸◂▴▾⌂⌐¬√∫≈≠≡∞∂∑∏∫Φ∀∃∉∈⊂⊃∩∪⊕⊗ꜱʜʀᴏᴀ';
+const REAL_WORDS = ['loading','error','void','null','404','denied','corrupt','breach','unknown','undefined','warning','system','failure','access','locked','broken'];
+
+function randChar(){return GLITCH_CHARS[Math.floor(Math.random()*GLITCH_CHARS.length)]}
+
+function corruptText(el, realText, duration=120, intensity=0.7){
+  let frame=0;
+  const maxFrames=8;
+  const id=setInterval(()=>{
+    if(frame>=maxFrames){el.textContent=realText;clearInterval(id);return;}
+    el.textContent=realText.split('').map(c=>{
+      if(c===' ')return ' ';
+      return Math.random()<intensity?randChar():c;
+    }).join('');
+    frame++;
+  },duration/maxFrames);
+}
+
+function startPassiveCorruption(){
+  const elements=[
+    {id:'navCorrupt',real:'DARK SECTOR'},
+    {id:'heroBtn',real:'▶ WATCH NOW'},
+    {id:'heroMeta',real:'psychological horror · 2006 · subbed'},
+    {id:'label1',real:'// psychological horror'},
+    {id:'label2',real:'// dark drama & mature'},
+    {id:'label3',real:'// all shows'},
+    {id:'statusLeft',real:'SYS://VOID · ACCESS GRANTED · █'},
+    {id:'statusRight',real:'SECTOR_7 · RESTRICTED'},
+  ];
+  function corrupt(){
+    const el=elements[Math.floor(Math.random()*elements.length)];
+    const dom=document.getElementById(el.id);
+    if(dom) corruptText(dom,el.real,400,0.65);
+    setTimeout(corrupt,800+Math.random()*2400);
+  }
+  setTimeout(corrupt,1200);
+}
+
+function corruptGateText(){
+  document.querySelectorAll('.gate-corrupt').forEach(el=>{
+    function loop(){
+      const real=el.dataset.real;
+      corruptText(el,real,300,0.8);
+      setTimeout(loop,2000+Math.random()*3000);
+    }
+    setTimeout(loop,500+Math.random()*1500);
+  });
+}
+
+function tickerScroll(){
+  const ticker=document.getElementById('gateTicker');
+  if(!ticker)return;
+  let pos=0;
+  setInterval(()=>{
+    pos-=1;
+    ticker.style.transform=`translateX(${pos}px)`;
+    if(Math.abs(pos)>ticker.scrollWidth/2)pos=0;
+  },30);
+}
+
+function enterVoid(){
+  const gate=document.getElementById('warningGate');
+  const main=document.getElementById('mainPage');
+  gate.style.transition='opacity .5s';
+  gate.style.opacity='0';
+  setTimeout(()=>{
+    gate.style.display='none';
+    main.style.display='block';
+    startPassiveCorruption();
+    buildGrids();
+  },500);
+}
+
+const SHOWS = {
+  horror:[
+    {title:'Higurashi: When They Cry',meta:'26 eps · horror',color:'#1a0810'},
+    {title:'Shiki',meta:'22 eps · horror',color:'#0a100a'},
+    {title:'Happy Sugar Life',meta:'12 eps · psychological',color:'#120810'},
+    {title:'School Days',meta:'12 eps · drama',color:'#0a0a14'},
+    {title:'Future Diary',meta:'26 eps · thriller',color:'#100a18'},
+    {title:'Another',meta:'12 eps · horror',color:'#0d0810'},
+  ],
+  drama:[
+    {title:"High School DxD",meta:'12 eps · mature',color:'#140808'},
+    {title:'Prison School',meta:'12 eps · mature comedy',color:'#100810'},
+    {title:"The Testament of Sister New Devil",meta:'12 eps · mature',color:'#0a0a14'},
+    {title:'Gleipnir',meta:'13 eps · thriller',color:'#0d1008'},
+    {title:'Interspecies Reviewers',meta:'12 eps · mature',color:'#14080a'},
+    {title:"World's End Harem",meta:'11 eps · mature',color:'#100810'},
+  ],
+};
+
+function buildCard(show){
+  const card=document.createElement('div');
+  card.className='void-card';
+  card.setAttribute('tabindex','0');
+  card.setAttribute('role','button');
+  card.setAttribute('aria-label',show.title);
+  card.innerHTML=`
+    <div class="void-card-img">
+      <div class="void-card-placeholder" style="background:linear-gradient(135deg,${show.color},#070508)">
+        <div class="void-card-placeholder-text" aria-hidden="true">▓</div>
+      </div>
+      <div class="void-card-glitch" style="top:${20+Math.random()*60}%"></div>
+    </div>
+    <div class="void-card-info">
+      <div class="void-card-title">${show.title}</div>
+      <div class="void-card-meta">${show.meta}</div>
+    </div>`;
+  card.addEventListener('mouseenter',()=>{
+    const titleEl=card.querySelector('.void-card-title');
+    corruptText(titleEl,show.title,300,0.6);
+  });
+  return card;
+}
+
+function buildGrids(){
+  const hg=document.getElementById('horrorGrid');
+  const dg=document.getElementById('dramaGrid');
+  const ag=document.getElementById('allGrid');
+  SHOWS.horror.forEach(s=>hg.appendChild(buildCard(s)));
+  SHOWS.drama.forEach(s=>dg.appendChild(buildCard(s)));
+  [...SHOWS.horror,...SHOWS.drama].sort((a,b)=>a.title.localeCompare(b.title)).forEach(s=>ag.appendChild(buildCard(s)));
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  corruptGateText();
+  tickerScroll();
+});
+</script>
+</body>
+</html>
