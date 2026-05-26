@@ -340,6 +340,28 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   margin: 4px 0 20px;
 }
 
+
+/* ============ VOID LINK ============ */
+@keyframes voidblink {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+.void-link {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #7f1d1d;
+  text-decoration: none;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  animation: voidblink 3s ease-in-out infinite;
+  transition: color .2s, opacity .2s;
+  margin-left: auto;
+}
+.void-link:hover {
+  color: #dc2626;
+  opacity: 1;
+}
+
 /* ============ GENRE ROWS ============ */
 .genre-row { margin-bottom: 36px; }
 .genre-row-header {
