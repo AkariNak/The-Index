@@ -117,8 +117,8 @@ function renderDetail() {
   if (currentJikan?.episodes) meta.push(`${currentJikan.episodes} eps`);
   if (currentJikan?.score)    meta.push(`★ ${currentJikan.score}`);
   const lang = g.videos[0]?.language;
-  if (lang === 'dubbed') meta.push('Dubbed');
-  else if (lang === 'subbed') meta.push('Subbed');
+  if (lang === 'dubbed') meta.push('<span class="lang-badge-dubbed" aria-label="Dubbed">Dubbed</span>');
+  else if (lang === 'subbed') meta.push('<span class="lang-badge-subbed" aria-label="Subbed">Subbed</span>');
 
   detailMain.innerHTML = `
     <div class="detail-hero">
@@ -129,7 +129,7 @@ function renderDetail() {
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
-        ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
+        ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
         <div id="watchStatusContainer"></div>
         <div id="episodeProgressContainer"></div>
