@@ -147,6 +147,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
   <div class="void-statusbar" aria-hidden="true">
     <span>SYS://ABYSS · ACCESS GRANTED · <span style="animation:blink 1s infinite;color:#7f1d1d;display:inline-block">█</span></span>
     <span id="statusCount">LOADING...</span>
+    <button id="abyssAdminBtn" style="font-family:var(--mono);font-size:8px;color:#1a0a0a;background:transparent;border:none;cursor:pointer;letter-spacing:.15em;padding:0" title="Admin">◈ SYS</button>
   </div>
 </div>
 
@@ -392,20 +393,13 @@ function initAbyssAdmin(){
   });
 }
 
-// Triple-click brand to unlock admin
-let _brandClicks=0;
-document.querySelector('.void-brand')?.addEventListener('click', e=>{
-  _brandClicks++;
-  if(_brandClicks>=3){
-    _brandClicks=0;
-    const pass = prompt('// ADMIN ACCESS');
-    if(pass===ADMIN_PASS){
-      _abyssAdminUnlocked=true;
-      document.getElementById('abyssAdmin').style.display='block';
-      initAbyssAdmin();
-    }
+document.getElementById('abyssAdminBtn')?.addEventListener('click', ()=>{
+  const pass = prompt('// ADMIN ACCESS');
+  if(pass===ADMIN_PASS){
+    _abyssAdminUnlocked=true;
+    document.getElementById('abyssAdmin').style.display='block';
+    initAbyssAdmin();
   }
-  setTimeout(()=>_brandClicks=0, 1500);
 });
 
 document.addEventListener('DOMContentLoaded',()=>{const ok=sessionStorage.getItem('abyssAccess')==='1'||document.referrer.includes('abyss-gate');if(!ok){window.location.href='abyss-gate.html';return;}sessionStorage.setItem('abyssAccess','1');startPassiveCorruption();buildGrids();});
