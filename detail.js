@@ -619,9 +619,11 @@ function renderRecommendations(allGroups) {
     getBaseTitle(g.title) === baseTitle
   );
 
+  const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   const otherGroups = allGroups.filter(g =>
     g.slug !== currentSlug &&
-    getBaseTitle(g.title) !== baseTitle
+    getBaseTitle(g.title) !== baseTitle &&
+    (_fromAbyss ? g.videos[0]?.void === true : !g.videos[0]?.void)
   );
 
   const seriesCardsHtml = (groups) => groups.map(g => {
@@ -897,6 +899,7 @@ async function autoSaveMetadata(details) {
   initGlobalSearch();
   // Void navigation — if user came from void, all back links go back to void
   const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
+if (fromAbyss) document.documentElement.classList.add('abyss-theme');
   if (fromAbyss) {
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
       a.href = 'abyss.html';
