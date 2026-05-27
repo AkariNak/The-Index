@@ -370,18 +370,21 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 .abyss-theme .btn-solid {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
+  color: #fff !important;
 }
-.abyss-theme .btn-solid:hover { background: #b91c1c !important; }
+.abyss-theme .btn-solid:hover { background: #b91c1c !important; color: #fff !important; }
 .abyss-theme .poster-clickable:hover .poster-cover {
   box-shadow: 0 12px 40px rgba(220,38,38,0.3), 0 4px 16px rgba(0,0,0,0.5) !important;
 }
 .abyss-theme .hero-slide-link {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
+  color: #fff !important;
 }
 .abyss-theme .chip.active {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
+  color: #fff !important;
 }
 .abyss-theme .tab.active {
   color: #fca5a5 !important;
