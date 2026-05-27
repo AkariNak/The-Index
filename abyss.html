@@ -52,7 +52,8 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 
 /* HERO */
 .void-hero{position:relative;height:clamp(280px,46vw,580px);max-height:620px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(220,38,38,0.15);margin:0 0 28px}
-.void-hero-bg{position:absolute;inset:-4px;background-size:cover;background-position:center;filter:brightness(.35) saturate(.4);transform:scale(1.04)}
+.void-hero-bg{position:absolute;inset:-60px;background-size:cover;background-position:center;filter:brightness(.25) saturate(.5) blur(18px);transform:scale(1.15)}
+.void-hero-bg-sharp{position:absolute;inset:0;background-size:contain;background-position:center;background-repeat:no-repeat;filter:brightness(.4) saturate(.5);opacity:.6;}
 .void-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(220,38,38,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(220,38,38,0.04) 1px,transparent 1px);background-size:48px 48px}
 .void-hero-vhs{position:absolute;left:0;right:0;height:4px;background:rgba(220,38,38,0.15);animation:vhsline 6s linear infinite;pointer-events:none}
 .void-hero-content{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:28px 32px;background:linear-gradient(to top,rgba(7,5,8,0.98) 0%,rgba(7,5,8,0.55) 50%,transparent 100%)}
@@ -117,6 +118,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 
   <div class="void-hero" role="banner" id="abyssHero">
     <div class="void-hero-bg" id="heroBg"></div>
+    <div class="void-hero-bg-sharp" id="heroBgSharp"></div>
     <div class="void-hero-grid"></div>
     <div class="void-hero-vhs"></div>
     <div class="void-hero-content">
@@ -353,18 +355,52 @@ function startPassiveCorruption(){
 
 
 
+
+// ---- ANILIST BANNER FETCH ----
+const ANILIST_BASE = 'https://graphql.anilist.co';
+const _bannerCache = {};
+
+async function fetchAbyssBanner(title){
+  const key = title.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  if(_bannerCache[key]) return _bannerCache[key];
+  const gql = `query ($s: String) { Media(search: $s, type: ANIME, sort: SEARCH_MATCH) { bannerImage coverImage { extraLarge } } }`;
+  try {
+    const res = await fetch(ANILIST_BASE, {
+      method:'POST',
+      headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({query:gql,variables:{s:title}})
+    });
+    if(!res.ok) return null;
+    const json = await res.json();
+    const media = json?.data?.Media;
+    const result = { banner: media?.bannerImage||null, cover: media?.coverImage?.extraLarge||null };
+    _bannerCache[key] = result;
+    return result;
+  } catch(e){ return null; }
+}
+
+async function fetchBannersForHero(groups){
+  for(const g of groups.slice(0,6)){
+    const data = await fetchAbyssBanner(g.title);
+    if(data?.banner) g._banner = data.banner;
+    else if(data?.cover) g._banner = g.firstCover;
+  }
+}
+
 // ---- ABYSS HERO SLIDESHOW ----
 let _heroGroups = [];
 let _heroIdx = 0;
 let _heroTimer = null;
 const HERO_INTERVAL = 6000;
 
-function initAbyssHero(groups){
+async function initAbyssHero(groups){
   _heroGroups = groups.slice(0, 6);
   if(!_heroGroups.length) return;
   buildHeroDots();
   showHeroSlide(0);
   _heroTimer = setInterval(()=>{ showHeroSlide((_heroIdx+1)%_heroGroups.length); }, HERO_INTERVAL);
+  // Fetch banners in background and update slides as they arrive
+  fetchBannersForHero(_heroGroups).then(()=>{ showHeroSlide(_heroIdx); });
 
   // Hover to corrupt title
   const heroEl = document.getElementById('abyssHero');
@@ -404,7 +440,12 @@ function showHeroSlide(idx){
   corruptText(titleEl, g.title, 400, 0.8);
   metaEl.className = 'void-hero-meta hero-fade';
   metaEl.textContent = `${g.videos.length} eps · ${g.videos[0]?.language||'dubbed'}`;
-  if(g.firstCover) bgEl.style.backgroundImage = `url('${g.firstCover}')`;
+  const bgUrl = g._banner || g.firstCover;
+  if(bgUrl){
+    bgEl.style.backgroundImage = `url('${bgUrl}')`;
+    const sharpEl = document.getElementById('heroBgSharp');
+    if(sharpEl) sharpEl.style.backgroundImage = `url('${bgUrl}')`;
+  }
   btnEl.onclick = ()=>{ sessionStorage.setItem('fromAbyss','1'); window.location.href=`detail.html?show=${encodeURIComponent(slug(g.title))}`; };
   document.getElementById('abyssHero').onclick = (e)=>{ if(e.target===btnEl||e.target.closest('.abyss-dot')) return; btnEl.click(); };
 
