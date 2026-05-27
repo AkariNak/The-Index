@@ -940,6 +940,7 @@ async function autoSaveMetadata(details) {
           });
         });
         allGroups = groupVideos(AppState.videos);
+        console.log('Looking for slug:', showSlug, '| Available void slugs:', allGroups.map(g=>g.slug).join(', '));
         currentGroup = allGroups.find(g => g.slug === showSlug);
       }
     } catch(e) { console.warn('Could not load void shows:', e); }
