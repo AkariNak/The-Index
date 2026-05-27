@@ -341,6 +341,56 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 }
 
 
+
+/* ============ ABYSS THEME (detail/player when coming from abyss) ============ */
+.abyss-theme {
+  --paper:        #070508;
+  --paper-2:      #0d080c;
+  --paper-3:      #130b10;
+  --ink:          #f8f8f8;
+  --ink-soft:     #9ca3af;
+  --ink-mute:     #4b5563;
+  --line:         rgba(220,38,38,0.15);
+  --line-soft:    rgba(220,38,38,0.08);
+  --accent:       #dc2626;
+  --accent-dark:  #b91c1c;
+  --accent-soft:  #fca5a5;
+  --accent-glow:  rgba(220,38,38,0.25);
+  --accent2:      #7f1d1d;
+  --accent2-soft: #fca5a5;
+  background: #070508;
+}
+.abyss-theme .topnav {
+  background: rgba(7,5,8,0.96) !important;
+  border-bottom-color: rgba(220,38,38,0.2) !important;
+}
+.abyss-theme .topnav-brand svg text { fill: #dc2626 !important; }
+.abyss-theme .topnav-brand svg line { stroke: #dc2626 !important; }
+.abyss-theme .topnav-brand svg text:last-child { fill: #7f1d1d !important; }
+.abyss-theme .btn-solid {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+.abyss-theme .btn-solid:hover { background: #b91c1c !important; }
+.abyss-theme .poster-clickable:hover .poster-cover {
+  box-shadow: 0 12px 40px rgba(220,38,38,0.3), 0 4px 16px rgba(0,0,0,0.5) !important;
+}
+.abyss-theme .hero-slide-link {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+.abyss-theme .chip.active {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+.abyss-theme .tab.active {
+  color: #fca5a5 !important;
+  border-bottom-color: #dc2626 !important;
+}
+.abyss-theme .episode-row:hover { border-color: rgba(220,38,38,0.3) !important; }
+.abyss-theme .play-btn { color: #dc2626 !important; }
+.abyss-theme .detail-meta .dot { color: #7f1d1d !important; }
+
 /* ============ VOID LINK ============ */
 @keyframes voidblink {
   0%, 100% { opacity: 0.3; }
