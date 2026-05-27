@@ -920,7 +920,9 @@ async function autoSaveMetadata(details) {
       let voidData = [];
       let vFrom = 0;
       while (true) {
-        const { data } = await sb.from('videos').select('*').eq('void', true).range(vFrom, vFrom + 999);
+        const { data, error } = await sb.from('videos').select('*').eq('void', true).range(vFrom, vFrom + 999);
+        if (error) { console.warn('Void fetch error:', error); break; }
+        console.log('Void fetch got:', data?.length, 'rows');
         if (!data || !data.length) break;
         voidData = voidData.concat(data);
         if (data.length < 1000) break;
