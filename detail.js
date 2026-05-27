@@ -894,9 +894,20 @@ async function autoSaveMetadata(details) {
   await coreInit();
   await loadGlobalSettings();
   initGlobalSearch();
+  // Void navigation — if user came from void, all back links go back to void
+  const fromVoid = sessionStorage.getItem('fromVoid') === '1';
+  if (fromVoid) {
+    document.querySelectorAll('a[href="index.html"]').forEach(a => {
+      a.href = 'void.html';
+      if (a.id === 'backLink') a.textContent = '← Back to Void';
+      if (a.getAttribute('aria-label') === 'Onyx home') a.setAttribute('aria-label', 'Back to Void');
+    });
+  }
   const showSlug = getShowSlug();
   if (!showSlug) {
-    detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="index.html" class="btn btn-outline">Back to Aurum</a></div>`;
+    const backHref = fromVoid ? "void.html" : "index.html";
+    const backLabel = fromVoid ? "Back to Void" : "Back to Onyx";
+    detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="${backHref}" class="btn btn-outline">${backLabel}</a></div>`;
     wireAdmin(); wireNavAuth(); return;
   }
   let allGroups = groupVideos(AppState.videos);
@@ -915,7 +926,8 @@ async function autoSaveMetadata(details) {
         vFrom += 1000;
       }
       if (voidData.length) {
-        AppState.baseVideos = AppState.baseVideos.concat(voidData.map(normalizeVideo));
+        const normFn = typeof normalizeVideo === 'function' ? normalizeVideo : v => ({...v, title: v.title||'Untitled', collection: v.collection||'Unsorted', episode: v.episode||'', downloadUrl: v.download_url||v.downloadUrl||'#', coverUrl: v.cover_url||v.coverUrl||'', dateAdded: v.date_added||v.dateAdded||'', language: v.language||null, void: true});
+        AppState.baseVideos = AppState.baseVideos.concat(voidData.map(normFn));
         allGroups = groupVideos(AppState.videos);
         currentGroup = allGroups.find(g => g.slug === showSlug);
       }
