@@ -396,6 +396,18 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}
 }
 
+
+/* Exempt video player from abyss overlays */
+.abyss-theme .video-wrap,
+.abyss-theme .video-container,
+.abyss-theme #playerVideo {
+  position: relative;
+  z-index: 9999 !important;
+  filter: none !important;
+}
+.abyss-theme .video-wrap::before,
+.abyss-theme .video-wrap::after { display: none !important; }
+
 /* ============ ABYSS THEME (detail/player when coming from abyss) ============ */
 .abyss-theme {
   --paper:        #070508;
