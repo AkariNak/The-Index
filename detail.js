@@ -899,7 +899,12 @@ async function autoSaveMetadata(details) {
   initGlobalSearch();
   // Void navigation — if user came from void, all back links go back to void
   const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
-if (fromAbyss) document.documentElement.classList.add('abyss-theme');
+if (fromAbyss) {
+    document.documentElement.classList.add('abyss-theme');
+    const s1 = document.createElement('div'); s1.className = 'abyss-scanline';
+    const s2 = document.createElement('div'); s2.className = 'abyss-scanline2';
+    document.body.prepend(s2); document.body.prepend(s1);
+  }
   if (fromAbyss) {
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
       a.href = 'abyss.html';
