@@ -51,12 +51,12 @@ function getShowSlug() {
 // ---------- Render ----------
 function renderDetail() {
   if (!currentGroup) {
-    const _fv = sessionStorage.getItem('fromVoid') === '1';
+    const _fv = sessionStorage.getItem('fromAbyss') === '1';
     detailMain.innerHTML = `
       <div class="detail-empty">
         <h2>Show not found</h2>
         <p>This collection doesn't exist or may have been removed.</p>
-        <a href="${_fv ? 'void.html' : 'index.html'}" class="btn btn-outline">${_fv ? 'Back to Void' : 'Back to Onyx'}</a>
+        <a href="${_fv ? 'abyss.html' : 'index.html'}" class="btn btn-outline">${_fv ? 'Back to Abyss' : 'Back to Onyx'}</a>
       </div>`;
     return;
   }
@@ -896,18 +896,18 @@ async function autoSaveMetadata(details) {
   await loadGlobalSettings();
   initGlobalSearch();
   // Void navigation — if user came from void, all back links go back to void
-  const fromVoid = sessionStorage.getItem('fromVoid') === '1';
-  if (fromVoid) {
+  const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
+  if (fromAbyss) {
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
-      a.href = 'void.html';
-      if (a.id === 'backLink') a.textContent = '← Back to Void';
-      if (a.getAttribute('aria-label') === 'Onyx home') a.setAttribute('aria-label', 'Back to Void');
+      a.href = 'abyss.html';
+      if (a.id === 'backLink') a.textContent = '← Back to Abyss';
+      if (a.getAttribute('aria-label') === 'Onyx home') a.setAttribute('aria-label', 'Back to Abyss');
     });
   }
   const showSlug = getShowSlug();
   if (!showSlug) {
-    const backHref = fromVoid ? "void.html" : "index.html";
-    const backLabel = fromVoid ? "Back to Void" : "Back to Onyx";
+    const backHref = fromAbyss ? "void.html" : "index.html";
+    const backLabel = fromAbyss ? "Back to Abyss" : "Back to Onyx";
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="${backHref}" class="btn btn-outline">${backLabel}</a></div>`;
     wireAdmin(); wireNavAuth(); return;
   }
