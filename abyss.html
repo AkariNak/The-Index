@@ -51,13 +51,13 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-nav-link.main:hover{color:var(--ink)}
 
 /* HERO */
-.void-hero{position:relative;height:260px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(220,38,38,0.15)}
+.void-hero{position:relative;height:clamp(280px,46vw,580px);max-height:620px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(220,38,38,0.15);margin:0 0 28px}
 .void-hero-bg{position:absolute;inset:-4px;background-size:cover;background-position:center;filter:brightness(.35) saturate(.4);transform:scale(1.04)}
 .void-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(220,38,38,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(220,38,38,0.04) 1px,transparent 1px);background-size:48px 48px}
 .void-hero-vhs{position:absolute;left:0;right:0;height:4px;background:rgba(220,38,38,0.15);animation:vhsline 6s linear infinite;pointer-events:none}
-.void-hero-content{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:24px 28px;background:linear-gradient(to top,rgba(7,5,8,0.98) 0%,rgba(7,5,8,0.6) 60%,transparent 100%)}
+.void-hero-content{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:28px 32px;background:linear-gradient(to top,rgba(7,5,8,0.98) 0%,rgba(7,5,8,0.55) 50%,transparent 100%)}
 .void-hero-eyebrow{font-family:var(--mono);font-size:9px;color:#7f1d1d;letter-spacing:.3em;text-transform:uppercase;margin-bottom:6px}
-.void-hero-title{font-family:var(--display);font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin-bottom:4px}
+.void-hero-title{font-family:var(--display);font-size:clamp(20px,3.5vw,48px);font-weight:800;color:var(--ink);letter-spacing:-.02em;margin-bottom:6px}
 .void-hero-meta{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.1em}
 .void-hero-btn{display:inline-block;margin-top:12px;font-family:var(--mono);font-size:10px;color:var(--ink);background:var(--red-dim);border:1px solid var(--red-mid);padding:7px 20px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s}
 .void-hero-btn:hover{background:rgba(220,38,38,0.25)}
