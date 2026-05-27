@@ -342,6 +342,60 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 
 
 
+
+/* ============ ABYSS OVERLAY EFFECTS ============ */
+.abyss-theme::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.12) 3px,
+    rgba(0,0,0,0.12) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
+.abyss-theme::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0,0,0,0.7) 100%);
+  pointer-events: none;
+  z-index: 9997;
+}
+.abyss-scanline {
+  position: fixed;
+  left: 0; right: 0;
+  height: 2px;
+  background: rgba(255,255,255,0.025);
+  pointer-events: none;
+  z-index: 9999;
+  animation: abyssScan 5s linear infinite;
+}
+.abyss-scanline2 {
+  position: fixed;
+  left: 0; right: 0;
+  height: 1px;
+  background: rgba(220,38,38,0.06);
+  pointer-events: none;
+  z-index: 9999;
+  animation: abyssScan 7s linear infinite 2s;
+}
+@keyframes abyssScan {
+  0% { top: -4px; }
+  100% { top: 100%; }
+}
+.abyss-theme .topnav {
+  border-bottom-color: rgba(220,38,38,0.2) !important;
+  animation: abyssFlicker 12s infinite;
+}
+@keyframes abyssFlicker {
+  0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}
+}
+
 /* ============ ABYSS THEME (detail/player when coming from abyss) ============ */
 .abyss-theme {
   --paper:        #070508;
