@@ -5,6 +5,7 @@
 // ---------- Theme ----------
 (function() {
   document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
+  if (sessionStorage.getItem('fromAbyss') === '1') document.documentElement.classList.add('abyss-theme');
 })();
 
 // ---------- DOM refs ----------
