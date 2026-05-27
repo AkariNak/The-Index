@@ -183,6 +183,15 @@
 <script src="core.js"></script>
 <script src="index.js"></script>
 <script>
+function toggleAdminSection(btn){
+  const body=btn.nextElementSibling;
+  const expanded=btn.getAttribute('aria-expanded')=='true';
+  btn.setAttribute('aria-expanded',String(!expanded));
+  body.hidden=expanded;
+  btn.querySelector('.admin-chevron').style.transform=expanded?'':'rotate(-90deg)';
+}
+</script>
+<script>
 (function(){
   const el = document.getElementById('voidLink');
   if (!el) return;
@@ -196,14 +205,7 @@
       frame++;
     }, 60);
   }
-  function toggleAdminSection(btn){
-  const body = btn.nextElementSibling;
-  const expanded = btn.getAttribute('aria-expanded') === 'true';
-  btn.setAttribute('aria-expanded', !expanded);
-  body.hidden = expanded;
-  btn.querySelector('.admin-chevron').style.transform = expanded ? '' : 'rotate(-90deg)';
-}
-function loop(){
+  function loop(){
     corrupt();
     setTimeout(loop, 3000 + Math.random() * 5000);
   }
