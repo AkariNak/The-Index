@@ -86,6 +86,8 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-card-lang{font-size:8px;color:#7f1d1d;border:1px solid #7f1d1d;padding:1px 5px;letter-spacing:.1em;text-transform:uppercase}
 
 /* STATUS */
+.abyss-chip{font-family:var(--mono);font-size:9px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:4px 12px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.abyss-chip.active,.abyss-chip:hover{color:#dc2626;border-color:rgba(220,38,38,0.4);background:rgba(220,38,38,0.08)}
 .void-statusbar{font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.12em;border-top:1px solid rgba(220,38,38,0.08);padding:7px 24px;display:flex;justify-content:space-between;margin-top:8px}
 </style>
 </head>
@@ -117,6 +119,13 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     </div>
   </div>
 
+  <!-- Lang filter -->
+  <div style="padding:12px 24px 0;display:flex;gap:8px" role="group" aria-label="Language filter">
+    <button class="abyss-chip active" data-lang="all" onclick="setLang(this)">All</button>
+    <button class="abyss-chip" data-lang="dubbed" onclick="setLang(this)">Dubbed</button>
+    <button class="abyss-chip" data-lang="subbed" onclick="setLang(this)">Subbed</button>
+  </div>
+
   <div class="void-section">
     <div class="void-section-head">
       <div class="void-section-label" id="label1">// recently added</div>
@@ -124,6 +133,8 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     </div>
   </div>
   <div class="void-grid" id="recentGrid"></div>
+
+  <div id="categoryRows"></div>
 
   <div class="void-section">
     <div class="void-section-head">
@@ -137,6 +148,26 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     <span>SYS://ABYSS · ACCESS GRANTED · <span style="animation:blink 1s infinite;color:#7f1d1d;display:inline-block">█</span></span>
     <span id="statusCount">LOADING...</span>
   </div>
+</div>
+
+<!-- ABYSS ADMIN -->
+<div id="abyssAdmin" style="display:none;padding:20px 24px;border-top:1px solid rgba(220,38,38,0.1)">
+  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#7f1d1d;letter-spacing:.2em;margin-bottom:12px">// ABYSS CATEGORY MANAGER</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <select id="abyssShowSelect" style="background:#0d080c;border:1px solid rgba(220,38,38,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
+      <option value="">-- Select a show --</option>
+    </select>
+    <select id="abyssCatSelect" style="background:#0d080c;border:1px solid rgba(220,38,38,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
+      <option value="">-- Select category --</option>
+      <option value="psychological horror">Psychological Horror</option>
+      <option value="extreme violence">Extreme Violence</option>
+      <option value="mature &amp; explicit">Mature &amp; Explicit</option>
+      <option value="dark thriller">Dark Thriller</option>
+    </select>
+    <button id="abyssCatSave" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f8f8f8;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.4);padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Save</button>
+    <button id="abyssCatClear" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Clear</button>
+  </div>
+  <div id="abyssCatStatus" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4b5563;margin-top:8px;letter-spacing:.1em"></div>
 </div>
 
 <script>
@@ -162,7 +193,7 @@ function groupVideos(videos){
   const map={};
   videos.forEach(v=>{
     const key=slug(v.collection);
-    if(!map[key])map[key]={slug:key,title:v.collection,videos:[],firstCover:v.cover_url||'',dateAdded:v.date_added||''};
+    if(!map[key])map[key]={slug:key,title:v.collection,videos:[],firstCover:v.cover_url||'',dateAdded:v.date_added||'',abyssCategory:v.abyss_category||''};
     map[key].videos.push(v);
     if(!map[key].firstCover&&v.cover_url)map[key].firstCover=v.cover_url;
   });
@@ -222,31 +253,86 @@ async function loadVoidShows(){
   }catch(e){console.warn('Void load error:',e);return[];}
 }
 
+const CATEGORY_ORDER = [
+  'psychological horror',
+  'extreme violence',
+  'mature & explicit',
+  'dark thriller',
+];
+
+let _allGroups = [];
+let _activeLang = 'all';
+
+function setLang(btn){
+  document.querySelectorAll('.abyss-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeLang = btn.dataset.lang;
+  renderAllSections();
+}
+
+function filterGroups(groups){
+  if(_activeLang==='all') return groups;
+  return groups.filter(g=>g.videos[0]?.language===_activeLang);
+}
+
+function renderAllSections(){
+  const filtered = filterGroups(_allGroups);
+  fillGrid('recentGrid', filtered.slice(0,6));
+  fillGrid('allGrid', [...filtered].sort((a,b)=>a.title.localeCompare(b.title)));
+
+  const catContainer = document.getElementById('categoryRows');
+  catContainer.innerHTML = '';
+
+  const catMap = {};
+  filtered.forEach(g=>{
+    const cat = g.videos[0]?.abyss_category || '';
+    if(!cat) return;
+    const key = cat.toLowerCase().trim();
+    if(!catMap[key]) catMap[key]=[];
+    catMap[key].push(g);
+  });
+
+  const orderedKeys = [...CATEGORY_ORDER.filter(k=>catMap[k]), ...Object.keys(catMap).filter(k=>!CATEGORY_ORDER.includes(k))];
+
+  orderedKeys.forEach(cat=>{
+    const groups = catMap[cat];
+    if(!groups||!groups.length) return;
+    const section = document.createElement('div');
+    section.innerHTML = `
+      <div class="void-section">
+        <div class="void-section-head">
+          <div class="void-section-label">// ${cat}</div>
+          <div class="void-section-line"></div>
+        </div>
+      </div>
+      <div class="void-grid" id="catGrid_${cat.replace(/[^a-z0-9]/g,'')}"></div>`;
+    catContainer.appendChild(section);
+    fillGrid('catGrid_'+cat.replace(/[^a-z0-9]/g,''), groups);
+  });
+}
+
 async function buildGrids(){
   const all=await loadVoidShows();
   if(!all.length){
     document.getElementById('allGrid').innerHTML='<div style="font-family:monospace;font-size:10px;color:#374151;padding:24px;letter-spacing:.1em">ABYSS IS EMPTY · NO SHOWS LOADED YET</div>';
     return;
   }
-  const groups=groupVideos(all);
-  const recent=groups.slice(0,6);
-  fillGrid('recentGrid',recent);
-  const sorted=[...groups].sort((a,b)=>a.title.localeCompare(b.title));
-  fillGrid('allGrid',sorted);
-  const hero=groups[0];
+  _allGroups = groupVideos(all);
+  renderAllSections();
+  const hero=_allGroups[0];
   if(hero){
     document.getElementById('heroTitle').textContent=hero.title;
     document.getElementById('heroMeta').textContent=`${hero.videos.length} eps · ${hero.videos[0]?.language||'dubbed'}`;
     if(hero.firstCover)document.getElementById('heroBg').style.backgroundImage=`url('${hero.firstCover}')`;
     document.getElementById('heroBtn').onclick=()=>{sessionStorage.setItem('fromAbyss','1');const s=slug(hero.title);window.location.href=`detail.html?show=${encodeURIComponent(s)}`};
   }
-  document.getElementById('statusCount').textContent=`${groups.length} SHOWS · ${all.length} EPS`;
+  document.getElementById('statusCount').textContent=`${_allGroups.length} SHOWS · ${all.length} EPS`;
 }
 
 function startPassiveCorruption(){
   const els=[
     {id:'navCorrupt',real:'DARK SECTOR'},{id:'heroBtn',real:'▶ WATCH NOW'},
-    {id:'label1',real:'// recently added'},{id:'label2',real:'// all shows'},
+    {id:'label1',real:'// recently added'},{id:'label2',real:'// all shows'},{id:'navCorrupt',real:'DARK SECTOR'},
   ];
   function corrupt(){
     const el=els[Math.floor(Math.random()*els.length)];
@@ -258,6 +344,69 @@ function startPassiveCorruption(){
 }
 
 
+
+
+// --- ABYSS ADMIN ---
+const ADMIN_PASS = 'onyx-admin';
+let _abyssAdminUnlocked = false;
+
+function initAbyssAdmin(){
+  const panel = document.getElementById('abyssAdmin');
+  const showSel = document.getElementById('abyssShowSelect');
+  const catSel = document.getElementById('abyssCatSelect');
+  const saveBtn = document.getElementById('abyssCatSave');
+  const clearBtn = document.getElementById('abyssCatClear');
+  const status = document.getElementById('abyssCatStatus');
+  if(!panel) return;
+
+  // Populate show dropdown from loaded groups
+  if(showSel && _allGroups.length){
+    showSel.innerHTML = '<option value="">-- Select a show --</option>' +
+      [..._allGroups].sort((a,b)=>a.title.localeCompare(b.title))
+        .map(g=>`<option value="${g.slug}">${g.title}</option>`).join('');
+  }
+
+  saveBtn?.addEventListener('click', async ()=>{
+    const s = showSel.value;
+    const cat = catSel.value;
+    if(!s||!cat){status.textContent='Select a show and category.';return;}
+    const group = _allGroups.find(g=>g.slug===s);
+    if(!group){status.textContent='Show not found.';return;}
+    const {error} = await getSB().from('videos').update({abyss_category:cat}).eq('collection',group.title);
+    if(error){status.textContent='Error: '+error.message;return;}
+    group.videos.forEach(v=>v.abyss_category=cat);
+    status.textContent = 'Saved: '+group.title+' → '+cat;
+    renderAllSections();
+  });
+
+  clearBtn?.addEventListener('click', async ()=>{
+    const s = showSel.value;
+    if(!s){status.textContent='Select a show first.';return;}
+    const group = _allGroups.find(g=>g.slug===s);
+    if(!group) return;
+    const {error} = await getSB().from('videos').update({abyss_category:null}).eq('collection',group.title);
+    if(error){status.textContent='Error: '+error.message;return;}
+    group.videos.forEach(v=>v.abyss_category=null);
+    status.textContent = 'Cleared: '+group.title;
+    renderAllSections();
+  });
+}
+
+// Triple-click brand to unlock admin
+let _brandClicks=0;
+document.querySelector('.void-brand')?.addEventListener('click', e=>{
+  _brandClicks++;
+  if(_brandClicks>=3){
+    _brandClicks=0;
+    const pass = prompt('// ADMIN ACCESS');
+    if(pass===ADMIN_PASS){
+      _abyssAdminUnlocked=true;
+      document.getElementById('abyssAdmin').style.display='block';
+      initAbyssAdmin();
+    }
+  }
+  setTimeout(()=>_brandClicks=0, 1500);
+});
 
 document.addEventListener('DOMContentLoaded',()=>{const ok=sessionStorage.getItem('abyssAccess')==='1'||document.referrer.includes('abyss-gate');if(!ok){window.location.href='abyss-gate.html';return;}sessionStorage.setItem('abyssAccess','1');startPassiveCorruption();buildGrids();});
 </script>
