@@ -8,91 +8,195 @@
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--red:#dc2626;--red-dim:rgba(220,38,38,0.12);--red-mid:rgba(220,38,38,0.4);--paper:#070508;--ink:#f8f8f8;--ink-mute:#374151;--mono:'Share Tech Mono',monospace;--vt:'VT323','Share Tech Mono',monospace;}
+:root{--red:#dc2626;--red-dim:rgba(220,38,38,0.1);--red-mid:rgba(220,38,38,0.4);--paper:#070508;--ink:#f8f8f8;--ink-mute:#374151;--mono:'Share Tech Mono',monospace;--vt:'VT323',monospace;}
 html,body{background:var(--paper);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
 
 @keyframes scanmove{0%{top:-4px}100%{top:100%}}
-@keyframes flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}}
-@keyframes shake{0%,100%{transform:translateX(0)}10%{transform:translateX(-3px)}20%{transform:translateX(3px)}30%{transform:translateX(-2px)}40%{transform:translateX(2px)}50%{transform:translateX(0)}}
-@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,0.2)}50%{box-shadow:0 0 16px rgba(220,38,38,0.5)}}
-@keyframes glitchslide{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}66%{clip-path:inset(60% 0 15% 0);transform:translateX(5px)}}
-@keyframes glitchslide2{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(40% 0 30% 0);transform:translateX(4px)}66%{clip-path:inset(20% 0 55% 0);transform:translateX(-4px)}}
+@keyframes flicker{0%,100%{opacity:1}88%{opacity:1}89%{opacity:.3}90%{opacity:1}94%{opacity:.7}95%{opacity:1}97%{opacity:.5}98%{opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}10%{transform:translateX(-4px) rotate(-.5deg)}20%{transform:translateX(4px) rotate(.5deg)}30%{transform:translateX(-2px)}40%{transform:translateX(3px)}50%{transform:translateX(0)}}
+@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,0.2),inset 0 0 4px rgba(220,38,38,0.05)}50%{box-shadow:0 0 24px rgba(220,38,38,0.7),inset 0 0 8px rgba(220,38,38,0.15)}}
+@keyframes glitchslide{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}25%{clip-path:inset(10% 0 65% 0);transform:translateX(-6px)}50%{clip-path:inset(55% 0 20% 0);transform:translateX(6px)}75%{clip-path:inset(30% 0 45% 0);transform:translateX(-3px)}}
+@keyframes glitchslide2{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}25%{clip-path:inset(45% 0 25% 0);transform:translateX(5px)}50%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}75%{clip-path:inset(65% 0 10% 0);transform:translateX(3px)}}
 @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes drift{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes redshift{0%,100%{filter:hue-rotate(0deg) brightness(1)}33%{filter:hue-rotate(-20deg) brightness(1.2)}66%{filter:hue-rotate(10deg) brightness(.9)}}
+@keyframes staticburst{0%,90%,100%{opacity:0}91%{opacity:.15}92%{opacity:0}95%{opacity:.1}96%{opacity:0}}
+@keyframes borderglitch{0%,100%{border-color:rgba(220,38,38,0.4)}20%{border-color:rgba(59,130,246,0.6)}40%{border-color:rgba(220,38,38,0.4)}60%{border-color:rgba(34,197,94,0.5)}80%{border-color:rgba(220,38,38,0.4)}}
+@keyframes scanh{0%{top:0}100%{top:100%}}
+@keyframes blink{0%,100%{opacity:1}49%{opacity:1}50%{opacity:0}}
 
+/* LAYERS */
 .scanline-wrap{position:fixed;inset:0;pointer-events:none;z-index:10;overflow:hidden}
-.scanline{position:absolute;left:0;right:0;height:3px;background:rgba(255,255,255,0.025);animation:scanmove 5s linear infinite}
-.crt{position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.12) 3px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:9}
-.vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,0.7) 100%);pointer-events:none;z-index:8}
+.scanline{position:absolute;left:0;right:0;height:2px;background:rgba(255,255,255,0.03);animation:scanmove 4s linear infinite}
+.scanline2{position:absolute;left:0;right:0;height:1px;background:rgba(220,38,38,0.06);animation:scanmove 7s linear infinite 2s}
+.crt{position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.15) 2px,rgba(0,0,0,0.15) 4px);pointer-events:none;z-index:9}
+.vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(0,0,0,0.85) 100%);pointer-events:none;z-index:8}
+.static{position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(255,0,0,0.03) 1px,rgba(255,0,0,0.03) 2px);pointer-events:none;z-index:7;animation:staticburst 3s infinite}
+.noise{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 300 300' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.05'/%3E%3C/svg%3E");pointer-events:none;z-index:6}
 
-.gate{position:relative;z-index:20;display:flex;flex-direction:column;align-items:center;gap:20px;max-width:480px;padding:0 24px;text-align:center;animation:flicker 10s infinite}
-.gate-noise{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:7}
-.gate-corner{position:fixed;width:16px;height:16px;border-color:var(--red);border-style:solid;opacity:.4}
-.gate-corner.tl{top:24px;left:24px;border-width:1px 0 0 1px}
-.gate-corner.tr{top:24px;right:24px;border-width:1px 1px 0 0}
-.gate-corner.bl{bottom:40px;left:24px;border-width:0 0 1px 1px}
-.gate-corner.br{bottom:40px;right:24px;border-width:0 1px 1px 0}
+/* CORNERS — animated */
+.corner{position:fixed;width:20px;height:20px;border-color:var(--red);border-style:solid;animation:borderglitch 4s infinite}
+.corner.tl{top:20px;left:20px;border-width:2px 0 0 2px}
+.corner.tr{top:20px;right:20px;border-width:2px 2px 0 0}
+.corner.bl{bottom:36px;left:20px;border-width:0 0 2px 2px}
+.corner.br{bottom:36px;right:20px;border-width:0 2px 2px 0}
 
-.gate-icon{font-family:var(--vt);font-size:64px;color:var(--red);line-height:1;animation:shake 4s infinite 2s}
-.gate-eyebrow{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.4em;text-transform:uppercase}
-.gate-title{font-family:var(--vt);font-size:52px;color:var(--red);letter-spacing:.15em;line-height:1;position:relative}
-.gate-title::before{content:'WARNING';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 3s infinite;opacity:.5}
-.gate-title::after{content:'WARNING';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 3s infinite .2s;opacity:.4}
-.gate-divider{width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent)}
-.gate-body{font-family:var(--mono);font-size:12px;color:#6b7280;letter-spacing:.08em;line-height:1.9}
-.gate-sub{font-family:var(--mono);font-size:9px;color:var(--ink-mute);letter-spacing:.2em;text-transform:uppercase}
-.gate-enter{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--red-dim);border:1px solid var(--red-mid);padding:12px 40px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;animation:redpulse 2.5s infinite}
-.gate-enter:hover{background:rgba(220,38,38,0.25);border-color:var(--red)}
-.gate-back{font-family:var(--mono);font-size:10px;color:var(--ink-mute);background:transparent;border:none;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
-.gate-back:hover{color:var(--ink)}
+/* GHOST LINES — random horizontal red tears */
+.tear{position:fixed;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(220,38,38,0.5),transparent);pointer-events:none;z-index:11}
 
-.ticker-wrap{position:fixed;bottom:0;left:0;right:0;border-top:1px solid rgba(220,38,38,0.1);overflow:hidden;z-index:20;background:var(--paper)}
-.ticker-inner{display:inline-block;white-space:nowrap;font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.1em;padding:6px 0;animation:ticker 20s linear infinite}
+/* FLOATING SYMBOLS */
+.float-sym{position:fixed;font-family:var(--mono);font-size:11px;color:rgba(220,38,38,0.15);pointer-events:none;z-index:5;animation:drift 6s ease-in-out infinite}
+
+/* GATE */
+.gate{position:relative;z-index:20;display:flex;flex-direction:column;align-items:center;gap:18px;max-width:500px;padding:0 28px;text-align:center;animation:flicker 8s infinite}
+
+.gate-eyebrow{font-family:var(--mono);font-size:9px;color:#4b5563;letter-spacing:.45em;text-transform:uppercase}
+
+.gate-icon{font-family:var(--vt);font-size:72px;color:var(--red);line-height:1;animation:shake 3.5s infinite 1.5s, redshift 6s infinite}
+
+.gate-title{font-family:var(--vt);font-size:58px;color:var(--red);letter-spacing:.15em;line-height:1;position:relative}
+.gate-title::before{content:'WARNING';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 2.5s infinite;opacity:.6}
+.gate-title::after{content:'WARNING';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 2.5s infinite .15s;opacity:.5}
+
+.gate-divider{width:100px;height:1px;background:linear-gradient(90deg,transparent,var(--red),rgba(220,38,38,0.3),transparent);position:relative}
+.gate-divider::after{content:'';position:absolute;top:-1px;left:50%;width:4px;height:3px;background:var(--red);transform:translateX(-50%)}
+
+.gate-code{font-family:var(--mono);font-size:9px;color:#1f2937;letter-spacing:.2em;text-transform:uppercase}
+.gate-code span{color:#374151}
+
+.gate-body{font-family:var(--mono);font-size:12px;color:#6b7280;letter-spacing:.08em;line-height:2}
+
+.gate-sub{font-family:var(--mono);font-size:9px;color:#374151;letter-spacing:.2em;text-transform:uppercase}
+
+.gate-enter{
+  font-family:var(--mono);font-size:12px;color:var(--ink);
+  background:var(--red-dim);border:1px solid var(--red-mid);
+  padding:13px 44px;letter-spacing:.2em;text-transform:uppercase;
+  cursor:pointer;transition:all .2s;
+  animation:redpulse 2s infinite, borderglitch 5s infinite;
+  position:relative;overflow:hidden;
+}
+.gate-enter::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(220,38,38,0.08),transparent);transform:translateX(-100%);transition:transform .4s}
+.gate-enter:hover::before{transform:translateX(100%)}
+.gate-enter:hover{background:rgba(220,38,38,0.2)}
+
+.gate-back{font-family:var(--mono);font-size:10px;color:#1f2937;background:transparent;border:none;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px;transition:color .2s}
+.gate-back:hover{color:#374151}
+
+.gate-cursor{animation:blink 1s infinite;color:var(--red)}
+
+/* TICKER */
+.ticker-wrap{position:fixed;bottom:0;left:0;right:0;border-top:1px solid rgba(220,38,38,0.08);overflow:hidden;z-index:20;background:var(--paper)}
+.ticker-inner{display:inline-block;white-space:nowrap;font-family:var(--mono);font-size:9px;color:#1a0a0a;letter-spacing:.12em;padding:5px 0;animation:ticker 25s linear infinite}
 </style>
 </head>
 <body>
-<div class="scanline-wrap"><div class="scanline"></div></div>
+<div class="scanline-wrap">
+  <div class="scanline"></div>
+  <div class="scanline2"></div>
+</div>
 <div class="crt"></div>
 <div class="vignette"></div>
-<div class="gate-noise"></div>
-<div class="gate-corner tl"></div>
-<div class="gate-corner tr"></div>
-<div class="gate-corner bl"></div>
-<div class="gate-corner br"></div>
+<div class="static"></div>
+<div class="noise"></div>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<!-- TEARS -->
+<div class="tear" style="top:15%;opacity:.6"></div>
+<div class="tear" style="top:42%;opacity:.4"></div>
+<div class="tear" style="top:71%;opacity:.5"></div>
+<div class="tear" style="top:88%;opacity:.3"></div>
+
+<!-- FLOATING BACKGROUND SYMBOLS -->
+<div class="float-sym" style="top:8%;left:4%;animation-delay:0s">▓╬Ω∆</div>
+<div class="float-sym" style="top:15%;right:6%;animation-delay:1.2s">╗█╪▒</div>
+<div class="float-sym" style="top:55%;left:3%;animation-delay:2.1s">∑∏∫Φ</div>
+<div class="float-sym" style="top:70%;right:5%;animation-delay:.7s">∀∃▸◂</div>
+<div class="float-sym" style="top:30%;left:7%;animation-delay:3s;font-size:9px">01001000 01000101 01001100 01010000</div>
+<div class="float-sym" style="top:80%;right:8%;animation-delay:1.8s;font-size:9px">ERR_0x0042</div>
+<div class="float-sym" style="top:45%;left:2%;animation-delay:4s;font-size:8px">ACCESS_DENIED</div>
 
 <div class="gate" role="main" aria-labelledby="gateTitle">
-  <div class="gate-icon" aria-hidden="true">⚠</div>
-  <div class="gate-eyebrow">// sector_abyss · access restricted</div>
+  <div class="gate-eyebrow">// sys.node_7 · sector_abyss · unauthorized</div>
+  <div class="gate-icon" aria-hidden="true">☠</div>
   <div class="gate-title" id="gateTitle" aria-label="Warning">WARNING</div>
   <div class="gate-divider"></div>
+  <div class="gate-code">ACCESS_LOG: <span id="logCode">----</span> · TIMESTAMP: <span id="tsCode">--:--:--</span></div>
   <div class="gate-body">
     this section contains <span class="gc" data-real="mature themes">mature themes</span> and<br>
     content not appropriate for all viewers.<br>
     including <span class="gc" data-real="graphic violence">graphic violence</span>, dark subject matter,<br>
     <span class="gc" data-real="disturbing psychological content">disturbing psychological content</span>,<br>
-    and <span class="gc" data-real="extreme horror">extreme horror</span>.
+    and <span class="gc" data-real="extreme horror">extreme horror</span>.<span class="gate-cursor">_</span>
   </div>
   <div class="gate-sub">by continuing you confirm you are 18+</div>
   <button class="gate-enter" id="enterBtn">I UNDERSTAND — ENTER THE ABYSS</button>
-  <button class="gate-back" onclick="window.location.href='index.html'">take me back to safety</button>
+  <button class="gate-back" onclick="window.location.href='index.html'">return to safety</button>
 </div>
 
 <div class="ticker-wrap" aria-hidden="true">
-  <div class="ticker-inner">SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED · &nbsp;&nbsp;&nbsp;&nbsp; SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED · &nbsp;&nbsp;&nbsp;&nbsp;</div>
+  <div class="ticker-inner">SYS://ABYSS_SECTOR · ACCESS ATTEMPT DETECTED · ENTRY WILL BE LOGGED · YOU WERE WARNED · ████ · PROCEED AT YOUR OWN RISK · THIS IS YOUR LAST CHANCE · ████████ · TURN BACK · SYS://ABYSS_SECTOR · ACCESS ATTEMPT DETECTED · ENTRY WILL BE LOGGED · YOU WERE WARNED · ████ · PROCEED AT YOUR OWN RISK · THIS IS YOUR LAST CHANCE · ████████ · TURN BACK ·&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
 </div>
 
 <script>
-const CHARS='▓░╗╬Ω∆█╪▒╝╔╠╣⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪';
-function corrupt(el,real){
-  let f=0;const id=setInterval(()=>{
-    if(f>=8){el.textContent=real;clearInterval(id);return;}
-    el.textContent=real.split('').map(c=>c===' '?' ':Math.random()<0.8?CHARS[Math.floor(Math.random()*CHARS.length)]:c).join('');
+const CHARS='▓░╗╬Ω∆█╪▒╝╔╠╣║⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪◘◙⌐¬√≈≠≡∞';
+
+function corrupt(el,real,intensity=0.8){
+  let f=0;const max=10;
+  const id=setInterval(()=>{
+    if(f>=max){el.textContent=real;clearInterval(id);return;}
+    el.textContent=real.split('').map(c=>c===' '?' ':Math.random()<intensity?CHARS[Math.floor(Math.random()*CHARS.length)]:c).join('');
     f++;
-  },40);
+  },35);
 }
+
+// Corrupt gate text spans
 document.querySelectorAll('.gc').forEach(el=>{
-  function loop(){corrupt(el,el.dataset.real);setTimeout(loop,2000+Math.random()*3000);}
-  setTimeout(loop,500+Math.random()*1500);
+  function loop(){corrupt(el,el.dataset.real);setTimeout(loop,1800+Math.random()*2500);}
+  setTimeout(loop,400+Math.random()*1200);
 });
+
+// Live timestamp
+function updateTs(){
+  const now=new Date();
+  const ts=[now.getHours(),now.getMinutes(),now.getSeconds()].map(n=>String(n).padStart(2,'0')).join(':');
+  document.getElementById('tsCode').textContent=ts;
+}
+setInterval(updateTs,1000);
+updateTs();
+
+// Random access log code that corrupts
+const logEl=document.getElementById('logCode');
+function updateLog(){
+  const hex=Math.floor(Math.random()*0xFFFF).toString(16).toUpperCase().padStart(4,'0');
+  corrupt(logEl,'0x'+hex,0.9);
+  setTimeout(updateLog,1500+Math.random()*2000);
+}
+updateLog();
+
+// Random screen tear effect
+const tears=document.querySelectorAll('.tear');
+setInterval(()=>{
+  const t=tears[Math.floor(Math.random()*tears.length)];
+  t.style.opacity=Math.random()<0.3?'0.8':'0';
+  setTimeout(()=>t.style.opacity='0',80);
+},600);
+
+// Random floating symbol corruption
+document.querySelectorAll('.float-sym').forEach(el=>{
+  const orig=el.textContent;
+  setInterval(()=>{
+    if(Math.random()<0.15){
+      el.style.opacity=String(Math.random()*0.25);
+      setTimeout(()=>el.style.opacity='',120);
+    }
+  },800);
+});
+
+// Enter button
 document.getElementById('enterBtn').addEventListener('click',()=>{
   sessionStorage.setItem('abyssAccess','1');
   sessionStorage.setItem('fromAbyss','1');
