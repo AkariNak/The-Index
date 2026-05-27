@@ -922,7 +922,6 @@ async function autoSaveMetadata(details) {
       while (true) {
         const { data, error } = await sb.from('videos').select('*').eq('void', true).range(vFrom, vFrom + 999);
         if (error) { console.warn('Void fetch error:', error); break; }
-        console.log('Void fetch got:', data?.length, 'rows');
         if (!data || !data.length) break;
         voidData = voidData.concat(data);
         if (data.length < 1000) break;
@@ -939,8 +938,8 @@ async function autoSaveMetadata(details) {
             sources: null, createdAt: v.created_at || null, language: v.language || null, void: true
           });
         });
+        syncVideos();
         allGroups = groupVideos(AppState.videos);
-        console.log('Looking for slug:', showSlug, '| Available void slugs:', allGroups.map(g=>g.slug).join(', '));
         currentGroup = allGroups.find(g => g.slug === showSlug);
       }
     } catch(e) { console.warn('Could not load void shows:', e); }
