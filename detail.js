@@ -906,10 +906,8 @@ if (fromAbyss) document.documentElement.classList.add('abyss-theme');
       if (a.id === 'backLink') a.textContent = '← Back to Abyss';
       if (a.getAttribute('aria-label') === 'Onyx home') {
         a.setAttribute('aria-label', 'Abyss home');
-        a.innerHTML = `<svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="-1" fill="currentColor">ABYSS</text>
-          <line x1="8" y1="29" x2="102" y2="29" stroke="#dc2626" stroke-width="1.5"/>
-        </svg>`;
+        a.textContent = 'ABYSS';
+
       }
     });
     // Remove any "Back to Aurum/Onyx" text links that aren't the brand
