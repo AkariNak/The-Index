@@ -122,7 +122,8 @@ function normalizeVideo(video) {
     type:        video.type   || parsed?.type   || 'Episode',
     sources:     video.sources || null,
     createdAt:   video.created_at || null,
-    language:    video.language || null
+    language:    video.language || null,
+    void:        Boolean(video.void)
   };
 }
 
@@ -204,6 +205,7 @@ async function loadBaseVideos() {
       const { data, error } = await sb
         .from('videos')
         .select('*')
+        .eq('void', false)
         .order('date_added', { ascending: false })
         .range(from, from + pageSize - 1);
       if (error) throw error;
