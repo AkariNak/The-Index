@@ -364,9 +364,45 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   background: rgba(7,5,8,0.96) !important;
   border-bottom-color: rgba(220,38,38,0.2) !important;
 }
-.abyss-theme .topnav-brand svg text { fill: #dc2626 !important; }
-.abyss-theme .topnav-brand svg line { stroke: #dc2626 !important; }
-.abyss-theme .topnav-brand svg text:last-child { fill: #7f1d1d !important; }
+/* Abyss brand in nav */
+.abyss-theme .topnav-brand {
+  font-family: 'VT323', monospace !important;
+  font-size: 28px !important;
+  font-weight: 400 !important;
+  color: #dc2626 !important;
+  letter-spacing: .2em !important;
+  line-height: 1 !important;
+  position: relative !important;
+}
+.abyss-theme .topnav-brand svg { display: none !important; }
+.abyss-theme .topnav-brand::before {
+  content: 'ABYSS';
+  position: absolute;
+  inset: 0;
+  color: #3b82f6;
+  animation: abyssGlitch1 4s infinite;
+  opacity: .5;
+  pointer-events: none;
+}
+.abyss-theme .topnav-brand::after {
+  content: 'ABYSS';
+  position: absolute;
+  inset: 0;
+  color: #22c55e;
+  animation: abyssGlitch2 4s infinite .3s;
+  opacity: .4;
+  pointer-events: none;
+}
+@keyframes abyssGlitch1 {
+  0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}
+  33%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}
+  66%{clip-path:inset(60% 0 15% 0);transform:translateX(5px)}
+}
+@keyframes abyssGlitch2 {
+  0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}
+  33%{clip-path:inset(40% 0 30% 0);transform:translateX(4px)}
+  66%{clip-path:inset(20% 0 55% 0);transform:translateX(-4px)}
+}
 .abyss-theme .btn-solid {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
