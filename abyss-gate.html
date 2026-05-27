@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Onyx — Abyss</title>
+<link rel="icon" type="image/png" href="favicon-256.png">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--red:#dc2626;--red-dim:rgba(220,38,38,0.12);--red-mid:rgba(220,38,38,0.4);--paper:#070508;--ink:#f8f8f8;--ink-mute:#374151;--mono:'Share Tech Mono',monospace;--vt:'VT323','Share Tech Mono',monospace;}
+html,body{background:var(--paper);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+@keyframes scanmove{0%{top:-4px}100%{top:100%}}
+@keyframes flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}10%{transform:translateX(-3px)}20%{transform:translateX(3px)}30%{transform:translateX(-2px)}40%{transform:translateX(2px)}50%{transform:translateX(0)}}
+@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,0.2)}50%{box-shadow:0 0 16px rgba(220,38,38,0.5)}}
+@keyframes glitchslide{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}66%{clip-path:inset(60% 0 15% 0);transform:translateX(5px)}}
+@keyframes glitchslide2{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(40% 0 30% 0);transform:translateX(4px)}66%{clip-path:inset(20% 0 55% 0);transform:translateX(-4px)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+.scanline-wrap{position:fixed;inset:0;pointer-events:none;z-index:10;overflow:hidden}
+.scanline{position:absolute;left:0;right:0;height:3px;background:rgba(255,255,255,0.025);animation:scanmove 5s linear infinite}
+.crt{position:fixed;inset:0;background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.12) 3px,rgba(0,0,0,0.12) 4px);pointer-events:none;z-index:9}
+.vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,0.7) 100%);pointer-events:none;z-index:8}
+
+.gate{position:relative;z-index:20;display:flex;flex-direction:column;align-items:center;gap:20px;max-width:480px;padding:0 24px;text-align:center;animation:flicker 10s infinite}
+.gate-noise{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");pointer-events:none;z-index:7}
+.gate-corner{position:fixed;width:16px;height:16px;border-color:var(--red);border-style:solid;opacity:.4}
+.gate-corner.tl{top:24px;left:24px;border-width:1px 0 0 1px}
+.gate-corner.tr{top:24px;right:24px;border-width:1px 1px 0 0}
+.gate-corner.bl{bottom:40px;left:24px;border-width:0 0 1px 1px}
+.gate-corner.br{bottom:40px;right:24px;border-width:0 1px 1px 0}
+
+.gate-icon{font-family:var(--vt);font-size:64px;color:var(--red);line-height:1;animation:shake 4s infinite 2s}
+.gate-eyebrow{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.4em;text-transform:uppercase}
+.gate-title{font-family:var(--vt);font-size:52px;color:var(--red);letter-spacing:.15em;line-height:1;position:relative}
+.gate-title::before{content:'WARNING';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 3s infinite;opacity:.5}
+.gate-title::after{content:'WARNING';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 3s infinite .2s;opacity:.4}
+.gate-divider{width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.gate-body{font-family:var(--mono);font-size:12px;color:#6b7280;letter-spacing:.08em;line-height:1.9}
+.gate-sub{font-family:var(--mono);font-size:9px;color:var(--ink-mute);letter-spacing:.2em;text-transform:uppercase}
+.gate-enter{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--red-dim);border:1px solid var(--red-mid);padding:12px 40px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;animation:redpulse 2.5s infinite}
+.gate-enter:hover{background:rgba(220,38,38,0.25);border-color:var(--red)}
+.gate-back{font-family:var(--mono);font-size:10px;color:var(--ink-mute);background:transparent;border:none;letter-spacing:.15em;cursor:pointer;text-transform:uppercase;text-decoration:underline;text-underline-offset:3px}
+.gate-back:hover{color:var(--ink)}
+
+.ticker-wrap{position:fixed;bottom:0;left:0;right:0;border-top:1px solid rgba(220,38,38,0.1);overflow:hidden;z-index:20;background:var(--paper)}
+.ticker-inner{display:inline-block;white-space:nowrap;font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.1em;padding:6px 0;animation:ticker 20s linear infinite}
+</style>
+</head>
+<body>
+<div class="scanline-wrap"><div class="scanline"></div></div>
+<div class="crt"></div>
+<div class="vignette"></div>
+<div class="gate-noise"></div>
+<div class="gate-corner tl"></div>
+<div class="gate-corner tr"></div>
+<div class="gate-corner bl"></div>
+<div class="gate-corner br"></div>
+
+<div class="gate" role="main" aria-labelledby="gateTitle">
+  <div class="gate-icon" aria-hidden="true">⚠</div>
+  <div class="gate-eyebrow">// sector_abyss · access restricted</div>
+  <div class="gate-title" id="gateTitle" aria-label="Warning">WARNING</div>
+  <div class="gate-divider"></div>
+  <div class="gate-body">
+    this section contains <span class="gc" data-real="mature themes">mature themes</span> and<br>
+    content not appropriate for all viewers.<br>
+    including <span class="gc" data-real="graphic violence">graphic violence</span>, dark subject matter,<br>
+    <span class="gc" data-real="disturbing psychological content">disturbing psychological content</span>,<br>
+    and <span class="gc" data-real="extreme horror">extreme horror</span>.
+  </div>
+  <div class="gate-sub">by continuing you confirm you are 18+</div>
+  <button class="gate-enter" id="enterBtn">I UNDERSTAND — ENTER THE ABYSS</button>
+  <button class="gate-back" onclick="window.location.href='index.html'">take me back to safety</button>
+</div>
+
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker-inner">SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED · &nbsp;&nbsp;&nbsp;&nbsp; SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED · &nbsp;&nbsp;&nbsp;&nbsp;</div>
+</div>
+
+<script>
+const CHARS='▓░╗╬Ω∆█╪▒╝╔╠╣⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪';
+function corrupt(el,real){
+  let f=0;const id=setInterval(()=>{
+    if(f>=8){el.textContent=real;clearInterval(id);return;}
+    el.textContent=real.split('').map(c=>c===' '?' ':Math.random()<0.8?CHARS[Math.floor(Math.random()*CHARS.length)]:c).join('');
+    f++;
+  },40);
+}
+document.querySelectorAll('.gc').forEach(el=>{
+  function loop(){corrupt(el,el.dataset.real);setTimeout(loop,2000+Math.random()*3000);}
+  setTimeout(loop,500+Math.random()*1500);
+});
+document.getElementById('enterBtn').addEventListener('click',()=>{
+  sessionStorage.setItem('abyssAccess','1');
+  sessionStorage.setItem('fromAbyss','1');
+  window.location.href='abyss.html';
+});
+</script>
+</body>
+</html>
