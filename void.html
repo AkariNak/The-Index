@@ -243,7 +243,7 @@ function buildCard(group){
       <div class="void-card-meta">${group.videos.length} eps ${langBadge}</div>
     </div>`;
   card.addEventListener('mouseenter',()=>corruptText(card.querySelector('.void-card-title'),group.title,300,0.6));
-  card.addEventListener('click',()=>{sessionStorage.setItem('fromVoid','1');window.location.href=`detail.html?show=${encodeURIComponent(group.title)}`;});
+  card.addEventListener('click',()=>{sessionStorage.setItem('fromVoid','1');window.location.href=`detail.html?show=${encodeURIComponent(group.slug)}`;});
   card.addEventListener('keydown',e=>{if(e.key==='Enter')card.click();});
   return card;
 }
@@ -287,7 +287,7 @@ async function buildGrids(){
     document.getElementById('heroTitle').textContent=hero.title;
     document.getElementById('heroMeta').textContent=`${hero.videos.length} eps · ${hero.videos[0]?.language||'dubbed'}`;
     if(hero.firstCover)document.getElementById('heroBg').style.backgroundImage=`url('${hero.firstCover}')`;
-    document.getElementById('heroBtn').onclick=()=>{sessionStorage.setItem('fromVoid','1');window.location.href=`detail.html?show=${encodeURIComponent(hero.title)}`;};
+    document.getElementById('heroBtn').onclick=()=>{sessionStorage.setItem('fromVoid','1');window.location.href=`detail.html?show=${encodeURIComponent(hero.slug)}`;};
   }
   document.getElementById('statusCount').textContent=`${groups.length} SHOWS · ${all.length} EPS`;
 }
