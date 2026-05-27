@@ -199,8 +199,8 @@ function groupVideos(videos){
     if(!map[key].firstCover&&v.cover_url)map[key].firstCover=v.cover_url;
   });
   return Object.values(map).sort((a,b)=>{
-    const aD=Math.max(...a.videos.map(v=>new Date(v.date_added||0).getTime()));
-    const bD=Math.max(...b.videos.map(v=>new Date(v.date_added||0).getTime()));
+    const aD=Math.max(...a.videos.map(v=>new Date(v.created_at||v.date_added||0).getTime()));
+    const bD=Math.max(...b.videos.map(v=>new Date(v.created_at||v.date_added||0).getTime()));
     return bD-aD;
   });
 }
