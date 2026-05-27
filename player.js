@@ -437,8 +437,37 @@ function wireFog() {
   const { show: showSlug, ep: epParam, t: tParam } = getParams();
   if (!showSlug) { if (playerTitleEl) playerTitleEl.textContent = 'No show specified.'; return; }
 
-  const allGroups = groupVideos(AppState.videos);
-  currentGroup    = allGroups.find(g => g.slug === showSlug);
+  let allGroups = groupVideos(AppState.videos);
+  currentGroup = allGroups.find(g => g.slug === showSlug);
+  // If not found, try loading void shows
+  if (!currentGroup) {
+    try {
+      const sb = getSupabase();
+      let voidData = []; let vFrom = 0;
+      while(true){
+        const {data} = await sb.from('videos').select('*').eq('void',true).range(vFrom,vFrom+999);
+        if(!data||!data.length) break;
+        voidData = voidData.concat(data);
+        if(data.length<1000) break;
+        vFrom+=1000;
+      }
+      if(voidData.length){
+        voidData.forEach(v=>{
+          AppState.baseVideos.push({
+            id:v.id,title:v.title||'Untitled',description:v.description||'',
+            collection:v.collection||'Unsorted',episode:v.episode||'',
+            category:v.category||'Other',fileType:v.file_type||'MP4',
+            fileSize:'—',dateAdded:v.date_added||'',downloadUrl:v.download_url||'#',
+            coverUrl:v.cover_url||'',temporary:false,season:1,type:'Episode',
+            sources:null,createdAt:v.created_at||null,language:v.language||null,void:true
+          });
+        });
+        syncVideos();
+        allGroups = groupVideos(AppState.videos);
+        currentGroup = allGroups.find(g => g.slug === showSlug);
+      }
+    } catch(e){ console.warn('Void load error:',e); }
+  }
   if (!currentGroup || !currentGroup.videos.length) { if (playerTitleEl) playerTitleEl.textContent = 'Show not found.'; return; }
 
   document.title = `${currentGroup.title} — Aurum`;
