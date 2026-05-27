@@ -51,11 +51,12 @@ function getShowSlug() {
 // ---------- Render ----------
 function renderDetail() {
   if (!currentGroup) {
+    const _fv = sessionStorage.getItem('fromVoid') === '1';
     detailMain.innerHTML = `
       <div class="detail-empty">
         <h2>Show not found</h2>
         <p>This collection doesn't exist or may have been removed.</p>
-        <a href="index.html" class="btn btn-outline">Back to Aurum</a>
+        <a href="${_fv ? 'void.html' : 'index.html'}" class="btn btn-outline">${_fv ? 'Back to Void' : 'Back to Onyx'}</a>
       </div>`;
     return;
   }
@@ -912,7 +913,7 @@ async function autoSaveMetadata(details) {
   }
   let allGroups = groupVideos(AppState.videos);
   currentGroup = allGroups.find(g => g.slug === showSlug);
-  // If not found in main library, check void shows
+  // If not found in main library, fetch void shows
   if (!currentGroup) {
     try {
       const sb = getSupabase();
@@ -926,14 +927,22 @@ async function autoSaveMetadata(details) {
         vFrom += 1000;
       }
       if (voidData.length) {
-        const normFn = typeof normalizeVideo === 'function' ? normalizeVideo : v => ({...v, title: v.title||'Untitled', collection: v.collection||'Unsorted', episode: v.episode||'', downloadUrl: v.download_url||v.downloadUrl||'#', coverUrl: v.cover_url||v.coverUrl||'', dateAdded: v.date_added||v.dateAdded||'', language: v.language||null, void: true});
-        AppState.baseVideos = AppState.baseVideos.concat(voidData.map(normFn));
+        voidData.forEach(v => {
+          AppState.baseVideos.push({
+            id: v.id, title: v.title || 'Untitled', description: v.description || '',
+            collection: v.collection || 'Unsorted', episode: v.episode || '',
+            category: v.category || 'Other', fileType: v.file_type || 'MP4',
+            fileSize: '—', dateAdded: v.date_added || '', downloadUrl: v.download_url || '#',
+            coverUrl: v.cover_url || '', temporary: false, season: 1, type: 'Episode',
+            sources: null, createdAt: v.created_at || null, language: v.language || null, void: true
+          });
+        });
         allGroups = groupVideos(AppState.videos);
         currentGroup = allGroups.find(g => g.slug === showSlug);
       }
     } catch(e) { console.warn('Could not load void shows:', e); }
   }
-  document.title  = currentGroup ? `${currentGroup.title} — Aurum` : 'Aurum';
+  document.title = currentGroup ? `${currentGroup.title} — Onyx` : 'Onyx';
   renderDetail();
   renderRecommendations(allGroups);
   wireAdmin();
