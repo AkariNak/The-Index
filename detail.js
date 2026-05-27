@@ -973,7 +973,7 @@ if (fromAbyss) {
     if (!details) return;
     currentJikan = details;
     renderDetail();
-    renderRecommendations(groupVideos(AppState.videos));
+    renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
     await autoSaveMetadata(details);
 
     // Fetch tags for all other shows in background — with spacing to avoid 429s
@@ -988,6 +988,6 @@ if (fromAbyss) {
         await new Promise(r => setTimeout(r, 600)); // extra spacing on top of jikanRequest's own delay
       } catch { /* silent */ }
     }
-    renderRecommendations(groupVideos(AppState.videos));
+    renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
   });
 })();
