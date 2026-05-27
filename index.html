@@ -90,52 +90,72 @@
 
   <!-- Admin panel: slideshow manager -->
   <section id="adminPanel" class="add-panel" hidden>
-    <h2 class="add-title">Slideshow Manager</h2>
-    <p class="add-sub">Set which shows appear in the hero slideshow and their order. Positions 1–6 are shown. Leave blank to exclude a show.</p>
-    <div id="slideshowManager" class="slideshow-manager"></div>
-    <div class="form-actions" style="margin-top:20px">
-      <button id="saveSlideshowBtn" type="button" class="btn btn-solid">Save Order</button>
-      <button id="syncMetaButton" type="button" class="btn btn-outline">Sync All Covers</button>
-      <p id="formStatus" class="form-status"></p>
+
+    <div class="admin-section">
+      <button class="admin-section-toggle" aria-expanded="true" onclick="toggleAdminSection(this)">
+        <span>Slideshow Manager</span><span class="admin-chevron">▾</span>
+      </button>
+      <div class="admin-section-body">
+        <p class="add-sub">Set which shows appear in the hero slideshow and their order. Positions 1–6 are shown. Leave blank to exclude a show.</p>
+        <div id="slideshowManager" class="slideshow-manager"></div>
+        <div class="form-actions" style="margin-top:20px">
+          <button id="saveSlideshowBtn" type="button" class="btn btn-solid">Save Order</button>
+          <button id="syncMetaButton" type="button" class="btn btn-outline">Sync All Covers</button>
+          <p id="formStatus" class="form-status"></p>
+        </div>
+      </div>
     </div>
 
-    <hr style="border-color:var(--line);margin:32px 0">
+    <div class="admin-section">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+        <span>Genre Manager</span><span class="admin-chevron">▾</span>
+      </button>
+      <div class="admin-section-body" hidden>
+        <p class="add-sub">Manually assign shows to genre rows. Overrides automatic tag detection.</p>
+        <div class="genre-manager-row">
+          <select id="genreManagerShow" class="genre-manager-select">
+            <option value="">— Select a show —</option>
+          </select>
+          <select id="genreManagerGenre" class="genre-manager-select">
+            <option value="">— Select genre —</option>
+            <option>Action</option>
+            <option>Adventure</option>
+            <option>Fantasy</option>
+            <option>Romance</option>
+            <option>Comedy</option>
+            <option>Drama</option>
+            <option>Sci-Fi</option>
+            <option>Psychological</option>
+            <option>Supernatural</option>
+            <option>Slice of Life</option>
+            <option>Horror</option>
+            <option>Mystery</option>
+            <option>Isekai</option>
+            <option>Thriller</option>
+          </select>
+          <button id="genreManagerAdd" type="button" class="btn btn-solid btn-small">Add</button>
+          <button id="genreManagerRemove" type="button" class="btn btn-outline btn-small">Remove</button>
+        </div>
+        <div id="genreManagerPreview" class="genre-manager-preview"></div>
+        <p id="genreManagerStatus" class="form-status"></p>
+      </div>
+    </div>
 
-    <h2 class="add-title">Genre Manager</h2>
-    <p class="add-sub">Manually assign shows to genre rows. Overrides automatic tag detection.</p>
-    <div class="genre-manager-row">
-      <select id="genreManagerShow" class="genre-manager-select">
-        <option value="">— Select a show —</option>
-      </select>
-      <select id="genreManagerGenre" class="genre-manager-select">
-        <option value="">— Select genre —</option>
-        <option>Action</option>
-        <option>Adventure</option>
-        <option>Fantasy</option>
-        <option>Romance</option>
-        <option>Comedy</option>
-        <option>Drama</option>
-        <option>Sci-Fi</option>
-        <option>Psychological</option>
-        <option>Supernatural</option>
-        <option>Slice of Life</option>
-        <option>Horror</option>
-        <option>Mystery</option>
-        <option>Isekai</option>
-        <option>Thriller</option>
-      </select>
-      <button id="genreManagerAdd" type="button" class="btn btn-solid btn-small">Add</button>
-      <button id="genreManagerRemove" type="button" class="btn btn-outline btn-small">Remove</button>
+    <div class="admin-section">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+        <span>Episode Name Fixer</span><span class="admin-chevron">▾</span>
+      </button>
+      <div class="admin-section-body" hidden>
+        <p class="add-sub">Finds all episodes with generic titles like "Show - Episode 1" and replaces them with real episode names from Jikan/MAL.</p>
+        <div id="epFixerPreview" class="ep-fixer-preview" hidden></div>
+        <div class="form-actions" style="margin-top:12px">
+          <button id="epFixerScanBtn" type="button" class="btn btn-outline">Scan for Generic Titles</button>
+          <button id="epFixerRunBtn" type="button" class="btn btn-solid" hidden>Fix Episode Names</button>
+          <p id="epFixerStatus" class="form-status"></p>
+        </div>
+      </div>
     </div>
-    <div id="genreManagerPreview" class="genre-manager-preview"></div>
-    <p id="genreManagerStatus" class="form-status"></p>
-    <p class="add-sub">Finds all episodes with generic titles like "Show - Episode 1" and replaces them with real episode names from Jikan/MAL.</p>
-    <div id="epFixerPreview" class="ep-fixer-preview" hidden></div>
-    <div class="form-actions" style="margin-top:12px">
-      <button id="epFixerScanBtn" type="button" class="btn btn-outline">Scan for Generic Titles</button>
-      <button id="epFixerRunBtn" type="button" class="btn btn-solid" hidden>Fix Episode Names</button>
-      <p id="epFixerStatus" class="form-status"></p>
-    </div>
+
   </section>
 
   <footer class="site-foot">
@@ -176,7 +196,14 @@
       frame++;
     }, 60);
   }
-  function loop(){
+  function toggleAdminSection(btn){
+  const body = btn.nextElementSibling;
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', !expanded);
+  body.hidden = expanded;
+  btn.querySelector('.admin-chevron').style.transform = expanded ? '' : 'rotate(-90deg)';
+}
+function loop(){
     corrupt();
     setTimeout(loop, 3000 + Math.random() * 5000);
   }
