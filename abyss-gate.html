@@ -200,7 +200,7 @@ document.querySelectorAll('.float-sym').forEach(el=>{
 document.getElementById('enterBtn').addEventListener('click',()=>{
   sessionStorage.setItem('abyssAccess','1');
   sessionStorage.setItem('fromAbyss','1');
-  window.location.href='abyss.html';
+  setTimeout(()=>{ window.location.href='abyss.html'; }, 80);
 });
 </script>
 </body>
