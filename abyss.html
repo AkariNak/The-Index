@@ -38,7 +38,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .vignette{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 45%,rgba(0,0,0,0.7) 100%);pointer-events:none;z-index:98}
 
 /* MAIN */
-#mainPage{display:none;min-height:100vh;animation:fadeIn .6s ease}
+#mainPage{display:block;min-height:100vh;animation:fadeIn .6s ease}
 .void-nav{display:flex;align-items:center;gap:14px;padding:10px 24px;border-bottom:1px solid rgba(220,38,38,0.2);background:rgba(7,5,8,0.95);position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);animation:flicker 12s infinite}
 .void-brand{font-family:var(--vt);font-size:28px;color:var(--red);letter-spacing:.2em;line-height:1;position:relative;text-decoration:none}
 .void-brand::before{content:'ABYSS';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 4s infinite;opacity:.5}
@@ -94,31 +94,6 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 <div class="scanline-wrap"><div class="scanline"></div></div>
 <div class="crt-lines"></div>
 <div class="vignette"></div>
-
-<div id="warningGate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
-  <div class="gate-noise"></div>
-  <div class="gate-corner tl"></div><div class="gate-corner tr"></div>
-  <div class="gate-corner bl"></div><div class="gate-corner br"></div>
-  <div class="gate-inner">
-    <div class="gate-icon" aria-hidden="true">⚠</div>
-    <div class="gate-eyebrow">// sector_abyss · access restricted</div>
-    <div class="gate-title" id="gateTitle" aria-label="Warning">WARNING</div>
-    <div class="gate-divider"></div>
-    <div class="gate-body">
-      this section contains <span class="gate-corrupt" data-real="mature themes">mature themes</span> and<br>
-      content not appropriate for all viewers.<br>
-      including <span class="gate-corrupt" data-real="graphic violence">graphic violence</span>, dark subject matter,<br>
-      <span class="gate-corrupt" data-real="disturbing psychological content">disturbing psychological content</span>,<br>
-      and <span class="gate-corrupt" data-real="extreme horror">extreme horror</span>.
-    </div>
-    <div class="gate-sub">by continuing you confirm you are 18+</div>
-    <div class="gate-btns">
-      <button class="gate-enter" id="gateEnter" onclick="enterAbyss()">I UNDERSTAND — ENTER</button>
-      <button class="gate-back" onclick="window.location.href='index.html'">take me back to safety</button>
-    </div>
-  </div>
-  <div class="gate-ticker" aria-hidden="true" id="gateTicker">SYS://RESTRICTED_ACCESS · LOGGING ENTRY · PROCEED WITH CAUTION · YOU WERE WARNED · ████████ · ENTRY LOGGED ·&nbsp;&nbsp;&nbsp;&nbsp;</div>
-</div>
 
 <div id="mainPage">
   <nav class="void-nav" role="navigation" aria-label="Abyss navigation">
