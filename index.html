@@ -141,7 +141,7 @@
   <footer class="site-foot">
     <span id="year"></span>
     <span>Onyx</span>
-    <a href="void.html" class="void-link" aria-label="Restricted section">◉ SECTOR_7</a>
+    <a href="void.html" class="void-link" aria-label="Restricted section" id="voidLink">◉ NULL</a>
   </footer>
 
 </div>
@@ -162,5 +162,26 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="core.js"></script>
 <script src="index.js"></script>
+<script>
+(function(){
+  const el = document.getElementById('voidLink');
+  if (!el) return;
+  const real = '◉ NULL';
+  const chars = '▓░╗╬Ω∆█╪▒╝╔╠╣⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪';
+  function corrupt(){
+    let frame = 0;
+    const id = setInterval(() => {
+      if (frame >= 6) { el.textContent = real; clearInterval(id); return; }
+      el.textContent = real.split('').map(c => c === ' ' ? ' ' : Math.random() < 0.7 ? chars[Math.floor(Math.random()*chars.length)] : c).join('');
+      frame++;
+    }, 60);
+  }
+  function loop(){
+    corrupt();
+    setTimeout(loop, 3000 + Math.random() * 5000);
+  }
+  setTimeout(loop, 2000);
+})();
+</script>
 </body>
 </html>
