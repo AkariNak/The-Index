@@ -899,8 +899,28 @@ async function autoSaveMetadata(details) {
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="index.html" class="btn btn-outline">Back to Aurum</a></div>`;
     wireAdmin(); wireNavAuth(); return;
   }
-  const allGroups = groupVideos(AppState.videos);
-  currentGroup    = allGroups.find(g => g.slug === showSlug);
+  let allGroups = groupVideos(AppState.videos);
+  currentGroup = allGroups.find(g => g.slug === showSlug);
+  // If not found in main library, check void shows
+  if (!currentGroup) {
+    try {
+      const sb = getSupabase();
+      let voidData = [];
+      let vFrom = 0;
+      while (true) {
+        const { data } = await sb.from('videos').select('*').eq('void', true).range(vFrom, vFrom + 999);
+        if (!data || !data.length) break;
+        voidData = voidData.concat(data);
+        if (data.length < 1000) break;
+        vFrom += 1000;
+      }
+      if (voidData.length) {
+        AppState.baseVideos = AppState.baseVideos.concat(voidData.map(normalizeVideo));
+        allGroups = groupVideos(AppState.videos);
+        currentGroup = allGroups.find(g => g.slug === showSlug);
+      }
+    } catch(e) { console.warn('Could not load void shows:', e); }
+  }
   document.title  = currentGroup ? `${currentGroup.title} — Aurum` : 'Aurum';
   renderDetail();
   renderRecommendations(allGroups);
