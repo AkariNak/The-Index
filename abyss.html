@@ -86,6 +86,14 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-card-lang{font-size:8px;color:#7f1d1d;border:1px solid #7f1d1d;padding:1px 5px;letter-spacing:.1em;text-transform:uppercase}
 
 /* STATUS */
+
+.void-hero { cursor:pointer; }
+.void-hero:hover .void-hero-title { }
+.abyss-dot { width:14px;height:3px;background:#1f1014;border-radius:2px;cursor:pointer;transition:all .2s; }
+.abyss-dot.active { width:20px;background:#dc2626; }
+.abyss-dot:hover { background:rgba(220,38,38,0.5); }
+@keyframes heroFadeIn { from{opacity:0} to{opacity:1} }
+.hero-fade { animation:heroFadeIn .5s ease; }
 .abyss-chip{font-family:var(--mono);font-size:9px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:4px 12px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
 .abyss-chip.active,.abyss-chip:hover{color:#dc2626;border-color:rgba(220,38,38,0.4);background:rgba(220,38,38,0.08)}
 .void-statusbar{font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.12em;border-top:1px solid rgba(220,38,38,0.08);padding:7px 24px;display:flex;justify-content:space-between;margin-top:8px}
@@ -107,7 +115,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     </div>
   </nav>
 
-  <div class="void-hero" role="banner">
+  <div class="void-hero" role="banner" id="abyssHero">
     <div class="void-hero-bg" id="heroBg"></div>
     <div class="void-hero-grid"></div>
     <div class="void-hero-vhs"></div>
@@ -115,7 +123,10 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
       <div class="void-hero-eyebrow">// now featured</div>
       <div class="void-hero-title" id="heroTitle">Loading...</div>
       <div class="void-hero-meta" id="heroMeta">—</div>
-      <button class="void-hero-btn" id="heroBtn">▶ WATCH NOW</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:10px">
+        <button class="void-hero-btn" id="heroBtn">▶ WATCH NOW</button>
+        <div id="heroDots" style="display:flex;gap:5px;align-items:center"></div>
+      </div>
     </div>
   </div>
 
@@ -320,13 +331,7 @@ async function buildGrids(){
   }
   _allGroups = groupVideos(all);
   renderAllSections();
-  const hero=_allGroups[0];
-  if(hero){
-    document.getElementById('heroTitle').textContent=hero.title;
-    document.getElementById('heroMeta').textContent=`${hero.videos.length} eps · ${hero.videos[0]?.language||'dubbed'}`;
-    if(hero.firstCover)document.getElementById('heroBg').style.backgroundImage=`url('${hero.firstCover}')`;
-    document.getElementById('heroBtn').onclick=()=>{sessionStorage.setItem('fromAbyss','1');const s=slug(hero.title);window.location.href=`detail.html?show=${encodeURIComponent(s)}`};
-  }
+  initAbyssHero(_allGroups);
   document.getElementById('statusCount').textContent=`${_allGroups.length} SHOWS · ${all.length} EPS`;
 }
 
@@ -346,6 +351,66 @@ function startPassiveCorruption(){
 
 
 
+
+
+// ---- ABYSS HERO SLIDESHOW ----
+let _heroGroups = [];
+let _heroIdx = 0;
+let _heroTimer = null;
+const HERO_INTERVAL = 6000;
+
+function initAbyssHero(groups){
+  _heroGroups = groups.slice(0, 6);
+  if(!_heroGroups.length) return;
+  buildHeroDots();
+  showHeroSlide(0);
+  _heroTimer = setInterval(()=>{ showHeroSlide((_heroIdx+1)%_heroGroups.length); }, HERO_INTERVAL);
+
+  // Hover to corrupt title
+  const heroEl = document.getElementById('abyssHero');
+  const titleEl = document.getElementById('heroTitle');
+  heroEl?.addEventListener('mouseenter', ()=>{
+    const real = _heroGroups[_heroIdx]?.title || '';
+    corruptText(titleEl, real, 350, 0.65);
+  });
+  heroEl?.addEventListener('mouseleave', ()=>{
+    const real = _heroGroups[_heroIdx]?.title || '';
+    titleEl.textContent = real;
+  });
+}
+
+function buildHeroDots(){
+  const dots = document.getElementById('heroDots');
+  if(!dots) return;
+  dots.innerHTML = '';
+  _heroGroups.forEach((g, i) => {
+    const d = document.createElement('div');
+    d.className = 'abyss-dot' + (i===0?' active':'');
+    d.onclick = (e) => { e.stopPropagation(); clearInterval(_heroTimer); showHeroSlide(i); _heroTimer=setInterval(()=>showHeroSlide((_heroIdx+1)%_heroGroups.length),HERO_INTERVAL); };
+    dots.appendChild(d);
+  });
+}
+
+function showHeroSlide(idx){
+  if(!_heroGroups.length) return;
+  _heroIdx = idx;
+  const g = _heroGroups[idx];
+  const titleEl = document.getElementById('heroTitle');
+  const metaEl  = document.getElementById('heroMeta');
+  const bgEl    = document.getElementById('heroBg');
+  const btnEl   = document.getElementById('heroBtn');
+
+  // Corrupt title in, then show real
+  corruptText(titleEl, g.title, 400, 0.8);
+  metaEl.className = 'void-hero-meta hero-fade';
+  metaEl.textContent = `${g.videos.length} eps · ${g.videos[0]?.language||'dubbed'}`;
+  if(g.firstCover) bgEl.style.backgroundImage = `url('${g.firstCover}')`;
+  btnEl.onclick = ()=>{ sessionStorage.setItem('fromAbyss','1'); window.location.href=`detail.html?show=${encodeURIComponent(slug(g.title))}`; };
+  document.getElementById('abyssHero').onclick = (e)=>{ if(e.target===btnEl||e.target.closest('.abyss-dot')) return; btnEl.click(); };
+
+  // Update dots
+  document.querySelectorAll('.abyss-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+}
 
 // --- ABYSS ADMIN ---
 const ADMIN_PASS = 'onyx-admin';
