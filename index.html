@@ -190,26 +190,5 @@ function toggleAdminSection(btn){
   btn.querySelector('.admin-chevron').style.transform=expanded?'':'rotate(-90deg)';
 }
 </script>
-<script>
-(function(){
-  const el = document.getElementById('voidLink');
-  if (!el) return;
-  const real = el.textContent;
-  const chars = '▓░╗╬Ω∆█╪▒╝╔╠╣⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪';
-  function corrupt(){
-    let frame = 0;
-    const id = setInterval(() => {
-      if (frame >= 6) { el.textContent = real; clearInterval(id); return; }
-      el.textContent = real.split('').map(c => c === ' ' ? ' ' : Math.random() < 0.7 ? chars[Math.floor(Math.random()*chars.length)] : c).join('');
-      frame++;
-    }, 60);
-  }
-  function loop(){
-    corrupt();
-    setTimeout(loop, 3000 + Math.random() * 5000);
-  }
-  setTimeout(loop, 2000);
-})();
-</script>
 </body>
 </html>
