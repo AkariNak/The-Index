@@ -132,6 +132,14 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     </div>
   </div>
 
+  <section id="abyssContinue" style="display:none;padding:16px 24px 0">
+    <div class="void-section-head" style="margin-bottom:10px">
+      <div class="void-section-label">// continue watching</div>
+      <div class="void-section-line"></div>
+    </div>
+    <div id="abyssContinueGrid" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px"></div>
+  </section>
+
   <!-- Lang filter -->
   <div style="padding:12px 24px 0;display:flex;gap:8px" role="group" aria-label="Language filter">
     <button class="abyss-chip active" data-lang="all" onclick="setLang(this)">All</button>
@@ -334,6 +342,7 @@ async function buildGrids(){
   _allGroups = groupVideos(all);
   renderAllSections();
   initAbyssHero(_allGroups);
+  renderAbyssContinueWatching(_allGroups);
   document.getElementById('statusCount').textContent=`${_allGroups.length} SHOWS · ${all.length} EPS`;
 }
 
@@ -385,6 +394,41 @@ async function fetchBannersForHero(groups){
     if(data?.banner) g._banner = data.banner;
     else if(data?.cover) g._banner = g.firstCover;
   }
+}
+
+
+// ---- ABYSS CONTINUE WATCHING ----
+async function renderAbyssContinueWatching(groups){
+  const section = document.getElementById('abyssContinue');
+  const grid = document.getElementById('abyssContinueGrid');
+  if(!section||!grid) return;
+  try {
+    const sb = getSB();
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user){ section.style.display='none'; return; }
+    const { data: wl } = await sb.from('watch_list').select('*').eq('user_id', user.id).eq('status','watching');
+    if(!wl||!wl.length){ section.style.display='none'; return; }
+    const cards = wl.map(w => {
+      const g = groups.find(g => g.title === w.collection);
+      if(!g) return null;
+      const cover = g.firstCover ? `<img src="${g.firstCover}" alt="${g.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;filter:saturate(.4) brightness(.7)">` : `<div style="width:100%;height:100%;background:#130b10;display:flex;align-items:center;justify-content:center;font-family:var(--vt);font-size:24px;color:#1f1014">▓</div>`;
+      const epIdx = 0;
+      const pct = Math.round(((epIdx+1)/g.videos.length)*100);
+      return `<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="sessionStorage.setItem('fromAbyss','1');window.location.href='player.html?show=${encodeURIComponent(slug(g.title))}&ep=${epIdx}'">
+        <div style="position:relative;aspect-ratio:2/3;border:1px solid rgba(220,38,38,0.2);border-radius:4px;overflow:hidden">
+          ${cover}
+          <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:#1f1014"><div style="height:100%;width:${pct}%;background:#dc2626"></div></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,0.5)" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+            <span style="color:#dc2626;font-size:20px">▶</span>
+          </div>
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:#6b7280;margin-top:4px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.title}</div>
+      </div>`;
+    }).filter(Boolean);
+    if(!cards.length){ section.style.display='none'; return; }
+    section.style.display='block';
+    grid.innerHTML = cards.join('');
+  } catch(e){ section.style.display='none'; }
 }
 
 // ---- ABYSS HERO SLIDESHOW ----
