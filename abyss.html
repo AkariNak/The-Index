@@ -406,7 +406,7 @@ async function renderAbyssContinueWatching(groups){
     const sb = getSB();
     const { data: { user } } = await sb.auth.getUser();
     if(!user){ section.style.display='none'; return; }
-    const { data: wl } = await sb.from('watch_list').select('*').eq('user_id', user.id).eq('status','watching');
+    const { data: wl } = await sb.from('watch_status').select('*').eq('user_id', user.id).eq('status','watching');
     if(!wl||!wl.length){ section.style.display='none'; return; }
     const cards = wl.map(w => {
       const g = groups.find(g => g.title === w.collection);
