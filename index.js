@@ -297,7 +297,7 @@ function renderGenreRows(groups) {
     const filteredGroups = applyHeroOrder(groupVideos(filtered));
     const showCount = filteredGroups.length;
     const epCount = filtered.length;
-    if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
+    if (count) count.innerHTML = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
     if (!filteredGroups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
     collectionGrid.innerHTML = `<div class="poster-grid">${filteredGroups.map(posterCardHtml).join('')}</div>`;
     return;
@@ -306,7 +306,7 @@ function renderGenreRows(groups) {
   // Genre rows mode
   const totalShows = groups.length;
   const totalEps   = AppState.videos.length;
-  if (count) count.textContent = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} · ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
+  if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   let html = '';
 
