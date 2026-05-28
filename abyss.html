@@ -95,6 +95,16 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .abyss-dot:hover { background:rgba(220,38,38,0.5); }
 @keyframes heroFadeIn { from{opacity:0} to{opacity:1} }
 .hero-fade { animation:heroFadeIn .5s ease; }
+
+.abyss-cw-card{flex-shrink:0;width:140px}
+.abyss-cw-img{position:relative;aspect-ratio:2/3;border:1px solid rgba(220,38,38,0.2);border-radius:4px;overflow:hidden;cursor:pointer}
+.abyss-cw-progress{position:absolute;bottom:0;left:0;right:0;height:2px;background:#1f1014}
+.abyss-cw-hover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,0.5)}
+.abyss-cw-img:hover .abyss-cw-hover{opacity:1}
+.abyss-cw-remove{position:absolute;top:4px;right:4px;background:rgba(7,5,8,0.8);border:1px solid rgba(220,38,38,0.4);color:#dc2626;font-size:10px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:2px;opacity:0;transition:opacity .2s;padding:0}
+.abyss-cw-img:hover .abyss-cw-remove{opacity:1}
+.abyss-cw-title{font-family:var(--mono);font-size:9px;color:#6b7280;margin-top:4px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#abyssContinueGrid{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
 .abyss-chip{font-family:var(--mono);font-size:9px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:4px 12px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
 .abyss-chip.active,.abyss-chip:hover{color:#dc2626;border-color:rgba(220,38,38,0.4);background:rgba(220,38,38,0.08)}
 .void-statusbar{font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.12em;border-top:1px solid rgba(220,38,38,0.08);padding:7px 24px;display:flex;justify-content:space-between;margin-top:8px}
@@ -411,24 +421,41 @@ async function renderAbyssContinueWatching(groups){
     const cards = wl.map(w => {
       const g = groups.find(g => g.title === w.collection);
       if(!g) return null;
-      const cover = g.firstCover ? `<img src="${g.firstCover}" alt="${g.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;filter:saturate(.4) brightness(.7)">` : `<div style="width:100%;height:100%;background:#130b10;display:flex;align-items:center;justify-content:center;font-family:var(--vt);font-size:24px;color:#1f1014">▓</div>`;
+      const cover = g.firstCover
+        ? `<img src="${g.firstCover}" alt="${g.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;filter:saturate(.4) brightness(.7)">`
+        : `<div style="width:100%;height:100%;background:#130b10;display:flex;align-items:center;justify-content:center;font-family:var(--vt);font-size:36px;color:#1f1014">▓</div>`;
       const epIdx = 0;
       const pct = Math.round(((epIdx+1)/g.videos.length)*100);
-      return `<div style="flex-shrink:0;width:100px;cursor:pointer" onclick="sessionStorage.setItem('fromAbyss','1');window.location.href='player.html?show=${encodeURIComponent(slug(g.title))}&ep=${epIdx}'">
-        <div style="position:relative;aspect-ratio:2/3;border:1px solid rgba(220,38,38,0.2);border-radius:4px;overflow:hidden">
+      return `
+      <div class="abyss-cw-card" data-collection="${g.title}">
+        <div class="abyss-cw-img" onclick="sessionStorage.setItem('fromAbyss','1');window.location.href='player.html?show=${encodeURIComponent(slug(g.title))}&ep=${epIdx}'">
           ${cover}
-          <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:#1f1014"><div style="height:100%;width:${pct}%;background:#dc2626"></div></div>
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,0.5)" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
-            <span style="color:#dc2626;font-size:20px">▶</span>
-          </div>
+          <div class="abyss-cw-progress"><div style="height:100%;width:${pct}%;background:#dc2626"></div></div>
+          <div class="abyss-cw-hover"><span style="color:#dc2626;font-size:24px">▶</span></div>
+          <button class="abyss-cw-remove" onclick="event.stopPropagation();removeAbyssCW(this)" title="Remove">✕</button>
         </div>
-        <div style="font-family:var(--mono);font-size:9px;color:#6b7280;margin-top:4px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.title}</div>
+        <div class="abyss-cw-title">${g.title}</div>
       </div>`;
     }).filter(Boolean);
     if(!cards.length){ section.style.display='none'; return; }
     section.style.display='block';
     grid.innerHTML = cards.join('');
   } catch(e){ section.style.display='none'; }
+}
+
+async function removeAbyssCW(btn){
+  const card = btn.closest('.abyss-cw-card');
+  const collection = card?.dataset.collection;
+  if(!collection) return;
+  try {
+    const sb = getSB();
+    const { data:{ user } } = await sb.auth.getUser();
+    if(!user) return;
+    await sb.from('watch_status').delete().eq('user_id', user.id).eq('collection', collection);
+    card.remove();
+    const grid = document.getElementById('abyssContinueGrid');
+    if(!grid?.children.length) document.getElementById('abyssContinue').style.display='none';
+  } catch(e){ console.warn(e); }
 }
 
 // ---- ABYSS HERO SLIDESHOW ----
