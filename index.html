@@ -159,8 +159,8 @@
   </section>
 
   <footer class="site-foot">
-    <span id="year"></span>
-    <a href="abyss-gate.html" class="void-link" aria-label="Restricted section" id="voidLink">Onyx</a>
+    <a href="abyss-gate.html" class="void-link" aria-label="Restricted section" id="voidLink"><span id="year"></span></a>
+    <span>Onyx</span>
   </footer>
 
 </div>
@@ -194,7 +194,7 @@ function toggleAdminSection(btn){
 (function(){
   const el = document.getElementById('voidLink');
   if (!el) return;
-  const real = 'Onyx';
+  const real = el.textContent;
   const chars = '▓░╗╬Ω∆█╪▒╝╔╠╣⌂∂∑∏∫Φ∀∃▸◂▴▾■□▪';
   function corrupt(){
     let frame = 0;
