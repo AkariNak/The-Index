@@ -87,7 +87,7 @@
   <section id="adminPanel" class="add-panel" hidden>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="true" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="true" data-section="slideshow" onclick="toggleAdminSection(this)">
         <span>Slideshow Manager</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body">
@@ -102,7 +102,7 @@
     </div>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="false" data-section="genre" onclick="toggleAdminSection(this)">
         <span>Genre Manager</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body" hidden>
@@ -137,7 +137,7 @@
     </div>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="false" data-section="epfixer" onclick="toggleAdminSection(this)">
         <span>Episode Name Fixer</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body" hidden>
@@ -177,13 +177,41 @@
 <script src="core.js"></script>
 <script src="index.js"></script>
 <script>
-function toggleAdminSection(btn){
-  const body=btn.nextElementSibling;
-  const expanded=btn.getAttribute('aria-expanded')=='true';
-  btn.setAttribute('aria-expanded',String(!expanded));
-  body.hidden=expanded;
-  btn.querySelector('.admin-chevron').style.transform=expanded?'':'rotate(-90deg)';
+const ADMIN_SECTION_KEY = 'onyx-admin-sections';
+
+function saveAdminSectionState() {
+  const state = {};
+  document.querySelectorAll('.admin-section-toggle[data-section]').forEach(btn => {
+    state[btn.dataset.section] = btn.getAttribute('aria-expanded') === 'true';
+  });
+  localStorage.setItem(ADMIN_SECTION_KEY, JSON.stringify(state));
 }
+
+function restoreAdminSectionState() {
+  let state = {};
+  try { state = JSON.parse(localStorage.getItem(ADMIN_SECTION_KEY) || '{}'); } catch {}
+  document.querySelectorAll('.admin-section-toggle[data-section]').forEach(btn => {
+    const key = btn.dataset.section;
+    if (key in state) {
+      const expanded = state[key];
+      const body = btn.nextElementSibling;
+      btn.setAttribute('aria-expanded', String(expanded));
+      body.hidden = !expanded;
+      btn.querySelector('.admin-chevron').style.transform = expanded ? '' : 'rotate(-90deg)';
+    }
+  });
+}
+
+function toggleAdminSection(btn) {
+  const body = btn.nextElementSibling;
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  btn.setAttribute('aria-expanded', String(!expanded));
+  body.hidden = expanded;
+  btn.querySelector('.admin-chevron').style.transform = expanded ? 'rotate(-90deg)' : '';
+  saveAdminSectionState();
+}
+
+document.addEventListener('DOMContentLoaded', restoreAdminSectionState);
 </script>
 </body>
 </html>
