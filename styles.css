@@ -497,24 +497,9 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 .abyss-theme .detail-meta .dot { color: #7f1d1d !important; }
 
 /* ============ VOID LINK ============ */
-@keyframes voidblink {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.8; }
-}
 .void-link {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: #7f1d1d;
+  color: inherit;
   text-decoration: none;
-  letter-spacing: .2em;
-  text-transform: uppercase;
-  animation: voidblink 3s ease-in-out infinite;
-  transition: color .2s, opacity .2s;
-  margin-left: auto;
-}
-.void-link:hover {
-  color: #dc2626;
-  opacity: 1;
 }
 
 /* ============ GENRE ROWS ============ */
