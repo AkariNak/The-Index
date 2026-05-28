@@ -980,6 +980,7 @@ function wireAll() {
 
 // ---------- Bootstrap ----------
 (async function init() {
+  sessionStorage.removeItem('fromAbyss');
   showSkeleton();
   await coreInit();
   // Load global settings
