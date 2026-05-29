@@ -64,6 +64,21 @@
       background: #000;
     }
 
+
+    /* Auto-hide cursor and controls */
+    .video-wrap.cursor-hidden {
+      cursor: none;
+    }
+    .video-wrap.cursor-hidden video {
+      cursor: none;
+    }
+    .video-controls-bar {
+      transition: opacity 0.3s ease;
+    }
+    .video-controls-bar.controls-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
     /* Fog / cinema mode */
     .video-controls-bar {
       display: flex;
@@ -360,6 +375,40 @@
         break;
     }
   });
+
+  // Auto-hide cursor and controls bar when inactive
+  (function() {
+    const wrap = document.querySelector('.video-wrap');
+    const bar = document.querySelector('.video-controls-bar');
+    const video = document.getElementById('playerVideo');
+    if (!wrap || !bar || !video) return;
+    let hideTimer = null;
+
+    function showControls() {
+      wrap.classList.remove('cursor-hidden');
+      bar.classList.remove('controls-hidden');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        if (!video.paused) {
+          wrap.classList.add('cursor-hidden');
+          bar.classList.add('controls-hidden');
+        }
+      }, 2500);
+    }
+
+    wrap.addEventListener('mousemove', showControls);
+    wrap.addEventListener('mouseenter', showControls);
+    video.addEventListener('play', () => { hideTimer = setTimeout(() => {
+      wrap.classList.add('cursor-hidden');
+      bar.classList.add('controls-hidden');
+    }, 2500); });
+    video.addEventListener('pause', () => {
+      clearTimeout(hideTimer);
+      wrap.classList.remove('cursor-hidden');
+      bar.classList.remove('controls-hidden');
+    });
+  })();
+
   const _st = document.getElementById('showTitle');
   const _nt = document.getElementById('navShowTitle');
   if (_st && _nt) {
