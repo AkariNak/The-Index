@@ -350,6 +350,14 @@
         e.preventDefault();
         playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
         break;
+      case 'ArrowRight':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
+        break;
     }
   });
   const _st = document.getElementById('showTitle');
