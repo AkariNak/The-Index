@@ -54,25 +54,6 @@
       <button id="heroNext" class="hero-btn" type="button" aria-label="Next">›</button>
     </div>
 
-    <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
-        <span>Feedback</span><span class="admin-chevron">▾</span>
-      </button>
-      <div class="admin-section-body" hidden>
-        <p class="add-sub">View and filter feedback submitted by visitors.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="feedbackFilters">
-          <button class="chip active" data-cat="all" onclick="filterFeedback(this)">All</button>
-          <button class="chip" data-cat="bug" onclick="filterFeedback(this)">Bugs</button>
-          <button class="chip" data-cat="missing_anime" onclick="filterFeedback(this)">Missing Anime</button>
-          <button class="chip" data-cat="not_loading" onclick="filterFeedback(this)">Not Loading</button>
-          <button class="chip" data-cat="new_anime" onclick="filterFeedback(this)">Requests</button>
-          <button class="chip" data-cat="other" onclick="filterFeedback(this)">Other</button>
-        </div>
-        <div id="feedbackList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
-        <p id="feedbackStatus" class="form-status"></p>
-      </div>
-    </div>
-  </section>
 
   <nav class="tabs" aria-label="Sections">
     <button class="tab active" data-tab="collections" type="button">Collections</button>
