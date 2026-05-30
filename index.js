@@ -14,8 +14,6 @@ const search          = document.getElementById('search');
 const filters         = document.getElementById('filters');
 const genreFilters    = document.getElementById('genreFilters');
 const genreFiltersWrap = document.getElementById('genreFiltersWrap');
-const recentlyAddedSection = document.getElementById('recentlyAdded');
-const recentlyAddedGrid    = document.getElementById('recentlyAddedGrid');
 const count           = document.getElementById('count');
 const adminPanel      = document.getElementById('adminPanel');
 const adminDialog     = document.getElementById('adminDialog');
@@ -210,31 +208,6 @@ async function renderContinueWatching() {
     });
   });
 }
-function renderRecentlyAdded() {
-  if (!recentlyAddedSection || !recentlyAddedGrid) return;
-  const groups = groupVideos(AppState.videos);
-  // Sort by most recent created_at across any episode in the group
-  const sorted = [...groups].sort((a, b) => {
-    const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
-    const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
-    return bDate - aDate;
-  }).slice(0, 8);
-
-  if (!sorted.length) { recentlyAddedSection.hidden = true; return; }
-  recentlyAddedSection.hidden = false;
-  recentlyAddedGrid.innerHTML = sorted.map(group => {
-    const cover = group.firstCover
-      ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
-      : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
-    return `
-      <a class="recent-card" href="detail.html?show=${encodeURIComponent(group.slug)}">
-        <div class="recent-cover">${cover}</div>
-        <div class="recent-title">${escapeHtml(group.title)}</div>
-        <div class="recent-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
-      </a>
-    `;
-  }).join('');
-}
 
 function buildFilters() {
   if (!filters) return;
@@ -324,7 +297,7 @@ function renderGenreRows(groups) {
     const filteredGroups = applyHeroOrder(groupVideos(filtered));
     const showCount = filteredGroups.length;
     const epCount = filtered.length;
-    if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
+    if (count) count.innerHTML = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
     if (!filteredGroups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
     collectionGrid.innerHTML = `<div class="poster-grid">${filteredGroups.map(posterCardHtml).join('')}</div>`;
     return;
@@ -333,7 +306,7 @@ function renderGenreRows(groups) {
   // Genre rows mode
   const totalShows = groups.length;
   const totalEps   = AppState.videos.length;
-  if (count) count.textContent = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} · ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
+  if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   let html = '';
 
@@ -398,7 +371,6 @@ function refreshArchive() {
   buildFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   renderContinueWatching();
   rebuildHero();
 }
@@ -526,6 +498,48 @@ async function epFixerRun() {
   if (runBtn)  { runBtn.hidden = true; runBtn.disabled = false; }
   if (status)  status.textContent = `Done — updated ${done} episode names.`;
 }
+// ---------- Feedback admin ----------
+async function loadFeedback() {
+  const list = document.getElementById('feedbackList');
+  if (!list) return;
+  list.innerHTML = '<div class="feedback-empty">Loading…</div>';
+  const cat    = document.getElementById('feedbackCatFilter')?.value || '';
+  const status = document.getElementById('feedbackStatusFilter')?.value || '';
+  try {
+    let query = getSupabase().from('feedback').select('*').order('created_at', { ascending: false });
+    if (cat)    query = query.eq('category', cat);
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data?.length) { list.innerHTML = '<div class="feedback-empty">No submissions yet.</div>'; return; }
+    const CAT_LABELS = { bug: '🐛 Bug', missing_anime: '📺 Missing Anime', not_loading: '⚠️ Not Loading', new_anime: '✨ New Anime', other: '💬 Other' };
+    list.innerHTML = data.map(f => `
+      <div class="feedback-item status-${f.status}" data-id="${f.id}">
+        <div>
+          <div class="feedback-item-top">
+            <span class="feedback-cat-badge ${f.category}">${CAT_LABELS[f.category] || f.category}</span>
+            <span class="feedback-date">${new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          </div>
+          <div class="feedback-message">${escapeHtml(f.message)}</div>
+        </div>
+        <select class="feedback-status-select" onchange="updateFeedbackStatus('${f.id}', this.value)">
+          <option value="new"      ${f.status==='new'      ?'selected':''}>New</option>
+          <option value="reviewed" ${f.status==='reviewed' ?'selected':''}>Reviewed</option>
+          <option value="done"     ${f.status==='done'     ?'selected':''}>Done</option>
+        </select>
+      </div>
+    `).join('');
+  } catch (err) { list.innerHTML = `<div class="feedback-empty">Error: ${err.message}</div>`; }
+}
+
+async function updateFeedbackStatus(id, status) {
+  try {
+    await getSupabase().from('feedback').update({ status }).eq('id', id);
+    const item = document.querySelector(`.feedback-item[data-id="${id}"]`);
+    if (item) item.className = `feedback-item status-${status}`;
+  } catch (err) { console.warn('Feedback update failed:', err); }
+}
+
 // ---------- Genre manager ----------
 let _genreOverrides = {};
 
@@ -636,7 +650,7 @@ function updateAdminUi() {
   const unlocked = isAdminUnlocked();
   if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
-  if (unlocked) { buildSlideshowManager(); initGenreManager(); }
+  if (unlocked) { buildSlideshowManager(); initGenreManager(); loadFeedback(); }
 }
 
 function openAdminDialog() {
@@ -997,7 +1011,6 @@ function wireAll() {
   buildFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
@@ -1024,60 +1037,3 @@ function wireAll() {
     render();
   })();
 })();
-
-// ---- ADMIN FEEDBACK ----
-let _feedbackAll = [];
-let _feedbackCat = 'all';
-
-async function loadFeedback() {
-  const listEl = document.getElementById('feedbackList');
-  const statusEl = document.getElementById('feedbackStatus');
-  if (!listEl) return;
-  statusEl.textContent = 'Loading…';
-  try {
-    const { data, error } = await getSupabase()
-      .from('feedback')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200);
-    if (error) throw error;
-    _feedbackAll = data || [];
-    renderFeedback();
-    statusEl.textContent = '';
-  } catch(e) {
-    statusEl.textContent = 'Error loading feedback.';
-  }
-}
-
-function renderFeedback() {
-  const listEl = document.getElementById('feedbackList');
-  if (!listEl) return;
-  const items = _feedbackCat === 'all' ? _feedbackAll : _feedbackAll.filter(f => f.category === _feedbackCat);
-  if (!items.length) { listEl.innerHTML = '<div style="font-size:12px;color:var(--ink-mute);padding:8px 0">No feedback in this category.</div>'; return; }
-  const catLabels = { bug:'Bug', missing_anime:'Missing Anime', not_loading:'Not Loading', new_anime:'Request', other:'Other' };
-  listEl.innerHTML = items.map(f => `
-    <div style="background:var(--paper-3);border:1px solid var(--line);border-radius:6px;padding:10px 14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase">${catLabels[f.category]||f.category}</span>
-        <span style="font-family:var(--mono);font-size:9px;color:var(--ink-mute)">${new Date(f.created_at).toLocaleDateString()}</span>
-      </div>
-      <div style="font-size:13px;color:var(--ink);line-height:1.5">${f.message.replace(/</g,'&lt;')}</div>
-    </div>`).join('');
-}
-
-function filterFeedback(btn) {
-  document.querySelectorAll('#feedbackFilters .chip').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  _feedbackCat = btn.dataset.cat;
-  renderFeedback();
-}
-
-// Load feedback when admin section is expanded
-document.addEventListener('click', e => {
-  const toggle = e.target.closest('.admin-section-toggle');
-  if (!toggle) return;
-  const label = toggle.querySelector('span')?.textContent;
-  if (label === 'Feedback' && toggle.getAttribute('aria-expanded') === 'false') {
-    setTimeout(loadFeedback, 100);
-  }
-});
