@@ -14,6 +14,8 @@ const search          = document.getElementById('search');
 const filters         = document.getElementById('filters');
 const genreFilters    = document.getElementById('genreFilters');
 const genreFiltersWrap = document.getElementById('genreFiltersWrap');
+const recentlyAddedSection = document.getElementById('recentlyAdded');
+const recentlyAddedGrid    = document.getElementById('recentlyAddedGrid');
 const count           = document.getElementById('count');
 const adminPanel      = document.getElementById('adminPanel');
 const adminDialog     = document.getElementById('adminDialog');
@@ -208,6 +210,31 @@ async function renderContinueWatching() {
     });
   });
 }
+function renderRecentlyAdded() {
+  if (!recentlyAddedSection || !recentlyAddedGrid) return;
+  const groups = groupVideos(AppState.videos);
+  // Sort by most recent created_at across any episode in the group
+  const sorted = [...groups].sort((a, b) => {
+    const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+    const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+    return bDate - aDate;
+  }).slice(0, 8);
+
+  if (!sorted.length) { recentlyAddedSection.hidden = true; return; }
+  recentlyAddedSection.hidden = false;
+  recentlyAddedGrid.innerHTML = sorted.map(group => {
+    const cover = group.firstCover
+      ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
+      : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
+    return `
+      <a class="recent-card" href="detail.html?show=${encodeURIComponent(group.slug)}">
+        <div class="recent-cover">${cover}</div>
+        <div class="recent-title">${escapeHtml(group.title)}</div>
+        <div class="recent-cat">${escapeHtml((group.category || 'Other').toUpperCase())}</div>
+      </a>
+    `;
+  }).join('');
+}
 
 function buildFilters() {
   if (!filters) return;
@@ -297,7 +324,7 @@ function renderGenreRows(groups) {
     const filteredGroups = applyHeroOrder(groupVideos(filtered));
     const showCount = filteredGroups.length;
     const epCount = filtered.length;
-    if (count) count.innerHTML = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
+    if (count) count.textContent = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} · ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
     if (!filteredGroups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
     collectionGrid.innerHTML = `<div class="poster-grid">${filteredGroups.map(posterCardHtml).join('')}</div>`;
     return;
@@ -306,7 +333,7 @@ function renderGenreRows(groups) {
   // Genre rows mode
   const totalShows = groups.length;
   const totalEps   = AppState.videos.length;
-  if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href="abyss-gate.html" style="color:inherit;text-decoration:none">·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
+  if (count) count.textContent = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} · ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   let html = '';
 
@@ -371,6 +398,7 @@ function refreshArchive() {
   buildFilters();
   buildGenreFilters();
   render();
+  renderRecentlyAdded();
   renderContinueWatching();
   rebuildHero();
 }
@@ -969,6 +997,7 @@ function wireAll() {
   buildFilters();
   buildGenreFilters();
   render();
+  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
