@@ -4,11 +4,11 @@
 // ============================================================
 (function () {
   const CATEGORIES = [
-    { value: 'bug',           label: '🐛 Bug Report' },
-    { value: 'missing_anime', label: '📺 Missing Anime' },
-    { value: 'not_loading',   label: '⚠️ Video Not Loading' },
-    { value: 'new_anime',     label: '✨ New Anime Request' },
-    { value: 'other',         label: '💬 Other' },
+    { value: 'bug',           label: 'Bug Report' },
+    { value: 'missing_anime', label: 'Missing Anime' },
+    { value: 'not_loading',   label: 'Video Not Loading' },
+    { value: 'new_anime',     label: 'New Anime Request' },
+    { value: 'other',         label: 'Other' },
   ];
 
   const style = document.createElement('style');
@@ -113,7 +113,7 @@
     btn.className = 'fb-nav-btn';
     btn.id = 'fbNavBtn';
     btn.setAttribute('aria-label', 'Send feedback');
-    btn.textContent = '✉ Feedback';
+    btn.textContent = 'Feedback';
     // Insert before the first child
     right.insertBefore(btn, right.firstChild);
     btn.addEventListener('click', openModal);
