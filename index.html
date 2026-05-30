@@ -53,7 +53,7 @@
       <div id="heroDots" class="hero-dots"></div>
       <button id="heroNext" class="hero-btn" type="button" aria-label="Next">›</button>
     </div>
-
+  </section>
 
   <nav class="tabs" aria-label="Sections">
     <button class="tab active" data-tab="collections" type="button">Collections</button>
@@ -88,7 +88,7 @@
     <ul id="archiveList" class="archive-list"></ul>
   </details>
 
-  <!-- Admin panel: slideshow manager -->
+  <!-- Admin panel -->
   <section id="adminPanel" class="add-panel" hidden>
 
     <div class="admin-section">
@@ -161,24 +161,32 @@
         <span>Feedback</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body" hidden>
-        <p class="add-sub">View and filter feedback submitted by visitors.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="feedbackFilters">
-          <button class="chip active" data-cat="all" onclick="filterFeedback(this)">All</button>
-          <button class="chip" data-cat="bug" onclick="filterFeedback(this)">Bugs</button>
-          <button class="chip" data-cat="missing_anime" onclick="filterFeedback(this)">Missing Anime</button>
-          <button class="chip" data-cat="not_loading" onclick="filterFeedback(this)">Not Loading</button>
-          <button class="chip" data-cat="new_anime" onclick="filterFeedback(this)">Requests</button>
-          <button class="chip" data-cat="other" onclick="filterFeedback(this)">Other</button>
+        <div class="feedback-filters">
+          <span class="feedback-filter-label">Filter:</span>
+          <select id="feedbackCatFilter" class="genre-manager-select" onchange="loadFeedback()">
+            <option value="">All Categories</option>
+            <option value="bug">Bug</option>
+            <option value="missing_anime">Missing Anime</option>
+            <option value="not_loading">Not Loading</option>
+            <option value="new_anime">New Anime Request</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="feedbackStatusFilter" class="genre-manager-select" onchange="loadFeedback()">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="done">Done</option>
+          </select>
+          <button class="btn btn-outline btn-small" onclick="loadFeedback()">Refresh</button>
         </div>
-        <div id="feedbackList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
-        <p id="feedbackStatus" class="form-status"></p>
+        <div id="feedbackList" class="feedback-list"></div>
       </div>
     </div>
 
   </section>
 
   <footer class="site-foot">
-    <a href="abyss-gate.html" class="void-link" aria-label="Restricted section" id="voidLink"><span id="year"></span></a>
+    <span id="year"></span>
     <span>Onyx</span>
   </footer>
 
@@ -206,7 +214,7 @@ function toggleAdminSection(btn){
   const expanded=btn.getAttribute('aria-expanded')=='true';
   btn.setAttribute('aria-expanded',String(!expanded));
   body.hidden=expanded;
-  btn.querySelector('.admin-chevron').style.transform=expanded?'':'rotate(-90deg)';
+  btn.querySelector('.admin-chevron').style.transform=expanded?'rotate(-90deg)':'';
 }
 </script>
 <script src="feedback.js"></script>
