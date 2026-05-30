@@ -187,7 +187,6 @@ function episodeRowHtml(video) {
 
 // ---------- Wire detail events ----------
 function wireDetailEvents() {
-  // Episode search
   const searchInput = document.getElementById('episodeSearch');
   if (searchInput) {
     searchInput.addEventListener('input', e => {
@@ -198,7 +197,6 @@ function wireDetailEvents() {
     });
   }
 
-  // Focus mode
   const focusBtn = document.getElementById('focusModeButton');
   if (focusBtn) {
     focusBtn.addEventListener('click', () => {
@@ -208,12 +206,10 @@ function wireDetailEvents() {
     });
   }
 
-  // Season tabs
   document.querySelectorAll('.season-tab').forEach(btn => {
     btn.addEventListener('click', () => { activeSeason = btn.dataset.season === 'all' ? null : btn.dataset.season; renderDetail(); });
   });
 
-  // Play
   document.querySelectorAll('.episode-row .play-btn').forEach(btn => {
     const row = btn.closest('.episode-row');
     const video = AppState.videos[Number(row?.dataset.idx)];
@@ -227,21 +223,18 @@ function wireDetailEvents() {
     });
   });
 
-  // Edit (admin)
   document.querySelectorAll('.episode-row .edit-btn').forEach(btn => {
     const row = btn.closest('.episode-row');
     const video = AppState.videos[Number(row?.dataset.idx)];
     if (video) btn.addEventListener('click', () => simpleEditPrompt(video));
   });
 
-  // Delete episode (admin)
   document.querySelectorAll('.episode-row .delete-btn').forEach(btn => {
     const row = btn.closest('.episode-row');
     const video = AppState.videos[Number(row?.dataset.idx)];
     if (video) btn.addEventListener('click', () => simpleDelete(video));
   });
 
-  // Continue watching
   document.querySelector('.continue-btn')?.addEventListener('click', function() {
     const video = currentGroup.videos.find(v => v.title === this.dataset.title);
     if (video) {
@@ -250,7 +243,6 @@ function wireDetailEvents() {
     }
   });
 
-  // Tags (admin)
   document.querySelectorAll('.tag-remove').forEach(btn => {
     btn.addEventListener('click', () => { removeTag(currentGroup.title, btn.dataset.tag); renderDetail(); });
   });
@@ -268,7 +260,6 @@ function wireDetailEvents() {
     newTagInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitTag(); } });
   }
 
-  // Delete show (admin)
   document.getElementById('deleteShowButton')?.addEventListener('click', async () => {
     if (!confirm(`Delete ALL videos in "${currentGroup.title}"? Cannot be undone.`)) return;
     try {
@@ -364,8 +355,6 @@ async function renderCommunityRating(container, collectionName) {
 function updateStarDisplay(track, hoverVal, currentVal) {
   track.querySelectorAll('.rating-half').forEach(half => {
     const v = parseFloat(half.dataset.value);
-    // Full lit: value <= hover
-    // Locked: value <= current
     half.classList.toggle('lit',    v <= hoverVal);
     half.classList.toggle('locked', v <= currentVal);
   });
@@ -430,16 +419,13 @@ function wireDragDrop(seriesGroups, baseTitle) {
       const toIdx     = allCards.indexOf(card);
       if (fromIdx < 0 || toIdx < 0) return;
 
-      // Reorder in DOM
       if (fromIdx < toIdx) container.insertBefore(dragging, card.nextSibling);
       else container.insertBefore(dragging, card);
 
-      // Save new order
       const newOrder = [...container.querySelectorAll('.series-card[data-slug]')].map(c => c.dataset.slug);
       await setSeasonOrder(baseTitle, newOrder);
     });
 
-    // Cover swap: drag one cover image onto another card
     card.addEventListener('dragover', e => {
       if (e.dataTransfer.types.includes('text/uri-list') || e.dataTransfer.types.includes('text/plain')) {
         e.preventDefault();
@@ -448,19 +434,16 @@ function wireDragDrop(seriesGroups, baseTitle) {
     });
   });
 
-  // Also wire cover image drag-onto-card from external sources
   cards.forEach(card => {
     card.addEventListener('drop', async e => {
       const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
       if (!url || !url.startsWith('http')) return;
-      // Only treat as cover swap if it looks like an image URL
       if (!/\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)) return;
       e.preventDefault();
       e.stopPropagation();
       const targetSlug = card.dataset.slug;
       if (!targetSlug) return;
       await setCoverOverride(targetSlug, url);
-      // Update in AppState
       AppState.baseVideos.filter(v => slug(v.collection) === targetSlug).forEach(v => v.coverUrl = url);
       syncVideos();
       renderDetail();
@@ -503,6 +486,7 @@ async function renderEpisodeProgress(container, group) {
     </div>
   `;
 }
+
 function openPlayer(video, resumeTimestamp) {
   const url = video.downloadUrl;
   if (!url || url === '#' || url.includes('example.com')) { alert(`"${video.title}" has no video URL.`); return; }
@@ -583,21 +567,15 @@ function getBaseTitle(title) {
 }
 
 function extractSeriesNum(title) {
-  // Try to pull a season/part number for sorting
   const m = title.match(/(?:season|part|cour|s)\s*(\d+)/i) ||
             title.match(/(\d+)(?:st|nd|rd|th)?\s*(?:season|part|cour)/i) ||
             title.match(/\bS(\d+)\b/i);
   if (m) return parseInt(m[1], 10);
-  // Movies/OVAs after the main series — put them at the end
   if (/movie|film|ova|special/i.test(title)) return 999;
-  return 1; // Base season
+  return 1;
 }
 
 function extractSeriesLabel(title) {
-  // Return the part that differentiates this entry within the series
-  // e.g. "Attack on Titan Season 2" → "Season 2"
-  //      "Attack on Titan: The Final Season" → "The Final Season"
-  //      "Attack on Titan Movie" → "Movie"
   const seasonMatch = title.match(/(?:season|part|cour)\s*\w+/i);
   if (seasonMatch) return seasonMatch[0].replace(/^\w/, c => c.toUpperCase());
   const colonMatch = title.match(/:\s*(.+)$/);
@@ -610,14 +588,8 @@ function extractSeriesLabel(title) {
 function renderRecommendations(allGroups) {
   if (!currentGroup) return;
 
-  const baseTitle  = getBaseTitle(currentGroup.title);
+  const baseTitle   = getBaseTitle(currentGroup.title);
   const currentSlug = currentGroup.slug;
-
-  // Split into same-series vs general
-  const seriesGroups = allGroups.filter(g =>
-    g.slug !== currentSlug &&
-    getBaseTitle(g.title) === baseTitle
-  );
 
   const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   const otherGroups = allGroups.filter(g =>
@@ -642,7 +614,7 @@ function renderRecommendations(allGroups) {
     }
 
     return `
-      <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
+      <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}" data-slug="${escapeHtml(g.slug)}">
         <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
         <div class="series-card-info">
           <div class="series-card-label">${escapeHtml(label)}</div>
@@ -668,12 +640,10 @@ function renderRecommendations(allGroups) {
     baseTitle
   );
 
-  // Apply global cover overrides
   allSeriesGroups.forEach(g => {
     if (_coverOverrides[g.slug]) g.firstCover = _coverOverrides[g.slug];
   });
 
-  // Render inside detail hero under cover
   const detailSeriesGrid = document.getElementById('detailSeriesGrid');
   if (detailSeriesGrid) {
     detailSeriesGrid.innerHTML = allSeriesGroups.length > 1
@@ -684,10 +654,8 @@ function renderRecommendations(allGroups) {
     if (allSeriesGroups.length > 1) wireDragDrop(allSeriesGroups, baseTitle);
   }
 
-  // Hide the standalone section since we show inline now
   if (seriesSection) seriesSection.hidden = true;
 
-  // You might also like — tag-based, exclude series entries
   if (recsGrid && recommendationsSection) {
     const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
     const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, otherGroups, tags);
@@ -897,40 +865,20 @@ async function autoSaveMetadata(details) {
   await coreInit();
   await loadGlobalSettings();
   initGlobalSearch();
-  // Void navigation — if user came from void, all back links go back to void
-  const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
-if (fromAbyss) {
-    document.documentElement.classList.add('abyss-theme');
-    const s1 = document.createElement('div'); s1.className = 'abyss-scanline';
-    const s2 = document.createElement('div'); s2.className = 'abyss-scanline2';
-    document.body.prepend(s2); document.body.prepend(s1);
-  }
-  if (fromAbyss) {
-    document.querySelectorAll('a[href="index.html"]').forEach(a => {
-      a.href = 'abyss.html';
-      if (a.id === 'backLink') a.textContent = '← Back to Abyss';
-      if (a.getAttribute('aria-label') === 'Onyx home') {
-        a.setAttribute('aria-label', 'Abyss home');
-        a.textContent = 'ABYSS';
 
-      }
-    });
-    // Remove any "Back to Aurum/Onyx" text links that aren't the brand
-    document.querySelectorAll('a[href="abyss.html"]').forEach(a => {
-      if (a.textContent.includes('Back to Aurum') || a.textContent.includes('Back to Onyx')) {
-        a.textContent = '← Back to Abyss';
-      }
-    });
-  }
+  let fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
+
   const showSlug = getShowSlug();
   if (!showSlug) {
-    const backHref = fromAbyss ? "void.html" : "index.html";
-    const backLabel = fromAbyss ? "Back to Abyss" : "Back to Onyx";
+    const backHref  = fromAbyss ? 'abyss.html' : 'index.html';
+    const backLabel = fromAbyss ? 'Back to Abyss' : 'Back to Onyx';
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="${backHref}" class="btn btn-outline">${backLabel}</a></div>`;
     wireAdmin(); wireNavAuth(); return;
   }
+
   let allGroups = groupVideos(AppState.videos);
   currentGroup = allGroups.find(g => g.slug === showSlug);
+
   // If not found in main library, fetch void shows
   if (!currentGroup) {
     try {
@@ -962,13 +910,41 @@ if (fromAbyss) {
       }
     } catch(e) { console.warn('Could not load void shows:', e); }
   }
+
+  // KEY FIX: if the show isn't a void show, clear fromAbyss so the theme doesn't bleed
+  if (fromAbyss && currentGroup && !currentGroup.videos[0]?.void) {
+    fromAbyss = false;
+    sessionStorage.removeItem('fromAbyss');
+  }
+
+  // Apply abyss theme only if actually from abyss
+  if (fromAbyss) {
+    document.documentElement.classList.add('abyss-theme');
+    const s1 = document.createElement('div'); s1.className = 'abyss-scanline';
+    const s2 = document.createElement('div'); s2.className = 'abyss-scanline2';
+    document.body.prepend(s2); document.body.prepend(s1);
+
+    document.querySelectorAll('a[href="index.html"]').forEach(a => {
+      a.href = 'abyss.html';
+      if (a.id === 'backLink') a.textContent = '← Back to Abyss';
+      if (a.getAttribute('aria-label') === 'Onyx home') {
+        a.setAttribute('aria-label', 'Abyss home');
+        a.textContent = 'ABYSS';
+      }
+    });
+    document.querySelectorAll('a[href="abyss.html"]').forEach(a => {
+      if (a.textContent.includes('Back to Aurum') || a.textContent.includes('Back to Onyx')) {
+        a.textContent = '← Back to Abyss';
+      }
+    });
+  }
+
   document.title = currentGroup ? `${currentGroup.title} — Onyx` : 'Onyx';
   renderDetail();
   renderRecommendations(allGroups);
   wireAdmin();
   wireNavAuth();
 
-  // Fetch current show's Jikan data first
   fetchJikanDetails(currentGroup?.title || '').then(async details => {
     if (!details) return;
     currentJikan = details;
@@ -976,7 +952,6 @@ if (fromAbyss) {
     renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
     await autoSaveMetadata(details);
 
-    // Fetch tags for all other shows in background — with spacing to avoid 429s
     const otherGroups = allGroups.filter(g => g.slug !== currentGroup.slug);
     const seenBase    = new Set();
     for (const g of otherGroups) {
@@ -985,7 +960,7 @@ if (fromAbyss) {
       seenBase.add(base);
       try {
         await fetchJikanDetails(g.title);
-        await new Promise(r => setTimeout(r, 600)); // extra spacing on top of jikanRequest's own delay
+        await new Promise(r => setTimeout(r, 600));
       } catch { /* silent */ }
     }
     renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
