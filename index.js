@@ -1024,3 +1024,60 @@ function wireAll() {
     render();
   })();
 })();
+
+// ---- ADMIN FEEDBACK ----
+let _feedbackAll = [];
+let _feedbackCat = 'all';
+
+async function loadFeedback() {
+  const listEl = document.getElementById('feedbackList');
+  const statusEl = document.getElementById('feedbackStatus');
+  if (!listEl) return;
+  statusEl.textContent = 'Loading…';
+  try {
+    const { data, error } = await getSupabase()
+      .from('feedback')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    _feedbackAll = data || [];
+    renderFeedback();
+    statusEl.textContent = '';
+  } catch(e) {
+    statusEl.textContent = 'Error loading feedback.';
+  }
+}
+
+function renderFeedback() {
+  const listEl = document.getElementById('feedbackList');
+  if (!listEl) return;
+  const items = _feedbackCat === 'all' ? _feedbackAll : _feedbackAll.filter(f => f.category === _feedbackCat);
+  if (!items.length) { listEl.innerHTML = '<div style="font-size:12px;color:var(--ink-mute);padding:8px 0">No feedback in this category.</div>'; return; }
+  const catLabels = { bug:'Bug', missing_anime:'Missing Anime', not_loading:'Not Loading', new_anime:'Request', other:'Other' };
+  listEl.innerHTML = items.map(f => `
+    <div style="background:var(--paper-3);border:1px solid var(--line);border-radius:6px;padding:10px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.1em;text-transform:uppercase">${catLabels[f.category]||f.category}</span>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--ink-mute)">${new Date(f.created_at).toLocaleDateString()}</span>
+      </div>
+      <div style="font-size:13px;color:var(--ink);line-height:1.5">${f.message.replace(/</g,'&lt;')}</div>
+    </div>`).join('');
+}
+
+function filterFeedback(btn) {
+  document.querySelectorAll('#feedbackFilters .chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _feedbackCat = btn.dataset.cat;
+  renderFeedback();
+}
+
+// Load feedback when admin section is expanded
+document.addEventListener('click', e => {
+  const toggle = e.target.closest('.admin-section-toggle');
+  if (!toggle) return;
+  const label = toggle.querySelector('span')?.textContent;
+  if (label === 'Feedback' && toggle.getAttribute('aria-expanded') === 'false') {
+    setTimeout(loadFeedback, 100);
+  }
+});
