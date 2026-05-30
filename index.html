@@ -53,6 +53,25 @@
       <div id="heroDots" class="hero-dots"></div>
       <button id="heroNext" class="hero-btn" type="button" aria-label="Next">›</button>
     </div>
+
+    <div class="admin-section">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+        <span>Feedback</span><span class="admin-chevron">▾</span>
+      </button>
+      <div class="admin-section-body" hidden>
+        <p class="add-sub">View and filter feedback submitted by visitors.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px" id="feedbackFilters">
+          <button class="chip active" data-cat="all" onclick="filterFeedback(this)">All</button>
+          <button class="chip" data-cat="bug" onclick="filterFeedback(this)">🐛 Bugs</button>
+          <button class="chip" data-cat="missing_anime" onclick="filterFeedback(this)">📺 Missing Anime</button>
+          <button class="chip" data-cat="not_loading" onclick="filterFeedback(this)">⚠️ Not Loading</button>
+          <button class="chip" data-cat="new_anime" onclick="filterFeedback(this)">✨ Requests</button>
+          <button class="chip" data-cat="other" onclick="filterFeedback(this)">💬 Other</button>
+        </div>
+        <div id="feedbackList" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto"></div>
+        <p id="feedbackStatus" class="form-status"></p>
+      </div>
+    </div>
   </section>
 
   <nav class="tabs" aria-label="Sections">
@@ -72,6 +91,11 @@
     <div id="continueWatchingGrid" class="continue-watching-grid"></div>
   </section>
 
+  <section id="recentlyAdded" class="recently-added-section" hidden>
+    <h2 class="section-heading">Recently Added</h2>
+    <div id="recentlyAddedGrid" class="recently-added-grid"></div>
+  </section>
+
   <p class="status-line"><span id="count">Loading…</span></p>
 
   <main id="collectionGrid" class="collections" aria-label="Collections">
@@ -87,7 +111,7 @@
   <section id="adminPanel" class="add-panel" hidden>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="true" data-section="slideshow" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="true" onclick="toggleAdminSection(this)">
         <span>Slideshow Manager</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body">
@@ -102,7 +126,7 @@
     </div>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" data-section="genre" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
         <span>Genre Manager</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body" hidden>
@@ -137,7 +161,7 @@
     </div>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" data-section="epfixer" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
         <span>Episode Name Fixer</span><span class="admin-chevron">▾</span>
       </button>
       <div class="admin-section-body" hidden>
@@ -154,7 +178,7 @@
   </section>
 
   <footer class="site-foot">
-    <span id="year"></span>
+    <a href="abyss-gate.html" class="void-link" aria-label="Restricted section" id="voidLink"><span id="year"></span></a>
     <span>Onyx</span>
   </footer>
 
@@ -177,41 +201,14 @@
 <script src="core.js"></script>
 <script src="index.js"></script>
 <script>
-const ADMIN_SECTION_KEY = 'onyx-admin-sections';
-
-function saveAdminSectionState() {
-  const state = {};
-  document.querySelectorAll('.admin-section-toggle[data-section]').forEach(btn => {
-    state[btn.dataset.section] = btn.getAttribute('aria-expanded') === 'true';
-  });
-  localStorage.setItem(ADMIN_SECTION_KEY, JSON.stringify(state));
+function toggleAdminSection(btn){
+  const body=btn.nextElementSibling;
+  const expanded=btn.getAttribute('aria-expanded')=='true';
+  btn.setAttribute('aria-expanded',String(!expanded));
+  body.hidden=expanded;
+  btn.querySelector('.admin-chevron').style.transform=expanded?'':'rotate(-90deg)';
 }
-
-function restoreAdminSectionState() {
-  let state = {};
-  try { state = JSON.parse(localStorage.getItem(ADMIN_SECTION_KEY) || '{}'); } catch {}
-  document.querySelectorAll('.admin-section-toggle[data-section]').forEach(btn => {
-    const key = btn.dataset.section;
-    if (key in state) {
-      const expanded = state[key];
-      const body = btn.nextElementSibling;
-      btn.setAttribute('aria-expanded', String(expanded));
-      body.hidden = !expanded;
-      btn.querySelector('.admin-chevron').style.transform = expanded ? '' : 'rotate(-90deg)';
-    }
-  });
-}
-
-function toggleAdminSection(btn) {
-  const body = btn.nextElementSibling;
-  const expanded = btn.getAttribute('aria-expanded') === 'true';
-  btn.setAttribute('aria-expanded', String(!expanded));
-  body.hidden = expanded;
-  btn.querySelector('.admin-chevron').style.transform = expanded ? 'rotate(-90deg)' : '';
-  saveAdminSectionState();
-}
-
-document.addEventListener('DOMContentLoaded', restoreAdminSectionState);
 </script>
+<script src="feedback.js"></script>
 </body>
 </html>
