@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="favicon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -92,10 +92,10 @@
   <section id="adminPanel" class="add-panel" hidden>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="true" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
         <span>Slideshow Manager</span><span class="admin-chevron">▾</span>
       </button>
-      <div class="admin-section-body">
+      <div class="admin-section-body" hidden>
         <p class="add-sub">Set which shows appear in the hero slideshow and their order. Positions 1–6 are shown. Leave blank to exclude a show.</p>
         <div id="slideshowManager" class="slideshow-manager"></div>
         <div class="form-actions" style="margin-top:20px">
@@ -186,7 +186,7 @@
   </section>
 
   <footer class="site-foot">
-    <span id="year"></span>
+    <a href="abyss-gate.html" class="void-link" aria-label="Restricted section" id="voidLink"><span id="year"></span></a>
     <span>Onyx</span>
   </footer>
 
