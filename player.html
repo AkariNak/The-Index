@@ -389,24 +389,24 @@
       bar.classList.remove('controls-hidden');
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
-        if (!video.paused) {
-          wrap.classList.add('cursor-hidden');
-          bar.classList.add('controls-hidden');
-        }
+        wrap.classList.add('cursor-hidden');
+        bar.classList.add('controls-hidden');
       }, 2500);
     }
 
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('mouseenter', showControls);
-    video.addEventListener('play', () => { hideTimer = setTimeout(() => {
-      wrap.classList.add('cursor-hidden');
-      bar.classList.add('controls-hidden');
-    }, 2500); });
-    video.addEventListener('pause', () => {
-      clearTimeout(hideTimer);
-      wrap.classList.remove('cursor-hidden');
-      bar.classList.remove('controls-hidden');
+
+    // Also show briefly on keyboard seek
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') {
+        showControls();
+      }
     });
+
+    video.addEventListener('play', showControls);
+    video.addEventListener('pause', showControls);
+    video.addEventListener('seeked', showControls);
   })();
 
   const _st = document.getElementById('showTitle');
