@@ -2420,84 +2420,98 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 
 @media (max-width: 600px) {
   /* Layout */
-  .page { padding: 0 12px 56px; }
-  .topnav { padding: 0 12px; gap: 6px; height: 56px; }
+  .page { padding: 0 14px 64px; }
+  .topnav { padding: 0 14px; gap: 8px; height: 58px; }
   .topnav-search { display: none; }
-  .topnav-brand { font-size: 17px; }
+  .topnav-brand svg { height: 22px; }
   .admin-trigger { display: none; }
 
   /* Hero */
-  .hero-slideshow { margin: 0 -12px 24px; }
-  .hero-slide-content { padding: 16px; gap: 10px; }
-  .hero-slide-poster { width: 64px; }
-  .hero-slide-title { font-size: 16px; }
-  .hero-slide-desc {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical; display: none; }
-  .hero-slide-cat { font-size: 8px; }
-  .hero-slide-link { font-size: 10px; padding: 8px 14px; }
-  .hero-controls { bottom: 8px; }
-  .hero-btn { width: 28px; height: 28px; font-size: 16px; }
-  .hero-dots { gap: 4px; }
+  .hero-slideshow { margin: 0 -14px 28px; }
+  .hero-slide-content { padding: 20px 16px; gap: 12px; }
+  .hero-slide-poster { width: 72px; border-radius: 8px; }
+  .hero-slide-title { font-size: 18px; margin-bottom: 8px; }
+  .hero-slide-desc { display: none; }
+  .hero-slide-cat { font-size: 9px; margin-bottom: 4px; }
+  .hero-slide-link { font-size: 10px; padding: 9px 16px; }
+  .hero-controls { bottom: 10px; right: 16px; gap: 8px; }
+  .hero-btn { width: 30px; height: 30px; font-size: 17px; }
+  .hero-dots { gap: 5px; }
   .hero-dot { width: 6px; height: 6px; }
+  .hero-dot.active { width: 20px; }
 
-  /* Grid */
-  .poster-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .poster-title { font-size: 10px; }
-  .poster-ep-badge { display: none; }
-  .poster-cat { font-size: 7px; }
+  /* Genre rows */
+  .genre-row { margin-bottom: 28px; }
+  .genre-row-title { font-size: 15px; }
+  .genre-view-all { font-size: 8px; padding: 4px 10px; }
+  .genre-row-scroll .poster-card { flex: 0 0 130px; min-width: 130px; }
+  .genre-row-scroll { gap: 10px; padding-bottom: 8px; }
+
+  /* Poster cards */
+  .poster-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .poster-title { font-size: 11px; line-height: 1.3; }
+  .poster-ep-badge { font-size: 8px; padding: 2px 6px; }
+  .poster-cat { font-size: 8px; letter-spacing: .12em; }
   .poster-rating { font-size: 9px; }
+  .poster-cover { border-radius: 8px; }
+
+  /* Continue watching */
+  .continue-watching-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .cw-title { font-size: 11px; }
 
   /* Recently added */
-  .recently-added-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
-  .recent-title { font-size: 9px; }
+  .recently-added-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
+  .recent-title { font-size: 10px; }
+  .section-heading { font-size: 12px; }
 
   /* Filters */
-  .filters-bar { gap: 5px; }
-  .chip { font-size: 8px; padding: 5px 9px; }
-  .genre-filters-wrap { gap: 6px; }
-  .genre-chip { font-size: 8px; padding: 5px 9px; }
-  .genre-filters-label { font-size: 8px; }
+  .filters-bar { gap: 6px; padding: 12px 0 6px; }
+  .chip { font-size: 9px; padding: 6px 11px; }
+  .genre-filters-wrap { gap: 8px; margin-bottom: 14px; }
+  .genre-chip { font-size: 9px; padding: 5px 10px; }
+  .genre-filters-label { font-size: 9px; }
+  .status-line { font-size: 10px; margin-bottom: 16px; }
 
   /* Tabs */
-  .tabs { gap: 0; }
-  .tab { font-size: 9px; padding: 10px 14px; }
+  .tabs { gap: 0; margin: 16px 0 0; }
+  .tab { font-size: 10px; padding: 11px 16px; }
 
   /* Detail page */
-  .detail-hero { grid-template-columns: 1fr; gap: 16px; }
-  .detail-cover { max-width: 160px; margin: 0 auto; }
-  .detail-title { font-size: 20px; }
-  .detail-meta { font-size: 11px; }
-  .tag-list { gap: 5px; }
-  .tag { font-size: 8px; padding: 4px 8px; }
-  .season-cards { gap: 10px; }
-  .season-card { padding: 10px; }
-  .episodes-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; }
-  .ep-pill { font-size: 10px; padding: 6px 4px; }
-  .recs-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+  .detail-hero { grid-template-columns: 1fr; gap: 20px; }
+  .detail-cover { max-width: 180px; margin: 0 auto; border-radius: 10px; }
+  .detail-title { font-size: 22px; }
+  .detail-meta { font-size: 11px; gap: 8px; }
+  .detail-synopsis { font-size: 14px; }
+  .tag-list { gap: 6px; }
+  .tag { font-size: 9px; padding: 4px 10px; }
+  .episodes-section { padding: 18px 16px; border-radius: 10px; }
+  .episodes-head h2 { font-size: 16px; }
+  .episode-title { font-size: 14px; }
+  .episode-meta { font-size: 8px; }
+  .recs-section { padding-top: 24px; }
+  .recs-heading { font-size: 16px; }
 
   /* Player page */
   .player-layout { grid-template-columns: 1fr; gap: 0; }
   .player-sidebar { display: none; }
   .player-main { padding: 0; }
-  .player-info { padding: 12px; }
-  .player-title { font-size: 14px; }
-  .player-show { font-size: 10px; }
-  .season-pills-row { 
-    flex-wrap: nowrap; 
-    overflow-x: auto; 
+  .player-info { padding: 14px; }
+  .player-title { font-size: 15px; }
+  .player-show { font-size: 11px; }
+  .season-pills-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     gap: 6px;
     padding-bottom: 4px;
   }
   .season-pills-row::-webkit-scrollbar { display: none; }
-  .season-pill { flex-shrink: 0; font-size: 9px; padding: 5px 10px; }
-  .ep-pills-wrap { 
-    display: flex; 
-    flex-wrap: nowrap; 
-    overflow-x: auto; 
+  .season-pill { flex-shrink: 0; font-size: 9px; padding: 6px 12px; }
+  .ep-pills-wrap {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     gap: 5px;
@@ -2505,30 +2519,30 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   }
   .ep-pills-wrap::-webkit-scrollbar { display: none; }
   .ep-pill-sidebar { flex-shrink: 0; }
+  .ep-pill { font-size: 11px; padding: 7px 4px; }
 
   /* Account page */
   .account-layout { grid-template-columns: 1fr; }
   .account-sidebar { display: none; }
-  .account-avatar { width: 72px; height: 72px; }
+  .account-avatar { width: 76px; height: 76px; }
 
   /* Comments */
-  .comment-avatar { width: 32px; height: 32px; }
-  .comment-meta { font-size: 10px; }
-  .comment-body { font-size: 13px; }
+  .comment-avatar { width: 34px; height: 34px; }
+  .comment-content { font-size: 13px; }
 
-  /* Admin dialog */
-  .admin-dialog { width: calc(100vw - 32px); max-width: 100%; }
-
-  /* Status line */
-  .status-line { font-size: 10px; }
+  /* Admin */
+  .admin-dialog { width: calc(100vw - 28px); max-width: 100%; }
+  .admin-section-toggle { font-size: 13px; padding: 12px 14px; }
+  .admin-section-body { padding: 14px; }
 
   /* Footer */
-  .site-foot { font-size: 10px; padding: 20px 0 8px; }
+  .site-foot { font-size: 10px; padding: 24px 0 10px; }
 }
 
 @media (max-width: 380px) {
   .poster-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-  .topnav-brand { font-size: 15px; }
+  .topnav-brand svg { height: 20px; }
+  .genre-row-scroll .poster-card { flex: 0 0 115px; min-width: 115px; }
 }
 
 /* Prevent right-click save on video */
