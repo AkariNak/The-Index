@@ -367,16 +367,31 @@ function renderGenreRows(groups) {
 
 function genreRowHtml(label, groups) {
   if (!groups.length) return '';
+  const genreParam = encodeURIComponent(label);
   return `
     <div class="genre-row">
       <div class="genre-row-header">
         <h2 class="genre-row-title">${escapeHtml(label)}</h2>
+        <button class="genre-view-all" onclick="setGenreFilter(${JSON.stringify(label)})">View All</button>
       </div>
-      <div class="genre-row-track">
+      <div class="genre-row-scroll">
         ${groups.map(posterCardHtml).join('')}
       </div>
     </div>
   `;
+}
+
+function setGenreFilter(label) {
+  if (label === 'Recently Added') {
+    // scroll to all shows section
+    document.querySelector('.all-shows-grid')?.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+  activeGenre = label;
+  const chips = document.querySelectorAll('.genre-chip');
+  chips.forEach(c => c.classList.toggle('active', c.dataset.genre === label));
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function render() {
