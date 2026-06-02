@@ -372,7 +372,7 @@ function genreRowHtml(label, groups) {
     <div class="genre-row">
       <div class="genre-row-header">
         <h2 class="genre-row-title">${escapeHtml(label)}</h2>
-        <button class="genre-view-all" onclick="setGenreFilter(${JSON.stringify(label)})">View All</button>
+        <a class="genre-view-all" href="genre.html?genre=${encodeURIComponent(label)}">View All</a>
       </div>
       <div class="genre-row-scroll">
         ${groups.map(posterCardHtml).join('')}
