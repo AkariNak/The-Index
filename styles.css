@@ -696,6 +696,9 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   transition: all var(--transition);
   white-space: nowrap;
   flex-shrink: 0;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 .genre-view-all:hover { border-color: var(--accent); color: var(--accent); }
 .all-shows-grid {
