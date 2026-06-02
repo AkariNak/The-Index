@@ -387,10 +387,12 @@
     function showControls() {
       wrap.classList.remove('cursor-hidden');
       bar.classList.remove('controls-hidden');
+      video.setAttribute('controls', '');
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
         wrap.classList.add('cursor-hidden');
         bar.classList.add('controls-hidden');
+        video.removeAttribute('controls');
       }, 2500);
     }
 
