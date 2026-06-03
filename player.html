@@ -257,12 +257,8 @@
         </div>
       </div>
       <div class="video-controls-bar">
-        <div class="fog-control">
-          <span class="fog-label">Cinema Fog</span>
-          <label class="fog-swatch" id="fogSwatch" title="Pick fog color">
-            <input type="color" id="fogInput" class="fog-input" value="#000000">
-          </label>
-          <button type="button" id="fogOffButton" class="fog-off-btn">Off</button>
+        <div class="focus-control">
+          <button type="button" id="focusBtn" class="focus-btn">Focus Mode</button>
         </div>
       </div>
 
@@ -298,6 +294,8 @@
 
   </div>
 </div>
+
+<div class="focus-overlay" id="focusOverlay"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="core.js"></script>
@@ -375,6 +373,39 @@
         break;
     }
   });
+
+
+  // Focus mode
+  (function() {
+    const btn = document.getElementById('focusBtn');
+    const overlay = document.getElementById('focusOverlay');
+    const wrap = document.querySelector('.video-wrap');
+    if (!btn || !overlay || !wrap) return;
+
+    function enableFocus() {
+      overlay.classList.add('active');
+      wrap.classList.add('focused');
+      btn.classList.add('active');
+      btn.textContent = 'Exit Focus';
+    }
+
+    function disableFocus() {
+      overlay.classList.remove('active');
+      wrap.classList.remove('focused');
+      btn.classList.remove('active');
+      btn.textContent = 'Focus Mode';
+    }
+
+    btn.addEventListener('click', () => {
+      overlay.classList.contains('active') ? disableFocus() : enableFocus();
+    });
+
+    overlay.addEventListener('click', disableFocus);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && overlay.classList.contains('active')) disableFocus();
+    });
+  })();
 
   // Auto-hide cursor and controls bar when inactive
   (function() {
