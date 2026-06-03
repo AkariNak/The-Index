@@ -318,10 +318,10 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   background: var(--paper-2);
   border: 1px solid var(--line);
   color: var(--ink-soft);
-  padding: 6px 16px;
+  padding: 8px 18px;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
   border-radius: 999px;
@@ -684,13 +684,13 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 .genre-row-scroll .poster-card { flex: 0 0 150px; min-width: 150px; }
 .genre-view-all {
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: .14em;
+  font-size: 13px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-mute);
   background: transparent;
   border: 1px solid var(--line);
-  padding: 5px 12px;
+  padding: 7px 16px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition);
@@ -699,6 +699,7 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  font-weight: 500;
 }
 .genre-view-all:hover { border-color: var(--accent); color: var(--accent); }
 .all-shows-grid {
@@ -1829,8 +1830,8 @@ body.light .mobile-search-bar { background: var(--paper-2); }
 }
 .genre-filters-label {
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.18em;
+  font-size: 13px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
   white-space: nowrap;
@@ -1846,10 +1847,10 @@ body.light .mobile-search-bar { background: var(--paper-2); }
   border: 1px solid var(--line);
   color: var(--ink-soft);
   font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  padding: 5px 10px;
+  padding: 8px 16px;
   border-radius: 20px;
   cursor: pointer;
   transition: all var(--transition);
@@ -2446,7 +2447,7 @@ html, body { overflow-x: hidden; max-width: 100vw; }
   /* Genre rows */
   .genre-row { margin-bottom: 28px; }
   .genre-row-title { font-size: 15px; }
-  .genre-view-all { font-size: 8px; padding: 4px 10px; }
+  .genre-view-all { font-size: 12px; padding: 6px 12px; }
   .genre-row-scroll .poster-card { flex: 0 0 130px; min-width: 130px; }
   .genre-row-scroll { gap: 10px; padding-bottom: 8px; }
 
@@ -2469,10 +2470,10 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 
   /* Filters */
   .filters-bar { gap: 6px; padding: 12px 0 6px; }
-  .chip { font-size: 9px; padding: 6px 11px; }
+  .chip { font-size: 12px; padding: 7px 14px; }
   .genre-filters-wrap { gap: 8px; margin-bottom: 14px; }
-  .genre-chip { font-size: 9px; padding: 5px 10px; }
-  .genre-filters-label { font-size: 9px; }
+  .genre-chip { font-size: 12px; padding: 6px 12px; }
+  .genre-filters-label { font-size: 12px; }
   .status-line { font-size: 10px; margin-bottom: 16px; }
 
   /* Tabs */
