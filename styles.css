@@ -5,6 +5,52 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
 
+
+/* ============ FONT SWITCHER ============ */
+.font-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.font-switcher-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-mute);
+  font-size: 14px;
+  width: 24px;
+  height: 26px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  transition: background var(--transition), color var(--transition);
+  padding: 0;
+  line-height: 1;
+}
+.font-switcher-btn:hover { background: var(--paper-3); color: var(--ink); }
+.font-switcher-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 0 4px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Font themes */
+body.font-inter { --display: 'Inter', system-ui, sans-serif; --body: 'Inter', system-ui, sans-serif; }
+body.font-mono { --display: 'JetBrains Mono', ui-monospace, monospace; --body: 'JetBrains Mono', ui-monospace, monospace; }
+body.font-serif { --display: 'Georgia', serif; --body: 'Georgia', serif; }
+body.font-rounded { --display: 'Trebuchet MS', system-ui, sans-serif; --body: 'Trebuchet MS', system-ui, sans-serif; }
+
 /* ============ TOKENS ============ */
 :root {
   /* Backgrounds */
