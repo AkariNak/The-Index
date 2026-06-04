@@ -91,20 +91,21 @@
   }
   .genre-nav-pill {
     font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: .14em;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .06em;
     text-transform: uppercase;
-    padding: 6px 14px;
+    padding: 8px 16px;
     border-radius: 999px;
     border: 1px solid var(--line);
     background: transparent;
-    color: var(--ink-soft);
+    color: var(--ink);
     cursor: pointer;
     text-decoration: none;
     transition: all var(--transition);
   }
-  .genre-nav-pill:hover { border-color: var(--accent); color: var(--accent); }
-  .genre-nav-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .genre-nav-pill:hover { border-color: var(--accent); color: var(--accent-soft); }
+  .genre-nav-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
 
   @media (max-width: 600px) {
     .genre-page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -335,5 +336,6 @@ function buildPills(activeLabel) {
 })();
 </script>
 <script src="feedback.js"></script>
+<script src="font-switcher.js"></script>
 </body>
 </html>
