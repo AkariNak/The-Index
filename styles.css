@@ -381,6 +381,7 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   cursor: pointer;
   margin-bottom: -1px;
   transition: color var(--transition), border-color var(--transition);
+  text-decoration: none;
 }
 .tab:hover { color: var(--ink); }
 .tab.active { color: var(--accent-soft); border-bottom-color: var(--accent); }
