@@ -415,15 +415,29 @@
     if (!wrap || !bar || !video) return;
     let hideTimer = null;
 
+    let hideInterval = null;
+
     function showControls() {
       wrap.classList.remove('cursor-hidden');
       bar.classList.remove('controls-hidden');
       video.setAttribute('controls', '');
+      if (hideInterval) { clearInterval(hideInterval); hideInterval = null; }
       clearTimeout(hideTimer);
       hideTimer = setTimeout(() => {
         wrap.classList.add('cursor-hidden');
         bar.classList.add('controls-hidden');
         video.removeAttribute('controls');
+        video.blur();
+        // Keep enforcing every 200ms in case browser re-adds controls
+        hideInterval = setInterval(() => {
+          if (wrap.classList.contains('cursor-hidden')) {
+            video.removeAttribute('controls');
+            video.blur();
+          } else {
+            clearInterval(hideInterval);
+            hideInterval = null;
+          }
+        }, 200);
       }, 2500);
     }
 
