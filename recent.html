@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recently Updated — Onyx</title>
+<link rel="icon" type="image/png" href="favicon-256.png">
+<link rel="apple-touch-icon" href="favicon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .recent-page-header {
+    padding: 32px 0 20px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .recent-page-title {
+    font-family: var(--display);
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+    color: var(--ink);
+  }
+  .recent-page-title span { color: var(--accent); }
+  .recent-page-count {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding-bottom: 6px;
+  }
+  .recent-page-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0 16px;
+    max-width: 320px;
+    width: 100%;
+    transition: border-color var(--transition), box-shadow var(--transition);
+  }
+  .recent-page-search:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  .recent-page-search input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 11px 0;
+    font-family: var(--body);
+    font-size: 14px;
+    color: var(--ink);
+    outline: none;
+  }
+  .recent-page-search input::placeholder { color: var(--ink-mute); }
+
+  .time-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .time-pill {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .time-pill:hover { border-color: var(--accent); color: var(--accent-soft); }
+  .time-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+  .recent-group { margin-bottom: 40px; }
+  .recent-group-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .recent-group-date {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .recent-group-line {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+  }
+  .recent-group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+  }
+  .recent-empty {
+    padding: 64px 32px;
+    text-align: center;
+    font-family: var(--body);
+    font-style: italic;
+    color: var(--ink-soft);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+  }
+  @media (max-width: 600px) {
+    .recent-page-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .recent-page-search { max-width: 100%; }
+    .recent-group-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#recentGrid">Skip to main content</a>
+
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html" aria-label="Onyx home">
+    <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+      <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">STREAMING</text>
+    </svg>
+  </a>
+  <div class="topnav-right">
+    <a href="index.html" class="btn btn-outline btn-small">← All Shows</a>
+    <a id="accountLink" href="account.html" class="btn btn-outline btn-small" hidden>Account</a>
+    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small" style="display:none">Sign In</button>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<div class="page">
+
+  <div class="recent-page-header">
+    <div>
+      <h1 class="recent-page-title">Recently <span>Updated</span></h1>
+      <div class="recent-page-count" id="pageCount"></div>
+    </div>
+    <div class="recent-page-search">
+      <span class="topnav-search-icon">⌕</span>
+      <input type="search" id="recentSearch" placeholder="Search…" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="time-filter" id="timeFilter">
+    <button class="time-pill active" data-days="0">All Time</button>
+    <button class="time-pill" data-days="7">Last 7 Days</button>
+    <button class="time-pill" data-days="30">Last 30 Days</button>
+    <button class="time-pill" data-days="90">Last 90 Days</button>
+  </div>
+
+  <main id="recentGrid" aria-label="Recently updated shows"></main>
+
+  <footer class="site-foot">
+    <span id="year"></span>
+    <span>Onyx</span>
+  </footer>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="core.js"></script>
+<script>
+// ---- Theme ----
+(function() {
+  document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+    btn.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', nowLight);
+      localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+      btn.textContent = nowLight ? '☀' : '☾';
+    });
+  }
+  const yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
+})();
+
+let _allGroups = [];
+let _query = '';
+let _days = 0;
+
+function getLatestDate(group) {
+  return Math.max(...group.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
+}
+
+function formatDateLabel(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function posterCardHtml(group) {
+  const cover = group.firstCover
+    ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
+    : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0).toUpperCase())}</div>`;
+  const epCount = group.videos.length;
+  const latest = getLatestDate(group);
+  const daysAgo = Math.floor((Date.now() - latest) / 86400000);
+  const badge = daysAgo === 0 ? 'Today' : daysAgo === 1 ? 'Yesterday' : `${daysAgo}d ago`;
+  return `
+    <article class="poster-card">
+      <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(group.slug)}">
+        <div class="poster-cover">
+          ${cover}
+          <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
+          <span class="poster-ep-badge">${epCount} ${epCount === 1 ? 'episode' : 'episodes'}</span>
+        </div>
+        <div class="poster-info">
+          <div class="poster-cat" style="color:var(--accent)">${escapeHtml(badge)}</div>
+          <h3 class="poster-title">${escapeHtml(group.title)}</h3>
+        </div>
+      </a>
+    </article>
+  `;
+}
+
+function render() {
+  const grid = document.getElementById('recentGrid');
+  const countEl = document.getElementById('pageCount');
+
+  let groups = [..._allGroups].sort((a, b) => getLatestDate(b) - getLatestDate(a));
+
+  // Filter by time
+  if (_days > 0) {
+    const cutoff = Date.now() - (_days * 86400000);
+    groups = groups.filter(g => getLatestDate(g) >= cutoff);
+  }
+
+  // Filter by search
+  if (_query) {
+    const q = _query.toLowerCase();
+    groups = groups.filter(g => g.title.toLowerCase().includes(q));
+  }
+
+  if (countEl) countEl.textContent = `${groups.length} ${groups.length === 1 ? 'show' : 'shows'}`;
+
+  if (!groups.length) {
+    grid.innerHTML = '<div class="recent-empty">No shows found.</div>';
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  for (const g of groups) {
+    const label = formatDateLabel(getLatestDate(g));
+    if (!byDate[label]) byDate[label] = [];
+    byDate[label].push(g);
+  }
+
+  grid.innerHTML = Object.entries(byDate).map(([date, dateGroups]) => `
+    <div class="recent-group">
+      <div class="recent-group-header">
+        <span class="recent-group-date">${escapeHtml(date)}</span>
+        <div class="recent-group-line"></div>
+        <span class="recent-group-date" style="color:var(--ink-mute)">${dateGroups.length} ${dateGroups.length === 1 ? 'show' : 'shows'}</span>
+      </div>
+      <div class="recent-group-grid">
+        ${dateGroups.map(posterCardHtml).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---- Bootstrap ----
+(async function init() {
+  await coreInit();
+  _allGroups = applyHeroOrder(groupVideos(AppState.videos));
+  render();
+
+  // Time filter
+  document.getElementById('timeFilter')?.addEventListener('click', e => {
+    const btn = e.target.closest('.time-pill');
+    if (!btn) return;
+    document.querySelectorAll('.time-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _days = parseInt(btn.dataset.days, 10);
+    render();
+  });
+
+  // Search
+  document.getElementById('recentSearch')?.addEventListener('input', e => {
+    _query = e.target.value.trim();
+    render();
+  });
+
+  // Nav auth
+  const signInBtn = document.getElementById('signInNavBtn');
+  const accountLink = document.getElementById('accountLink');
+  getCurrentUser().then(user => {
+    if (user) { if (signInBtn) signInBtn.style.display = 'none'; if (accountLink) accountLink.hidden = false; }
+    else { if (signInBtn) { signInBtn.style.display = ''; signInBtn.onclick = () => window.location.href = 'account.html'; } if (accountLink) accountLink.hidden = true; }
+  });
+})();
+</script>
+<script src="feedback.js"></script>
+<script src="font-switcher.js"></script>
+</body>
+</html>
