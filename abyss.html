@@ -11,8 +11,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --red:#dc2626;--red-dim:rgba(220,38,38,0.12);--red-mid:rgba(220,38,38,0.4);
-  --paper:#070508;--paper2:#0d080c;--paper3:#130b10;
+  --red:#7c3aed;--red-dim:rgba(124,58,237,0.12);--red-mid:rgba(124,58,237,0.4);
+  --paper:#08050f;--paper2:#0e0818;--paper3:#120a1e;
   --ink:#f8f8f8;--ink-soft:#9ca3af;--ink-mute:#374151;
   --mono:'Share Tech Mono',monospace;--vt:'VT323','Share Tech Mono',monospace;
   --display:'Syne',sans-serif;
@@ -24,7 +24,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 @keyframes scanmove{0%{top:-4px}100%{top:100%}}
 @keyframes flicker{0%,100%{opacity:1}91%{opacity:1}92%{opacity:.5}93%{opacity:1}96%{opacity:.8}97%{opacity:1}}
 @keyframes blink{0%,100%{opacity:1}49%{opacity:1}50%{opacity:0}}
-@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(220,38,38,0.2)}50%{box-shadow:0 0 16px rgba(220,38,38,0.5)}}
+@keyframes redpulse{0%,100%{box-shadow:0 0 4px rgba(124,58,237,0.2)}50%{box-shadow:0 0 16px rgba(124,58,237,0.5)}}
 @keyframes shake{0%,100%{transform:translateX(0)}10%{transform:translateX(-3px)}20%{transform:translateX(3px)}30%{transform:translateX(-2px)}40%{transform:translateX(2px)}50%{transform:translateX(0)}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes glitchslide{0%,100%{clip-path:inset(0 0 100% 0);transform:translateX(0)}33%{clip-path:inset(15% 0 60% 0);transform:translateX(-5px)}66%{clip-path:inset(60% 0 15% 0);transform:translateX(5px)}}
@@ -39,11 +39,11 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 
 /* MAIN */
 #mainPage{display:block;min-height:100vh;animation:fadeIn .6s ease}
-.void-nav{display:flex;align-items:center;gap:14px;padding:10px 24px;border-bottom:1px solid rgba(220,38,38,0.2);background:rgba(7,5,8,0.95);position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);animation:flicker 12s infinite}
+.void-nav{display:flex;align-items:center;gap:14px;padding:10px 24px;border-bottom:1px solid rgba(124,58,237,0.2);background:rgba(7,5,8,0.95);position:sticky;top:0;z-index:50;backdrop-filter:blur(8px);animation:flicker 12s infinite}
 .void-brand{font-family:var(--vt);font-size:28px;color:var(--red);letter-spacing:.2em;line-height:1;position:relative;text-decoration:none}
 .void-brand::before{content:'ABYSS';position:absolute;inset:0;color:#3b82f6;animation:glitchslide 4s infinite;opacity:.5}
 .void-brand::after{content:'ABYSS';position:absolute;inset:0;color:#22c55e;animation:glitchslide2 4s infinite .3s;opacity:.4}
-.void-tag{font-family:var(--mono);font-size:8px;color:#7f1d1d;border:1px solid #7f1d1d;padding:2px 8px;letter-spacing:.2em;text-transform:uppercase}
+.void-tag{font-family:var(--mono);font-size:8px;color:#4a1d96;border:1px solid #4a1d96;padding:2px 8px;letter-spacing:.2em;text-transform:uppercase}
 .void-nav-right{margin-left:auto;display:flex;gap:16px;align-items:center}
 .void-nav-link{font-family:var(--mono);font-size:9px;color:var(--ink-mute);letter-spacing:.15em;text-transform:uppercase;text-decoration:none;cursor:pointer;background:none;border:none}
 .void-nav-link:hover{color:var(--red)}
@@ -51,63 +51,63 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-nav-link.main:hover{color:var(--ink)}
 
 /* HERO */
-.void-hero{position:relative;height:clamp(280px,46vw,580px);max-height:620px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(220,38,38,0.15);margin:0 0 28px}
+.void-hero{position:relative;height:clamp(280px,46vw,580px);max-height:620px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(124,58,237,0.15);margin:0 0 28px}
 .void-hero-bg{position:absolute;inset:-60px;background-size:cover;background-position:center;filter:brightness(.25) saturate(.5) blur(18px);transform:scale(1.15)}
 .void-hero-bg-sharp{position:absolute;inset:0;background-size:contain;background-position:center;background-repeat:no-repeat;filter:brightness(.4) saturate(.5);opacity:.6;}
-.void-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(220,38,38,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(220,38,38,0.04) 1px,transparent 1px);background-size:48px 48px}
-.void-hero-vhs{position:absolute;left:0;right:0;height:4px;background:rgba(220,38,38,0.15);animation:vhsline 6s linear infinite;pointer-events:none}
+.void-hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(124,58,237,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,0.04) 1px,transparent 1px);background-size:48px 48px}
+.void-hero-vhs{position:absolute;left:0;right:0;height:4px;background:rgba(124,58,237,0.15);animation:vhsline 6s linear infinite;pointer-events:none}
 .void-hero-content{position:absolute;bottom:0;left:0;right:0;z-index:2;padding:28px 32px;background:linear-gradient(to top,rgba(7,5,8,0.98) 0%,rgba(7,5,8,0.55) 50%,transparent 100%)}
-.void-hero-eyebrow{font-family:var(--mono);font-size:9px;color:#7f1d1d;letter-spacing:.3em;text-transform:uppercase;margin-bottom:6px}
+.void-hero-eyebrow{font-family:var(--mono);font-size:9px;color:#4a1d96;letter-spacing:.3em;text-transform:uppercase;margin-bottom:6px}
 .void-hero-title{font-family:var(--display);font-size:clamp(20px,3.5vw,48px);font-weight:800;color:var(--ink);letter-spacing:-.02em;margin-bottom:6px}
 .void-hero-meta{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.1em}
 .void-hero-btn{display:inline-block;margin-top:12px;font-family:var(--mono);font-size:10px;color:var(--ink);background:var(--red-dim);border:1px solid var(--red-mid);padding:7px 20px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s}
-.void-hero-btn:hover{background:rgba(220,38,38,0.25)}
+.void-hero-btn:hover{background:rgba(124,58,237,0.25)}
 
 /* SECTIONS */
 .void-section{padding:20px 24px 0}
 .void-section-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-.void-section-label{font-family:var(--mono);font-size:9px;color:#7f1d1d;letter-spacing:.3em;text-transform:uppercase;white-space:nowrap}
-.void-section-line{flex:1;height:1px;background:linear-gradient(90deg,rgba(220,38,38,0.25),transparent)}
+.void-section-label{font-family:var(--mono);font-size:9px;color:#4a1d96;letter-spacing:.3em;text-transform:uppercase;white-space:nowrap}
+.void-section-line{flex:1;height:1px;background:linear-gradient(90deg,rgba(124,58,237,0.25),transparent)}
 
 /* CARDS */
 .void-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:0 24px 20px}
-.void-card{background:var(--paper2);border:1px solid rgba(220,38,38,0.12);border-radius:4px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;animation:cardglitch 8s infinite}
+.void-card{background:var(--paper2);border:1px solid rgba(124,58,237,0.12);border-radius:4px;overflow:hidden;cursor:pointer;transition:border-color .2s,transform .15s;position:relative;animation:cardglitch 8s infinite}
 .void-card:nth-child(2n){animation-delay:.4s}
 .void-card:nth-child(3n){animation-delay:.9s}
-.void-card:hover{border-color:rgba(220,38,38,0.45);transform:translateY(-2px)}
+.void-card:hover{border-color:rgba(124,58,237,0.45);transform:translateY(-2px)}
 .void-card-img{aspect-ratio:2/3;position:relative;overflow:hidden;background:var(--paper3)}
 .void-card-cover{width:100%;height:100%;object-fit:cover;filter:saturate(.35) contrast(1.15) brightness(.65)}
 .void-card-glitch{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0;transition:opacity .1s}
 .void-card:hover .void-card-glitch{opacity:1}
 .void-card-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#110810,#0d060c)}
-.void-card-placeholder-text{font-family:var(--vt);font-size:20px;color:#1f1014;letter-spacing:.2em}
+.void-card-placeholder-text{font-family:var(--vt);font-size:20px;color:#1a1030;letter-spacing:.2em}
 .void-card-info{padding:7px 8px}
 .void-card-title{font-family:var(--mono);font-size:10px;color:#d1d5db;letter-spacing:.02em;line-height:1.4}
 .void-card-meta{font-family:var(--mono);font-size:9px;color:var(--ink-mute);margin-top:2px;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
-.void-card-lang{font-size:8px;color:#7f1d1d;border:1px solid #7f1d1d;padding:1px 5px;letter-spacing:.1em;text-transform:uppercase}
+.void-card-lang{font-size:8px;color:#4a1d96;border:1px solid #4a1d96;padding:1px 5px;letter-spacing:.1em;text-transform:uppercase}
 
 /* STATUS */
 
 .void-hero { cursor:pointer; }
 .void-hero:hover .void-hero-title { }
-.abyss-dot { width:14px;height:3px;background:#1f1014;border-radius:2px;cursor:pointer;transition:all .2s; }
-.abyss-dot.active { width:20px;background:#dc2626; }
-.abyss-dot:hover { background:rgba(220,38,38,0.5); }
+.abyss-dot { width:14px;height:3px;background:#1a1030;border-radius:2px;cursor:pointer;transition:all .2s; }
+.abyss-dot.active { width:20px;background:#7c3aed; }
+.abyss-dot:hover { background:rgba(124,58,237,0.5); }
 @keyframes heroFadeIn { from{opacity:0} to{opacity:1} }
 .hero-fade { animation:heroFadeIn .5s ease; }
 
 .abyss-cw-card{flex-shrink:0;width:140px}
-.abyss-cw-img{position:relative;aspect-ratio:2/3;border:1px solid rgba(220,38,38,0.2);border-radius:4px;overflow:hidden;cursor:pointer}
-.abyss-cw-progress{position:absolute;bottom:0;left:0;right:0;height:2px;background:#1f1014}
+.abyss-cw-img{position:relative;aspect-ratio:2/3;border:1px solid rgba(124,58,237,0.2);border-radius:4px;overflow:hidden;cursor:pointer}
+.abyss-cw-progress{position:absolute;bottom:0;left:0;right:0;height:2px;background:#1a1030}
 .abyss-cw-hover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s;background:rgba(0,0,0,0.5)}
 .abyss-cw-img:hover .abyss-cw-hover{opacity:1}
-.abyss-cw-remove{position:absolute;top:4px;right:4px;background:rgba(7,5,8,0.8);border:1px solid rgba(220,38,38,0.4);color:#dc2626;font-size:10px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:2px;opacity:0;transition:opacity .2s;padding:0}
+.abyss-cw-remove{position:absolute;top:4px;right:4px;background:rgba(7,5,8,0.8);border:1px solid rgba(124,58,237,0.4);color:#7c3aed;font-size:10px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:2px;opacity:0;transition:opacity .2s;padding:0}
 .abyss-cw-img:hover .abyss-cw-remove{opacity:1}
 .abyss-cw-title{font-family:var(--mono);font-size:9px;color:#6b7280;margin-top:4px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #abyssContinueGrid{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px}
-.abyss-chip{font-family:var(--mono);font-size:9px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:4px 12px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
-.abyss-chip.active,.abyss-chip:hover{color:#dc2626;border-color:rgba(220,38,38,0.4);background:rgba(220,38,38,0.08)}
-.void-statusbar{font-family:var(--mono);font-size:9px;color:#1f1014;letter-spacing:.12em;border-top:1px solid rgba(220,38,38,0.08);padding:7px 24px;display:flex;justify-content:space-between;margin-top:8px}
+.abyss-chip{font-family:var(--mono);font-size:9px;color:#4b5563;background:transparent;border:1px solid #1a1030;padding:4px 12px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.abyss-chip.active,.abyss-chip:hover{color:#7c3aed;border-color:rgba(124,58,237,0.4);background:rgba(124,58,237,0.08)}
+.void-statusbar{font-family:var(--mono);font-size:9px;color:#1a1030;letter-spacing:.12em;border-top:1px solid rgba(124,58,237,0.08);padding:7px 24px;display:flex;justify-content:space-between;margin-top:8px}
 </style>
 </head>
 <body>
@@ -176,28 +176,28 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
   <div class="void-grid" id="allGrid"></div>
 
   <div class="void-statusbar" aria-hidden="true">
-    <span>SYS://ABYSS · ACCESS GRANTED · <span style="animation:blink 1s infinite;color:#7f1d1d;display:inline-block">█</span></span>
+    <span>SYS://ABYSS · ACCESS GRANTED · <span style="animation:blink 1s infinite;color:#4a1d96;display:inline-block">█</span></span>
     <span id="statusCount">LOADING...</span>
     <button id="abyssAdminBtn" style="font-family:var(--mono);font-size:8px;color:#1a0a0a;background:transparent;border:none;cursor:pointer;letter-spacing:.15em;padding:0" title="Admin">◈ SYS</button>
   </div>
 </div>
 
 <!-- ABYSS ADMIN -->
-<div id="abyssAdmin" style="display:none;padding:20px 24px;border-top:1px solid rgba(220,38,38,0.1)">
-  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#7f1d1d;letter-spacing:.2em;margin-bottom:12px">// ABYSS CATEGORY MANAGER</div>
+<div id="abyssAdmin" style="display:none;padding:20px 24px;border-top:1px solid rgba(124,58,237,0.1)">
+  <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4a1d96;letter-spacing:.2em;margin-bottom:12px">// ABYSS CATEGORY MANAGER</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <select id="abyssShowSelect" style="background:#0d080c;border:1px solid rgba(220,38,38,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
+    <select id="abyssShowSelect" style="background:#0e0818;border:1px solid rgba(124,58,237,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
       <option value="">-- Select a show --</option>
     </select>
-    <select id="abyssCatSelect" style="background:#0d080c;border:1px solid rgba(220,38,38,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
+    <select id="abyssCatSelect" style="background:#0e0818;border:1px solid rgba(124,58,237,0.3);color:#d1d5db;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 10px">
       <option value="">-- Select category --</option>
       <option value="psychological horror">Psychological Horror</option>
       <option value="extreme violence">Extreme Violence</option>
       <option value="mature &amp; explicit">Mature &amp; Explicit</option>
       <option value="dark thriller">Dark Thriller</option>
     </select>
-    <button id="abyssCatSave" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f8f8f8;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.4);padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Save</button>
-    <button id="abyssCatClear" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4b5563;background:transparent;border:1px solid #1f1014;padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Clear</button>
+    <button id="abyssCatSave" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f8f8f8;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Save</button>
+    <button id="abyssCatClear" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#4b5563;background:transparent;border:1px solid #1a1030;padding:6px 16px;letter-spacing:.15em;cursor:pointer;text-transform:uppercase">Clear</button>
   </div>
   <div id="abyssCatStatus" style="font-family:'Share Tech Mono',monospace;font-size:9px;color:#4b5563;margin-top:8px;letter-spacing:.1em"></div>
 </div>
@@ -423,15 +423,15 @@ async function renderAbyssContinueWatching(groups){
       if(!g) return null;
       const cover = g.firstCover
         ? `<img src="${g.firstCover}" alt="${g.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;filter:saturate(.4) brightness(.7)">`
-        : `<div style="width:100%;height:100%;background:#130b10;display:flex;align-items:center;justify-content:center;font-family:var(--vt);font-size:36px;color:#1f1014">▓</div>`;
+        : `<div style="width:100%;height:100%;background:#120a1e;display:flex;align-items:center;justify-content:center;font-family:var(--vt);font-size:36px;color:#1a1030">▓</div>`;
       const epIdx = 0;
       const pct = Math.round(((epIdx+1)/g.videos.length)*100);
       return `
       <div class="abyss-cw-card" data-collection="${g.title}">
         <div class="abyss-cw-img" onclick="sessionStorage.setItem('fromAbyss','1');window.location.href='player.html?show=${encodeURIComponent(slug(g.title))}&ep=${epIdx}'">
           ${cover}
-          <div class="abyss-cw-progress"><div style="height:100%;width:${pct}%;background:#dc2626"></div></div>
-          <div class="abyss-cw-hover"><span style="color:#dc2626;font-size:24px">▶</span></div>
+          <div class="abyss-cw-progress"><div style="height:100%;width:${pct}%;background:#7c3aed"></div></div>
+          <div class="abyss-cw-hover"><span style="color:#7c3aed;font-size:24px">▶</span></div>
           <button class="abyss-cw-remove" onclick="event.stopPropagation();removeAbyssCW(this)" title="Remove">✕</button>
         </div>
         <div class="abyss-cw-title">${g.title}</div>
