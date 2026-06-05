@@ -460,7 +460,7 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   position: fixed;
   left: 0; right: 0;
   height: 1px;
-  background: rgba(124,58,237,0.06);
+  background: rgba(220,38,38,0.06);
   pointer-events: none;
   z-index: 9999;
   animation: abyssScan 7s linear infinite 2s;
@@ -470,7 +470,7 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   100% { top: 100%; }
 }
 .abyss-theme .topnav {
-  border-bottom-color: rgba(124,58,237,0.2) !important;
+  border-bottom-color: rgba(220,38,38,0.2) !important;
   animation: abyssFlicker 12s infinite;
 }
 @keyframes abyssFlicker {
@@ -491,32 +491,32 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 
 /* ============ ABYSS THEME (detail/player when coming from abyss) ============ */
 .abyss-theme {
-  --paper:        #08050f;
-  --paper-2:      #0e0818;
-  --paper-3:      #120a1e;
+  --paper:        #070508;
+  --paper-2:      #0d080c;
+  --paper-3:      #130b10;
   --ink:          #f8f8f8;
   --ink-soft:     #9ca3af;
   --ink-mute:     #4b5563;
-  --line:         rgba(124,58,237,0.15);
-  --line-soft:    rgba(124,58,237,0.08);
-  --accent:       #7c3aed;
-  --accent-dark:  #6d28d9;
-  --accent-soft:  #ddd6fe;
-  --accent-glow:  rgba(124,58,237,0.25);
-  --accent2:      #4a1d96;
-  --accent2-soft: #ddd6fe;
-  background: #08050f;
+  --line:         rgba(220,38,38,0.15);
+  --line-soft:    rgba(220,38,38,0.08);
+  --accent:       #dc2626;
+  --accent-dark:  #b91c1c;
+  --accent-soft:  #fca5a5;
+  --accent-glow:  rgba(220,38,38,0.25);
+  --accent2:      #7f1d1d;
+  --accent2-soft: #fca5a5;
+  background: #070508;
 }
 .abyss-theme .topnav {
   background: rgba(7,5,8,0.96) !important;
-  border-bottom-color: rgba(124,58,237,0.2) !important;
+  border-bottom-color: rgba(220,38,38,0.2) !important;
 }
 /* Abyss brand in nav */
 .abyss-theme .topnav-brand {
   font-family: 'VT323', monospace !important;
   font-size: 28px !important;
   font-weight: 400 !important;
-  color: #7c3aed !important;
+  color: #dc2626 !important;
   letter-spacing: .2em !important;
   line-height: 1 !important;
   position: relative !important;
@@ -551,31 +551,31 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
   66%{clip-path:inset(20% 0 55% 0);transform:translateX(-4px)}
 }
 .abyss-theme .btn-solid {
-  background: #7c3aed !important;
-  border-color: #7c3aed !important;
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
   color: #fff !important;
 }
-.abyss-theme .btn-solid:hover { background: #6d28d9 !important; color: #fff !important; }
+.abyss-theme .btn-solid:hover { background: #b91c1c !important; color: #fff !important; }
 .abyss-theme .poster-clickable:hover .poster-cover {
-  box-shadow: 0 12px 40px rgba(124,58,237,0.3), 0 4px 16px rgba(0,0,0,0.5) !important;
+  box-shadow: 0 12px 40px rgba(220,38,38,0.3), 0 4px 16px rgba(0,0,0,0.5) !important;
 }
 .abyss-theme .hero-slide-link {
-  background: #7c3aed !important;
-  border-color: #7c3aed !important;
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
   color: #fff !important;
 }
 .abyss-theme .chip.active {
-  background: #7c3aed !important;
-  border-color: #7c3aed !important;
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
   color: #fff !important;
 }
 .abyss-theme .tab.active {
-  color: #ddd6fe !important;
-  border-bottom-color: #7c3aed !important;
+  color: #fca5a5 !important;
+  border-bottom-color: #dc2626 !important;
 }
-.abyss-theme .episode-row:hover { border-color: rgba(124,58,237,0.3) !important; }
-.abyss-theme .play-btn { color: #7c3aed !important; }
-.abyss-theme .detail-meta .dot { color: #4a1d96 !important; }
+.abyss-theme .episode-row:hover { border-color: rgba(220,38,38,0.3) !important; }
+.abyss-theme .play-btn { color: #dc2626 !important; }
+.abyss-theme .detail-meta .dot { color: #7f1d1d !important; }
 
 
 
