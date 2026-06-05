@@ -16,12 +16,13 @@
     .fb-nav-btn {
       background: transparent;
       border: 1px solid var(--line, #2A3050);
-      color: var(--ink-soft, #A0AABF);
+      color: var(--ink, #F8F8F8);
       font-family: var(--mono, monospace);
-      font-size: 9px;
-      letter-spacing: .14em;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: .08em;
       text-transform: uppercase;
-      padding: 6px 12px;
+      padding: 7px 14px;
       border-radius: 6px;
       cursor: pointer;
       transition: border-color .15s, color .15s;
@@ -51,17 +52,17 @@
       position: relative;
     }
     .fb-overlay.open .fb-modal { transform: translateY(0); }
-    .fb-modal h3 { font-family: var(--display, sans-serif); font-size: 18px; font-weight: 700; color: var(--ink, #F8F8F8); margin: 0; }
-    .fb-modal p { font-size: 13px; color: var(--ink-soft, #A0AABF); margin: -8px 0 0; line-height: 1.5; }
-    .fb-label { font-family: var(--mono, monospace); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft, #A0AABF); display: block; margin-bottom: 6px; }
+    .fb-modal h3 { font-family: var(--display, sans-serif); font-size: 20px; font-weight: 700; color: var(--ink, #F8F8F8); margin: 0; }
+    .fb-modal p { font-size: 14px; color: var(--ink-soft, #A0AABF); margin: -8px 0 0; line-height: 1.5; }
+    .fb-label { font-family: var(--mono, monospace); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft, #A0AABF); display: block; margin-bottom: 8px; }
     .fb-cats { display: flex; flex-wrap: wrap; gap: 8px; }
     .fb-cat-btn {
       background: var(--paper-3, #1E2435);
       border: 1px solid var(--line, #2A3050);
-      color: var(--ink-soft, #A0AABF);
+      color: var(--ink, #F8F8F8);
       font-family: var(--mono, monospace);
-      font-size: 10px; letter-spacing: .1em;
-      padding: 7px 12px; border-radius: 6px;
+      font-size: 13px; font-weight: 600; letter-spacing: .06em;
+      padding: 9px 14px; border-radius: 6px;
       cursor: pointer; transition: all .15s;
     }
     .fb-cat-btn:hover { border-color: var(--accent, #3B82F6); color: var(--accent, #3B82F6); }
@@ -84,15 +85,15 @@
     .fb-actions { display: flex; gap: 10px; justify-content: flex-end; }
     .fb-cancel {
       background: transparent; border: 1px solid var(--line, #2A3050);
-      color: var(--ink-soft, #A0AABF);
-      font-family: var(--mono, monospace); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
-      padding: 9px 18px; border-radius: 6px; cursor: pointer; transition: all .15s;
+      color: var(--ink, #F8F8F8);
+      font-family: var(--mono, monospace); font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      padding: 10px 20px; border-radius: 6px; cursor: pointer; transition: all .15s;
     }
     .fb-cancel:hover { border-color: var(--accent, #3B82F6); color: var(--accent, #3B82F6); }
     .fb-submit {
       background: var(--accent, #3B82F6); border: none; color: #fff;
-      font-family: var(--mono, monospace); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
-      padding: 9px 22px; border-radius: 6px; cursor: pointer; font-weight: 600;
+      font-family: var(--mono, monospace); font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+      padding: 10px 24px; border-radius: 6px; cursor: pointer; font-weight: 700;
       transition: background .15s, opacity .15s;
     }
     .fb-submit:hover { background: var(--accent-dark, #2563EB); }
