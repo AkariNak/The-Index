@@ -11,16 +11,18 @@
   ];
   const SIZE_KEY  = 'onyx-font-size';
   const FONT_KEY  = 'onyx-font-family';
-  const BASE_SIZE = 16;
+  const SIZES = ['size-xs', 'size-sm', 'size-md', 'size-lg', 'size-xl'];
+  const SIZE_LABELS = ['XS', 'SM', 'MD', 'LG', 'XL'];
 
-  let currentSize = parseInt(localStorage.getItem(SIZE_KEY) || BASE_SIZE, 10);
+  let currentSizeIdx = parseInt(localStorage.getItem(SIZE_KEY) || 2, 10);
   let currentFont = localStorage.getItem(FONT_KEY) || 'font-inter';
 
-  function applySize(size) {
-    document.documentElement.style.fontSize = size + 'px';
-    currentSize = size;
-    localStorage.setItem(SIZE_KEY, size);
-    if (sizeLabel) sizeLabel.textContent = size + 'px';
+  function applySize(idx) {
+    SIZES.forEach(s => document.body.classList.remove(s));
+    document.body.classList.add(SIZES[idx]);
+    currentSizeIdx = idx;
+    localStorage.setItem(SIZE_KEY, idx);
+    if (sizeLabel) sizeLabel.textContent = SIZE_LABELS[idx];
   }
 
   function applyFont(fontId) {
@@ -59,18 +61,18 @@
     sizeDown.textContent = 'A';
     sizeDown.style.fontSize = '11px';
     sizeDown.setAttribute('aria-label', 'Decrease font size');
-    sizeDown.addEventListener('click', () => applySize(Math.max(12, currentSize - 1)));
+    sizeDown.addEventListener('click', () => applySize(Math.max(0, currentSizeIdx - 1)));
 
     sizeLabel = document.createElement('span');
     sizeLabel.className = 'font-switcher-label';
-    sizeLabel.textContent = currentSize + 'px';
+    sizeLabel.textContent = SIZE_LABELS[currentSizeIdx];
 
     const sizeUp = document.createElement('button');
     sizeUp.className = 'font-switcher-btn';
     sizeUp.textContent = 'A';
     sizeUp.style.fontSize = '17px';
     sizeUp.setAttribute('aria-label', 'Increase font size');
-    sizeUp.addEventListener('click', () => applySize(Math.min(24, currentSize + 1)));
+    sizeUp.addEventListener('click', () => applySize(Math.min(4, currentSizeIdx + 1)));
 
     // Divider
     const div = document.createElement('div');
@@ -105,7 +107,7 @@
   }
 
   // Apply saved settings immediately
-  applySize(currentSize);
+  applySize(currentSizeIdx);
   applyFont(currentFont);
 
   if (document.readyState === 'loading') {
