@@ -295,8 +295,7 @@
   </div>
 </div>
 
-<div class="focus-overlay" id="focusOverlay"></div>
-<div class="focus-theater" id="focusTheater"><div class="focus-theater-inner" id="focusTheaterInner"><span class="focus-exit-hint">ESC or click outside to exit</span></div></div>
+<div class="theater-exit-hint">ESC to exit focus mode</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="core.js"></script>
@@ -379,48 +378,36 @@
   // Focus / theater mode
   (function() {
     const btn = document.getElementById('focusBtn');
-    const overlay = document.getElementById('focusOverlay');
-    const theater = document.getElementById('focusTheater');
-    const theaterInner = document.getElementById('focusTheaterInner');
-    const video = document.getElementById('playerVideo');
-    if (!btn || !overlay || !theater || !theaterInner || !video) return;
-
-    let originalParent = null;
-    let originalNextSibling = null;
+    if (!btn) return;
 
     function enableFocus() {
-      // Move video into theater
-      originalParent = video.parentNode;
-      originalNextSibling = video.nextSibling;
-      theaterInner.insertBefore(video, theaterInner.firstChild);
-
-      overlay.classList.add('active');
-      theater.classList.add('active');
+      document.body.classList.add('theater-mode');
       btn.classList.add('active');
       btn.textContent = 'Exit Focus';
-      document.body.style.overflow = 'hidden';
     }
 
     function disableFocus() {
-      // Move video back
-      if (originalParent) {
-        originalParent.insertBefore(video, originalNextSibling);
-      }
-      overlay.classList.remove('active');
-      theater.classList.remove('active');
+      document.body.classList.remove('theater-mode');
       btn.classList.remove('active');
       btn.textContent = 'Focus Mode';
-      document.body.style.overflow = '';
     }
 
     btn.addEventListener('click', () => {
-      overlay.classList.contains('active') ? disableFocus() : enableFocus();
+      document.body.classList.contains('theater-mode') ? disableFocus() : enableFocus();
     });
 
-    overlay.addEventListener('click', disableFocus);
-
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('active')) disableFocus();
+      if (e.key === 'Escape' && document.body.classList.contains('theater-mode')) disableFocus();
+    });
+
+    // Click outside video to exit
+    document.addEventListener('click', e => {
+      if (!document.body.classList.contains('theater-mode')) return;
+      const wrap = document.querySelector('.video-wrap');
+      const bar = document.querySelector('.video-controls-bar');
+      if (!wrap?.contains(e.target) && !bar?.contains(e.target) && e.target !== btn) {
+        disableFocus();
+      }
     });
   })();
 
