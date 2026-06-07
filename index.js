@@ -414,6 +414,7 @@ function refreshArchive() {
   buildGenreFilters();
   render();
   renderRecentlyAdded();
+  loadAllProgressFromSupabase().then(() => renderContinueWatching());
   renderContinueWatching();
   rebuildHero();
 }
