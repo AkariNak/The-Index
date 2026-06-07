@@ -169,16 +169,17 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0, episodeNu
   const k = slug(collectionName);
   const existing = AppState.progress[k];
   const existingEp = existing?.episodeNumber || 0;
-  // Only update if this episode is the same or higher
-  if (episodeNumber < existingEp) return;
-  AppState.progress[k] = {
-    lastEpisodeTitle: videoTitle,
-    lastWatched:      new Date().toISOString(),
-    timestamp,
-    episodeNumber
-  };
-  saveProgress();
-  // Sync to Supabase immediately
+  // Always update local if same or higher episode
+  if (episodeNumber >= existingEp) {
+    AppState.progress[k] = {
+      lastEpisodeTitle: videoTitle,
+      lastWatched:      new Date().toISOString(),
+      timestamp,
+      episodeNumber
+    };
+    saveProgress();
+  }
+  // Always sync to Supabase so other devices get the update
   getCurrentUser().then(user => {
     if (!user) return;
     getSupabase().from('watch_progress').upsert({
