@@ -254,6 +254,29 @@
       pointer-events: none;
     }
     body.theater-mode .theater-exit-hint { display: block; }
+
+    /* Focus button */
+    .focus-control { display: flex; align-items: center; }
+    .focus-btn {
+      font-family: var(--mono, monospace);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-mute, #5A6480);
+      background: transparent;
+      border: 1px solid var(--line, #2A3050);
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .focus-btn:hover { color: var(--accent, #3B82F6); border-color: var(--accent, #3B82F6); }
+    .focus-btn.active {
+      color: var(--accent, #3B82F6);
+      border-color: var(--accent, #3B82F6);
+      background: rgba(59,130,246,0.1);
+    }
   </style>
 </head>
 <body>
