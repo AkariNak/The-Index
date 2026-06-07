@@ -176,16 +176,74 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
 }
 
 function saveTimestamp(collectionName, videoTitle, timestamp) {
-  const k       = slug(collectionName);
+  const k        = slug(collectionName);
   const existing = AppState.progress[k] || {};
   if (existing.lastEpisodeTitle !== videoTitle) return;
   existing.timestamp = timestamp;
   AppState.progress[k] = existing;
   saveProgress();
+  // Also sync to Supabase if signed in
+  getCurrentUser().then(user => {
+    if (!user) return;
+    getSupabase().from('watch_progress').upsert({
+      user_id: user.id,
+      collection: collectionName,
+      last_episode_title: videoTitle,
+      timestamp: timestamp,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,collection' }).catch(() => {});
+  });
 }
 
 function getLastWatched(collectionName) {
   return AppState.progress[slug(collectionName)] || null;
+}
+
+async function getLastWatchedRemote(collectionName) {
+  const user = await getCurrentUser();
+  if (!user) return getLastWatched(collectionName);
+  try {
+    const { data } = await getSupabase()
+      .from('watch_progress')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('collection', collectionName)
+      .single();
+    if (data) {
+      // Merge into local state
+      const k = slug(collectionName);
+      AppState.progress[k] = {
+        lastEpisodeTitle: data.last_episode_title,
+        timestamp: data.timestamp
+      };
+      saveProgress();
+      return AppState.progress[k];
+    }
+  } catch {}
+  return getLastWatched(collectionName);
+}
+
+async function loadAllProgressFromSupabase() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  try {
+    const { data } = await getSupabase()
+      .from('watch_progress')
+      .select('*')
+      .eq('user_id', user.id);
+    if (!data) return;
+    for (const row of data) {
+      const k = slug(row.collection);
+      // Only overwrite if remote is newer or local has no data
+      if (!AppState.progress[k] || row.timestamp > (AppState.progress[k].timestamp || 0)) {
+        AppState.progress[k] = {
+          lastEpisodeTitle: row.last_episode_title,
+          timestamp: row.timestamp
+        };
+      }
+    }
+    saveProgress();
+  } catch {}
 }
 
 // ---------- Sync ----------
@@ -205,7 +263,7 @@ async function loadBaseVideos() {
       const { data, error } = await sb
         .from('videos')
         .select('*')
-        .eq('void', false)
+        .or('void.eq.false,void.is.null')
         .order('date_added', { ascending: false })
         .range(from, from + pageSize - 1);
       if (error) throw error;
@@ -367,6 +425,10 @@ async function setWatchStatus(collectionName, status) {
   if (!user) return;
   if (status === null) {
     await getSupabase().from('watch_status').delete().eq('user_id', user.id).eq('collection', collectionName);
+    await getSupabase().from('watch_progress').delete().eq('user_id', user.id).eq('collection', collectionName);
+    const k = slug(collectionName);
+    delete AppState.progress[k];
+    saveProgress();
     return;
   }
   await getSupabase().from('watch_status').upsert({
