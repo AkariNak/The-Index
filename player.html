@@ -425,6 +425,25 @@
 
 
 
+
+  // Re-hide controls when entering/exiting fullscreen
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      // Just entered fullscreen — start hide timer
+      const video = document.getElementById('playerVideo');
+      const wrap = document.querySelector('.video-wrap');
+      const bar = document.querySelector('.video-controls-bar');
+      if (video && wrap && bar) {
+        setTimeout(() => {
+          video.removeAttribute('controls');
+          video.blur();
+          wrap.classList.add('cursor-hidden');
+          bar.classList.add('controls-hidden');
+        }, 2500);
+      }
+    }
+  });
+
   // Block right-click save on video everywhere including theater mode
   document.addEventListener('contextmenu', e => {
     if (e.target.tagName === 'VIDEO') e.preventDefault();
@@ -496,7 +515,7 @@
             clearInterval(hideInterval);
             hideInterval = null;
           }
-        }, 200);
+        }, 100);
       }, 2500);
     }
 
