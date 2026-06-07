@@ -84,6 +84,33 @@ body.font-mono { --display: 'JetBrains Mono', ui-monospace, monospace; --body: '
 body.font-serif { --display: 'Georgia', serif; --body: 'Georgia', serif; }
 body.font-rounded { --display: 'Trebuchet MS', system-ui, sans-serif; --body: 'Trebuchet MS', system-ui, sans-serif; }
 
+
+/* ============ SYNC BUTTON ============ */
+.continue-watching-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.continue-watching-header .section-heading { margin-bottom: 0; }
+.sync-progress-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.sync-progress-btn:hover { border-color: var(--accent); color: var(--accent); }
+.sync-progress-btn.syncing { color: var(--accent); border-color: var(--accent); animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ============ TOKENS ============ */
 :root {
   /* Backgrounds */
