@@ -91,7 +91,8 @@ function loadVideo(video, overrideTs) {
 
   // Mark watched + auto-set status + check achievements
   if (currentGroup) {
-    markEpisodeWatched(currentGroup.title, video.title, startTs);
+    const epNum = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
+    markEpisodeWatched(currentGroup.title, video.title, startTs, epNum);
     getCurrentUser().then(async user => {
       if (!user) return;
       const status = await getWatchStatus(currentGroup.title);
