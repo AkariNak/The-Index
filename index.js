@@ -1055,6 +1055,7 @@ document.getElementById('syncProgressBtn')?.addEventListener('click', async () =
   btn.classList.add('syncing');
   btn.textContent = '↻';
   try {
+    await pushLocalProgressToSupabase();
     await loadAllProgressFromSupabase();
     await renderContinueWatching();
   } catch {}
