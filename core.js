@@ -1066,6 +1066,77 @@ function initGlobalSearch() {
   });
 }
 
+
+// ---------- Real-time progress sync ----------
+let _progressChannel = null;
+
+async function startProgressSync() {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  // Clean up existing subscription
+  if (_progressChannel) {
+    getSupabase().removeChannel(_progressChannel);
+    _progressChannel = null;
+  }
+
+  _progressChannel = getSupabase()
+    .channel('watch-progress-' + user.id)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'watch_progress',
+        filter: 'user_id=eq.' + user.id
+      },
+      (payload) => {
+        const row = payload.new;
+        if (!row) return;
+        const k = slug(row.collection);
+        const remoteEp = row.episode_number || 0;
+        const local = AppState.progress[k];
+        const localEp = local?.episodeNumber || 0;
+        const remoteTime = new Date(row.updated_at || 0).getTime();
+        const localTime  = new Date(local?.lastWatched || 0).getTime();
+
+        if (!local || remoteEp > localEp || (remoteEp === localEp && remoteTime > localTime)) {
+          // Find the actual video title from our list
+          let episodeTitle = row.last_episode_title;
+          if (remoteEp > 0) {
+            const match = AppState.videos.find(v =>
+              slug(v.collection) === k &&
+              parseFloat(String(v.episode || '0').replace(/[^0-9.]/g, '')) === remoteEp
+            );
+            if (match) episodeTitle = match.title;
+          }
+
+          AppState.progress[k] = {
+            lastEpisodeTitle: episodeTitle,
+            timestamp:        row.timestamp || 0,
+            episodeNumber:    remoteEp,
+            lastWatched:      row.updated_at
+          };
+          saveProgress();
+          console.log('[Sync] Updated', row.collection, '→ episode', remoteEp);
+
+          // Refresh Continue Watching if on index page
+          if (typeof renderContinueWatching === 'function') {
+            renderContinueWatching();
+          }
+        }
+      }
+    )
+    .subscribe();
+}
+
+function stopProgressSync() {
+  if (_progressChannel) {
+    getSupabase().removeChannel(_progressChannel);
+    _progressChannel = null;
+  }
+}
+
 // ---------- Init ----------
 async function coreInit() {
   loadLocalVideos();
