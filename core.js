@@ -173,6 +173,19 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
     timestamp
   };
   saveProgress();
+  // Sync to Supabase immediately when episode changes
+  getCurrentUser().then(user => {
+    if (!user) return;
+    getSupabase().from('watch_progress').upsert({
+      user_id: user.id,
+      collection: collectionName,
+      last_episode_title: videoTitle,
+      timestamp: timestamp,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id,collection' }).then(({ error }) => {
+      if (error) console.warn('watch_progress mark failed:', error.message);
+    });
+  });
 }
 
 function saveTimestamp(collectionName, videoTitle, timestamp) {
@@ -428,7 +441,7 @@ async function setWatchStatus(collectionName, status) {
   if (!user) return;
   if (status === null) {
     await getSupabase().from('watch_status').delete().eq('user_id', user.id).eq('collection', collectionName);
-    await getSupabase().from('watch_progress').delete().eq('user_id', user.id).eq('collection', collectionName);
+    try { await getSupabase().from('watch_progress').delete().eq('user_id', user.id).eq('collection', collectionName); } catch {}
     const k = slug(collectionName);
     delete AppState.progress[k];
     saveProgress();
