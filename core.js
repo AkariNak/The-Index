@@ -191,7 +191,9 @@ function saveTimestamp(collectionName, videoTitle, timestamp) {
       last_episode_title: videoTitle,
       timestamp: timestamp,
       updated_at: new Date().toISOString()
-    }, { onConflict: 'user_id,collection' }).catch(() => {});
+    }, { onConflict: 'user_id,collection' }).then(({ error }) => {
+      if (error) console.warn('watch_progress save failed:', error.message);
+    });
   });
 }
 
@@ -227,14 +229,13 @@ async function loadAllProgressFromSupabase() {
   const user = await getCurrentUser();
   if (!user) return;
   try {
-    const { data } = await getSupabase()
+    const { data, error } = await getSupabase()
       .from('watch_progress')
       .select('*')
       .eq('user_id', user.id);
-    if (!data) return;
+    if (error || !data) return; // Table may not exist yet - fail silently
     for (const row of data) {
       const k = slug(row.collection);
-      // Only overwrite if remote is newer or local has no data
       if (!AppState.progress[k] || row.timestamp > (AppState.progress[k].timestamp || 0)) {
         AppState.progress[k] = {
           lastEpisodeTitle: row.last_episode_title,
@@ -243,7 +244,9 @@ async function loadAllProgressFromSupabase() {
       }
     }
     saveProgress();
-  } catch {}
+  } catch (e) {
+    console.warn('watch_progress sync failed - run the SQL to create the table:', e.message);
+  }
 }
 
 // ---------- Sync ----------
