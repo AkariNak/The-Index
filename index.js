@@ -1041,6 +1041,21 @@ function wireAll() {
   })();
 })();
 
+
+// ---- Sync progress button ----
+document.getElementById('syncProgressBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('syncProgressBtn');
+  if (!btn) return;
+  btn.classList.add('syncing');
+  btn.textContent = '↻';
+  try {
+    await loadAllProgressFromSupabase();
+    await renderContinueWatching();
+  } catch {}
+  btn.classList.remove('syncing');
+  btn.textContent = '↻ Sync';
+});
+
 // ---- ADMIN FEEDBACK ----
 async function loadFeedback() {
   const list = document.getElementById('feedbackList');
