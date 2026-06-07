@@ -301,7 +301,7 @@
     <div class="player-main">
       <div class="video-wrap">
         <div class="video-container">
-          <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();}"></video>
+          <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();}" oncontextmenu="return false;"></video>
           <div class="video-timestamp-tip" id="timestampTip"></div>
         </div>
       </div>
@@ -423,6 +423,12 @@
     }
   });
 
+
+
+  // Block right-click save on video everywhere including theater mode
+  document.addEventListener('contextmenu', e => {
+    if (e.target.tagName === 'VIDEO') e.preventDefault();
+  });
 
   // Focus / theater mode
   (function() {
