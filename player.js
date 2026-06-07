@@ -433,7 +433,7 @@ function wireFog() {
 // ---------- Bootstrap ----------
 (async function init() {
   await coreInit();
-  await loadAllProgressFromSupabase();
+  if (typeof loadAllProgressFromSupabase === 'function') await loadAllProgressFromSupabase();
   initGlobalSearch();
   const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   if (_fromAbyss) {
