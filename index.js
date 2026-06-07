@@ -154,11 +154,17 @@ async function renderContinueWatching() {
       ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
       : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
 
-    // Find the last watched episode
-    const lastEp = progress?.lastEpisodeTitle
-      ? group.videos.find(v => v.title === progress.lastEpisodeTitle)
-      : group.videos[0];
-    const epIdx  = lastEp ? group.videos.indexOf(lastEp) : 0;
+    // Find the last watched episode — try by title first, then by episode number
+    let lastEp = null;
+    if (progress?.lastEpisodeTitle) {
+      lastEp = group.videos.find(v => v.title === progress.lastEpisodeTitle);
+    }
+    if (!lastEp && progress?.episodeNumber) {
+      const epNum = progress.episodeNumber;
+      lastEp = group.videos.find(v => parseFloat(String(v.episode || '0').replace(/[^0-9.]/g, '')) === epNum);
+    }
+    if (!lastEp) lastEp = group.videos[0];
+    const epIdx = lastEp ? group.videos.indexOf(lastEp) : 0;
 
     // Progress bar — how far through the series
     const totalEps   = group.videos.length;
