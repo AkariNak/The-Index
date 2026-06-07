@@ -165,15 +165,20 @@ function loadProgress() {
   catch { AppState.progress = {}; }
 }
 
-function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
+function markEpisodeWatched(collectionName, videoTitle, timestamp = 0, episodeNumber = 0) {
   const k = slug(collectionName);
+  const existing = AppState.progress[k];
+  const existingEp = existing?.episodeNumber || 0;
+  // Only update if this episode is the same or higher
+  if (episodeNumber < existingEp) return;
   AppState.progress[k] = {
     lastEpisodeTitle: videoTitle,
     lastWatched:      new Date().toISOString(),
-    timestamp
+    timestamp,
+    episodeNumber
   };
   saveProgress();
-  // Sync to Supabase immediately when episode changes
+  // Sync to Supabase immediately
   getCurrentUser().then(user => {
     if (!user) return;
     getSupabase().from('watch_progress').upsert({
@@ -181,6 +186,7 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0) {
       collection: collectionName,
       last_episode_title: videoTitle,
       timestamp: timestamp,
+      episode_number: episodeNumber,
       updated_at: new Date().toISOString()
     }, { onConflict: 'user_id,collection' }).then(({ error }) => {
       if (error) console.warn('watch_progress mark failed:', error.message);
