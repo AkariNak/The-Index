@@ -1067,6 +1067,65 @@ function initGlobalSearch() {
 }
 
 
+
+// ---------- Push all local progress to Supabase ----------
+async function pushLocalProgressToSupabase() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const localProgress = AppState.progress;
+  if (!localProgress || !Object.keys(localProgress).length) return;
+
+  // Get all remote progress first
+  const { data: remoteData } = await getSupabase()
+    .from('watch_progress')
+    .select('*')
+    .eq('user_id', user.id);
+  const remoteMap = {};
+  for (const row of (remoteData || [])) {
+    remoteMap[slug(row.collection)] = row;
+  }
+
+  const upserts = [];
+  for (const [k, local] of Object.entries(localProgress)) {
+    const localEp = local.episodeNumber || 0;
+    const remote = remoteMap[k];
+    const remoteEp = remote?.episode_number || 0;
+
+    // Find the real collection name from videos
+    const matchingVideo = AppState.videos.find(v => slug(v.collection) === k);
+    if (!matchingVideo) continue;
+    const collectionName = matchingVideo.collection;
+
+    // Only push if local is higher
+    if (localEp > remoteEp) {
+      // Find the video title for this episode number
+      let episodeTitle = local.lastEpisodeTitle || '';
+      if (localEp > 0) {
+        const match = AppState.videos.find(v =>
+          slug(v.collection) === k &&
+          parseFloat(String(v.episode || '0').replace(/[^0-9.]/g, '')) === localEp
+        );
+        if (match) episodeTitle = match.title;
+      }
+      upserts.push({
+        user_id: user.id,
+        collection: collectionName,
+        last_episode_title: episodeTitle,
+        timestamp: local.timestamp || 0,
+        episode_number: localEp,
+        updated_at: new Date().toISOString()
+      });
+    }
+  }
+
+  if (!upserts.length) return;
+  const { error } = await getSupabase()
+    .from('watch_progress')
+    .upsert(upserts, { onConflict: 'user_id,collection' });
+  if (error) console.warn('pushLocalProgress failed:', error.message);
+  else console.log('[Sync] Pushed', upserts.length, 'local progress entries to Supabase');
+}
+
 // ---------- Progress sync (polling) ----------
 let _progressPollTimer = null;
 
