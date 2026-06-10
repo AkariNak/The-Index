@@ -419,7 +419,6 @@ function refreshArchive() {
   buildFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   renderContinueWatching();
   if (typeof loadAllProgressFromSupabase === 'function') loadAllProgressFromSupabase().then(() => renderContinueWatching());
   rebuildHero();
@@ -1019,7 +1018,6 @@ function wireAll() {
   buildFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
