@@ -78,6 +78,20 @@ function loadVideo(video, overrideTs) {
 
   currentVideo = video;
 
+  // Enable download only for Akari Admin
+  getCurrentUser().then(async user => {
+    if (user) {
+      const profile = await getCurrentProfile();
+      if (profile?.username === 'Akari Admin') {
+        playerVideoEl.removeAttribute('controlsList');
+      } else {
+        playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
+      }
+    } else {
+      playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
+    }
+  });
+
   playerVideoEl.src = url;
   playerVideoEl.load();
 
@@ -443,7 +457,6 @@ function wireFog() {
       if (a.getAttribute('aria-label') === 'Onyx home') {
         a.setAttribute('aria-label', 'Abyss home');
         a.textContent = 'ABYSS';
-
       }
     });
   }
