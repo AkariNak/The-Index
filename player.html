@@ -324,7 +324,7 @@
     <div class="player-main">
       <div class="video-wrap">
         <div class="video-container">
-         <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();}"></video>
+          <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();}"></video>
           <div class="video-timestamp-tip" id="timestampTip"></div>
         </div>
       </div>
@@ -400,7 +400,6 @@
       if (!video.duration) return;
       const rect   = video.getBoundingClientRect();
       const y      = e.clientY - rect.top;
-      // Only show near the bottom 15% where the progress bar lives
       if (y < rect.height * 0.82) { tip.style.display = 'none'; return; }
       const x      = e.clientX - rect.left;
       const pct    = Math.max(0, Math.min(1, x / rect.width));
@@ -412,13 +411,12 @@
     video.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
   }
 
-  // Keyboard shortcuts — only add what native controls don't handle
+  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (!playerVideoEl) return;
     if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
     switch (e.key) {
-      case 'f':
-      case 'F':
+      case 'f': case 'F':
         e.preventDefault();
         if (document.fullscreenElement) document.exitFullscreen();
         else playerVideoEl.requestFullscreen?.();
@@ -446,13 +444,9 @@
     }
   });
 
-
-
-
   // Re-hide controls when entering/exiting fullscreen
   document.addEventListener('fullscreenchange', () => {
     if (document.fullscreenElement) {
-      // Just entered fullscreen — start hide timer
       const video = document.getElementById('playerVideo');
       const wrap = document.querySelector('.video-wrap');
       const bar = document.querySelector('.video-controls-bar');
@@ -467,9 +461,16 @@
     }
   });
 
-  // Block right-click save on video everywhere including theater mode
+  // Block right-click on video — allow only for Akari Admin
   document.addEventListener('contextmenu', e => {
-    if (e.target.tagName === 'VIDEO') e.preventDefault();
+    if (e.target.tagName !== 'VIDEO') return;
+    getCurrentUser().then(async user => {
+      if (user) {
+        const profile = await getCurrentProfile();
+        if (profile?.username === 'Akari Admin') return;
+      }
+    });
+    e.preventDefault();
   });
 
   // Focus / theater mode
@@ -497,7 +498,6 @@
       if (e.key === 'Escape' && document.body.classList.contains('theater-mode')) disableFocus();
     });
 
-    // Click outside video to exit
     document.addEventListener('click', e => {
       if (!document.body.classList.contains('theater-mode')) return;
       const wrap = document.querySelector('.video-wrap');
@@ -515,7 +515,6 @@
     const video = document.getElementById('playerVideo');
     if (!wrap || !bar || !video) return;
     let hideTimer = null;
-
     let hideInterval = null;
 
     function showControls() {
@@ -529,7 +528,6 @@
         bar.classList.add('controls-hidden');
         video.removeAttribute('controls');
         video.blur();
-        // Keep enforcing every 200ms in case browser re-adds controls
         hideInterval = setInterval(() => {
           if (wrap.classList.contains('cursor-hidden')) {
             video.removeAttribute('controls');
@@ -545,11 +543,8 @@
     wrap.addEventListener('mousemove', showControls);
     wrap.addEventListener('mouseenter', showControls);
 
-    // Also show briefly on keyboard seek
     document.addEventListener('keydown', e => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') {
-        showControls();
-      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') showControls();
     });
 
     video.addEventListener('play', showControls);
