@@ -84,11 +84,14 @@ function loadVideo(video, overrideTs) {
       const profile = await getCurrentProfile();
       if (profile?.username === 'Akari Admin') {
         playerVideoEl.removeAttribute('controlsList');
+        playerVideoEl.oncontextmenu = null;
       } else {
         playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
+        playerVideoEl.oncontextmenu = () => false;
       }
     } else {
       playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
+      playerVideoEl.oncontextmenu = () => false;
     }
   });
 
