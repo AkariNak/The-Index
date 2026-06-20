@@ -35,7 +35,7 @@ if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 // ---------- State ----------
 let activeCategory = 'all';
 let activeGenre    = 'all';
-let _ratingCache   = {}; // { collectionSlug: { average, count } }
+let _ratingCache   = {};
 
 // ---------- Skeleton ----------
 function showSkeleton() {
@@ -63,7 +63,6 @@ function starsHtml(rating, count) {
   return `<div class="poster-rating" title="${rating} / 5 (${count} ${count === 1 ? 'rating' : 'ratings'})">${stars} <span class="poster-rating-count">${rating.toFixed(1)}</span></div>`;
 }
 
-// ---------- Filter / render ----------
 // ---------- Genre definitions ----------
 const GENRE_FILTERS = [
   'Action', 'Adventure', 'Action & Adventure', 'Romance', 'Drama',
@@ -94,13 +93,10 @@ function getFilteredVideos() {
   return AppState.videos.filter(video => {
     const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchCat) return false;
-
-    // Genre filter — only filter out if we have tag data and it doesn't match
     if (activeGenre !== 'all') {
       const needed = GENRE_TAG_MAP[activeGenre] || [];
       const jikan  = AppState.jikanCache[slug(video.collection)];
       const raw    = jikan?.tags;
-      // If no cache data yet, include the show (we don't know its tags)
       if (raw && raw.length > 0) {
         const DEMO = new Set(['shounen','seinen','shoujo','josei','kids']);
         const tags = raw.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
@@ -110,7 +106,6 @@ function getFilteredVideos() {
         if (!match) return false;
       }
     }
-
     if (!query) return true;
     return [video.title, video.description, video.collection, video.category].join(' ').toLowerCase().includes(query);
   });
@@ -135,17 +130,12 @@ async function renderContinueWatching() {
   const section = document.getElementById('continueWatching');
   const grid    = document.getElementById('continueWatchingGrid');
   if (!section || !grid) return;
-
   const user = await getCurrentUser();
   if (!user) { section.hidden = true; return; }
-
-  // Get all shows the user is currently watching
   const watchList = await getUserWatchList();
   const watching  = watchList.filter(w => w.status === 'watching');
   if (!watching.length) { section.hidden = true; return; }
-
   const groups = groupVideos(AppState.videos);
-
   const cards = watching.map(w => {
     const group    = groups.find(g => g.title === w.collection);
     if (!group) return null;
@@ -153,39 +143,21 @@ async function renderContinueWatching() {
     const cover    = group.firstCover
       ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
       : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
-
-    // Find the last watched episode — try by title first, then by episode number
-    let lastEp = null;
-    if (progress?.lastEpisodeTitle) {
-      lastEp = group.videos.find(v => v.title === progress.lastEpisodeTitle);
-    }
-    if (!lastEp && progress?.episodeNumber) {
-      const epNum = progress.episodeNumber;
-      lastEp = group.videos.find(v => parseFloat(String(v.episode || '0').replace(/[^0-9.]/g, '')) === epNum);
-    }
-    if (!lastEp) lastEp = group.videos[0];
-    const epIdx = lastEp ? group.videos.indexOf(lastEp) : 0;
-
-    // Progress bar — how far through the series
+    const lastEp = progress?.lastEpisodeTitle
+      ? group.videos.find(v => v.title === progress.lastEpisodeTitle)
+      : group.videos[0];
+    const epIdx  = lastEp ? group.videos.indexOf(lastEp) : 0;
     const totalEps   = group.videos.length;
     const watchedIdx = epIdx + 1;
     const pct        = Math.round((watchedIdx / totalEps) * 100);
-
-    const epLabel = lastEp
-      ? `EP ${lastEp.episode || watchedIdx}`
-      : 'EP 1';
-
+    const epLabel = lastEp ? `EP ${lastEp.episode || watchedIdx}` : 'EP 1';
     return `
       <div class="cw-card-wrap">
         <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}">
           <div class="cw-cover">
             ${cover}
-            <div class="cw-overlay">
-              <span class="cw-play">▶</span>
-            </div>
-            <div class="cw-progress-bar">
-              <div class="cw-progress-fill" style="width:${pct}%"></div>
-            </div>
+            <div class="cw-overlay"><span class="cw-play">▶</span></div>
+            <div class="cw-progress-bar"><div class="cw-progress-fill" style="width:${pct}%"></div></div>
           </div>
           <div class="cw-info">
             <div class="cw-title">${escapeHtml(group.title)}</div>
@@ -196,12 +168,9 @@ async function renderContinueWatching() {
       </div>
     `;
   }).filter(Boolean);
-
   if (!cards.length) { section.hidden = true; return; }
   section.hidden = false;
   grid.innerHTML = cards.join('');
-
-  // Wire remove buttons
   grid.querySelectorAll('.cw-remove').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.preventDefault();
@@ -216,16 +185,15 @@ async function renderContinueWatching() {
     });
   });
 }
+
 function renderRecentlyAdded() {
   if (!recentlyAddedSection || !recentlyAddedGrid) return;
   const groups = groupVideos(AppState.videos);
-  // Sort by most recent created_at across any episode in the group
   const sorted = [...groups].sort((a, b) => {
     const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     return bDate - aDate;
   }).slice(0, 8);
-
   if (!sorted.length) { recentlyAddedSection.hidden = true; return; }
   recentlyAddedSection.hidden = false;
   recentlyAddedGrid.innerHTML = sorted.map(group => {
@@ -306,12 +274,10 @@ function getTagsForGroup(group) {
 }
 
 function groupMatchesGenre(group, tags) {
-  // Check manual override first
   const overrideGenres = _genreOverrides[group.slug] || [];
   if (overrideGenres.length) {
     return tags.every(t => overrideGenres.map(g => g.toLowerCase()).includes(t.toLowerCase()));
   }
-  // Fall back to Jikan tags
   const groupTags = getTagsForGroup(group);
   if (!groupTags.length) return false;
   return tags.every(t => groupTags.includes(t));
@@ -324,26 +290,23 @@ function renderGenreRows(groups) {
   const query = (search?.value || '').trim().toLowerCase();
   const isFiltered = activeCategory !== 'all' || activeGenre !== 'all' || query;
 
-  // If filters/search active — just show flat grid
   if (isFiltered) {
     const filtered = getFilteredVideos();
     const filteredGroups = applyHeroOrder(groupVideos(filtered));
     const showCount = filteredGroups.length;
     const epCount = filtered.length;
-    if (count) count.innerHTML = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} <a href='abyss-gate.html' style='color:inherit;text-decoration:none'>·</a> ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
+    if (count) count.innerHTML = `${showCount} ${showCount === 1 ? 'SHOW' : 'SHOWS'} <a href="external.html" style="color:inherit;text-decoration:none">·</a> ${epCount} ${epCount === 1 ? 'EPISODE' : 'EPISODES'}`;
     if (!filteredGroups.length) { collectionGrid.innerHTML = '<div class="empty">Nothing here yet.</div>'; return; }
     collectionGrid.innerHTML = `<div class="poster-grid">${filteredGroups.map(posterCardHtml).join('')}</div>`;
     return;
   }
 
-  // Genre rows mode
   const totalShows = groups.length;
   const totalEps   = AppState.videos.length;
-  if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href='abyss-gate.html' style='color:inherit;text-decoration:none'>·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
+  if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href="external.html" style="color:inherit;text-decoration:none">·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   let html = '';
 
-  // Recently Added row
   const recentGroups = [...groups].sort((a, b) => {
     const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
@@ -352,13 +315,11 @@ function renderGenreRows(groups) {
 
   html += genreRowHtml('Recently Added', recentGroups);
 
-  // Genre rows
   for (const row of GENRE_ROWS) {
     const rowGroups = groups.filter(g => groupMatchesGenre(g, row.tags)).slice(0, 12);
     if (rowGroups.length >= 3) html += genreRowHtml(row.label, rowGroups);
   }
 
-  // All Shows row at bottom
   html += `
     <div class="genre-row">
       <div class="genre-row-header">
@@ -373,31 +334,16 @@ function renderGenreRows(groups) {
 
 function genreRowHtml(label, groups) {
   if (!groups.length) return '';
-  const genreParam = encodeURIComponent(label);
   return `
     <div class="genre-row">
       <div class="genre-row-header">
         <h2 class="genre-row-title">${escapeHtml(label)}</h2>
-        <a class="genre-view-all" href="genre.html?genre=${encodeURIComponent(label)}">View All</a>
       </div>
-      <div class="genre-row-scroll">
+      <div class="genre-row-track">
         ${groups.map(posterCardHtml).join('')}
       </div>
     </div>
   `;
-}
-
-function setGenreFilter(label) {
-  if (label === 'Recently Added') {
-    // scroll to all shows section
-    document.querySelector('.all-shows-grid')?.scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
-  activeGenre = label;
-  const chips = document.querySelectorAll('.genre-chip');
-  chips.forEach(c => c.classList.toggle('active', c.dataset.genre === label));
-  render();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function render() {
@@ -419,22 +365,21 @@ function refreshArchive() {
   buildFilters();
   buildGenreFilters();
   render();
+  renderRecentlyAdded();
   renderContinueWatching();
-  if (typeof loadAllProgressFromSupabase === 'function') loadAllProgressFromSupabase().then(() => renderContinueWatching());
   rebuildHero();
 }
 
-// ---------- Load ratings for all groups in background ----------
+// ---------- Load ratings ----------
 async function loadRatings(groups) {
   for (const g of groups) {
     try {
       const data = await getRatingForCollection(g.title);
       if (data.count > 0) {
         _ratingCache[g.slug] = data;
-        // Re-render that card with rating
         const card = collectionGrid?.querySelector(`[data-slug="${g.slug}"]`);
         if (card) card.outerHTML = posterCardHtml(g);
-        else render(); // fallback full re-render
+        else render();
       }
     } catch { /* silent */ }
   }
@@ -442,12 +387,8 @@ async function loadRatings(groups) {
 
 // ---------- Episode name fixer ----------
 const EP_GENERIC_RE = /^.+ - Episode \d+(\.\d+)?$/i;
-
-function isGenericTitle(title) {
-  return EP_GENERIC_RE.test(title.trim());
-}
-
-let _epFixerQueue = []; // { video, newTitle }
+function isGenericTitle(title) { return EP_GENERIC_RE.test(title.trim()); }
+let _epFixerQueue = [];
 
 async function epFixerScan() {
   const status  = document.getElementById('epFixerStatus');
@@ -457,34 +398,22 @@ async function epFixerScan() {
   if (preview) { preview.hidden = true; preview.innerHTML = ''; }
   if (runBtn)  runBtn.hidden = true;
   _epFixerQueue = [];
-
   const generic = AppState.baseVideos.filter(v => isGenericTitle(v.title));
-  if (!generic.length) {
-    if (status) status.textContent = 'No generic episode titles found — everything looks good!';
-    return;
-  }
-
+  if (!generic.length) { if (status) status.textContent = 'No generic episode titles found — everything looks good!'; return; }
   if (status) status.textContent = `Found ${generic.length} generic titles. Fetching episode names from MAL…`;
-
-  // Group by collection so we only fetch each show once
   const byCollection = {};
   for (const v of generic) {
     if (!byCollection[v.collection]) byCollection[v.collection] = [];
     byCollection[v.collection].push(v);
   }
-
   for (const [collection, videos] of Object.entries(byCollection)) {
     try {
-      // Get MAL ID first
       const search = await jikanRequest(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(collection)}&limit=1&sfw=true`);
       const malId  = search.data?.[0]?.mal_id;
       if (!malId) continue;
-
-      // Fetch episodes list from Jikan
       await new Promise(r => setTimeout(r, 500));
       const epData = await jikanRequest(`https://api.jikan.moe/v4/anime/${malId}/episodes`);
       const epList = epData.data || [];
-
       for (const v of videos) {
         const epNum = parseFloat(String(v.episode));
         const match = epList.find(e => e.mal_id === epNum || e.mal_id === Math.floor(epNum));
@@ -493,15 +422,9 @@ async function epFixerScan() {
         _epFixerQueue.push({ video: v, newTitle });
       }
       await new Promise(r => setTimeout(r, 600));
-    } catch { /* silent, try next show */ }
+    } catch { /* silent */ }
   }
-
-  if (!_epFixerQueue.length) {
-    if (status) status.textContent = `Found ${generic.length} generic titles but Jikan had no episode names for them. Try visiting each show's detail page first to cache their MAL data.`;
-    return;
-  }
-
-  // Show preview
+  if (!_epFixerQueue.length) { if (status) status.textContent = `Found ${generic.length} generic titles but Jikan had no episode names for them.`; return; }
   if (preview) {
     preview.hidden = false;
     preview.innerHTML = `
@@ -518,7 +441,6 @@ async function epFixerScan() {
       </div>
     `;
   }
-
   if (runBtn)  runBtn.hidden = false;
   if (status)  status.textContent = `Ready to update ${_epFixerQueue.length} episode names.`;
 }
@@ -529,7 +451,6 @@ async function epFixerRun() {
   if (!_epFixerQueue.length) return;
   if (runBtn) runBtn.disabled = true;
   if (status) status.textContent = `Updating 0 / ${_epFixerQueue.length}…`;
-
   let done = 0;
   for (const { video, newTitle } of _epFixerQueue) {
     try {
@@ -540,13 +461,53 @@ async function epFixerRun() {
       if (status) status.textContent = `Updating ${done} / ${_epFixerQueue.length}…`;
     } catch { /* silent */ }
   }
-
-  syncVideos();
-  render();
-  _epFixerQueue = [];
+  syncVideos(); render(); _epFixerQueue = [];
   if (runBtn)  { runBtn.hidden = true; runBtn.disabled = false; }
   if (status)  status.textContent = `Done — updated ${done} episode names.`;
 }
+
+// ---------- Feedback admin ----------
+async function loadFeedback() {
+  const list = document.getElementById('feedbackList');
+  if (!list) return;
+  list.innerHTML = '<div class="feedback-empty">Loading…</div>';
+  const cat    = document.getElementById('feedbackCatFilter')?.value || '';
+  const status = document.getElementById('feedbackStatusFilter')?.value || '';
+  try {
+    let query = getSupabase().from('feedback').select('*').order('created_at', { ascending: false });
+    if (cat)    query = query.eq('category', cat);
+    if (status) query = query.eq('status', status);
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data?.length) { list.innerHTML = '<div class="feedback-empty">No submissions yet.</div>'; return; }
+    const CAT_LABELS = { bug: '🐛 Bug', missing_anime: '📺 Missing Anime', not_loading: '⚠️ Not Loading', new_anime: '✨ New Anime', other: '💬 Other' };
+    list.innerHTML = data.map(f => `
+      <div class="feedback-item status-${f.status}" data-id="${f.id}">
+        <div>
+          <div class="feedback-item-top">
+            <span class="feedback-cat-badge ${f.category}">${CAT_LABELS[f.category] || f.category}</span>
+            <span class="feedback-date">${new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          </div>
+          <div class="feedback-message">${escapeHtml(f.message)}</div>
+        </div>
+        <select class="feedback-status-select" onchange="updateFeedbackStatus('${f.id}', this.value)">
+          <option value="new"      ${f.status==='new'      ?'selected':''}>New</option>
+          <option value="reviewed" ${f.status==='reviewed' ?'selected':''}>Reviewed</option>
+          <option value="done"     ${f.status==='done'     ?'selected':''}>Done</option>
+        </select>
+      </div>
+    `).join('');
+  } catch (err) { list.innerHTML = `<div class="feedback-empty">Error: ${err.message}</div>`; }
+}
+
+async function updateFeedbackStatus(id, status) {
+  try {
+    await getSupabase().from('feedback').update({ status }).eq('id', id);
+    const item = document.querySelector(`.feedback-item[data-id="${id}"]`);
+    if (item) item.className = `feedback-item status-${status}`;
+  } catch (err) { console.warn('Feedback update failed:', err); }
+}
+
 // ---------- Genre manager ----------
 let _genreOverrides = {};
 
@@ -559,12 +520,10 @@ async function initGenreManager() {
   const preview      = document.getElementById('genreManagerPreview');
   const status       = document.getElementById('genreManagerStatus');
   if (!showSelect) return;
-
   const groups = groupVideos(AppState.videos);
   showSelect.innerHTML = '<option value="">— Select a show —</option>' +
     [...groups].sort((a, b) => a.title.localeCompare(b.title))
       .map(g => `<option value="${escapeHtml(g.slug)}">${escapeHtml(g.title)}</option>`).join('');
-
   function updatePreview() {
     const s = showSelect.value;
     if (!s) { preview.innerHTML = ''; return; }
@@ -573,35 +532,27 @@ async function initGenreManager() {
       ? `<div class="genre-manager-tags">${assigned.map(g => `<span class="genre-manager-tag">${escapeHtml(g)}</span>`).join('')}</div>`
       : '<span style="color:var(--ink-mute);font-size:12px;font-style:italic">No genres assigned</span>';
   }
-
   showSelect.addEventListener('change', updatePreview);
-
   addBtn?.addEventListener('click', async () => {
-    const s = showSelect.value;
-    const g = genreSelect.value;
+    const s = showSelect.value; const g = genreSelect.value;
     if (!s || !g) return;
     const current = _genreOverrides[s] || [];
     if (current.includes(g)) return;
     current.push(g);
     await setGenreOverride(s, current);
     _genreOverrides[s] = current;
-    updatePreview();
-    render();
+    updatePreview(); render();
     if (status) status.textContent = `Added "${g}" to ${showSelect.options[showSelect.selectedIndex].text}`;
   });
-
   removeBtn?.addEventListener('click', async () => {
-    const s = showSelect.value;
-    const g = genreSelect.value;
+    const s = showSelect.value; const g = genreSelect.value;
     if (!s || !g) return;
     const current = (_genreOverrides[s] || []).filter(x => x !== g);
     await setGenreOverride(s, current);
     _genreOverrides[s] = current;
-    updatePreview();
-    render();
+    updatePreview(); render();
     if (status) status.textContent = `Removed "${g}" from ${showSelect.options[showSelect.selectedIndex].text}`;
   });
-
   updatePreview();
 }
 
@@ -611,7 +562,6 @@ function buildSlideshowManager() {
   if (!manager) return;
   const groups = groupVideos(AppState.videos);
   const order  = loadHeroOrder();
-
   manager.innerHTML = `
     <div class="slideshow-manager-grid">
       ${groups.map(g => {
@@ -622,15 +572,8 @@ function buildSlideshowManager() {
               ${g.firstCover ? `<img src="${escapeHtml(g.firstCover)}" alt="">` : `<div class="cover-placeholder" style="font-size:20px">${escapeHtml(g.title.charAt(0))}</div>`}
             </div>
             <div class="slideshow-row-title">${escapeHtml(g.title)}</div>
-            <input
-              class="slideshow-rank-input"
-              type="number"
-              min="1" max="6"
-              placeholder="—"
-              value="${escapeHtml(String(rank))}"
-              data-slug="${escapeHtml(g.slug)}"
-              data-title="${escapeHtml(g.title)}"
-            >
+            <input class="slideshow-rank-input" type="number" min="1" max="6" placeholder="—"
+              value="${escapeHtml(String(rank))}" data-slug="${escapeHtml(g.slug)}" data-title="${escapeHtml(g.title)}">
           </div>
         `;
       }).join('')}
@@ -643,9 +586,7 @@ async function saveSlideshowOrder() {
   const order  = {};
   inputs.forEach(input => {
     const val = parseInt(input.value, 10);
-    if (!Number.isNaN(val) && val >= 1 && val <= 6) {
-      order[input.dataset.slug] = val;
-    }
+    if (!Number.isNaN(val) && val >= 1 && val <= 6) order[input.dataset.slug] = val;
   });
   await saveHeroOrder(order);
   if (formStatus) formStatus.textContent = 'Slideshow order saved.';
@@ -657,7 +598,7 @@ function updateAdminUi() {
   const unlocked = isAdminUnlocked();
   if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
-  if (unlocked) { buildSlideshowManager(); initGenreManager(); }
+  if (unlocked) { buildSlideshowManager(); initGenreManager(); loadFeedback(); }
 }
 
 function openAdminDialog() {
@@ -702,33 +643,19 @@ async function bulkAutoSaveMetadata() {
   const missing = groups.filter(g => g.videos.some(v => v.id && (!v.coverUrl || !v.description)));
   if (!missing.length) { if (formStatus) formStatus.textContent = 'All covers already synced.'; return; }
   if (formStatus) formStatus.textContent = `Syncing ${missing.length} shows…`;
-
-  // Track used cover URLs to prevent duplicates across seasons of the same show
-  const usedCovers = new Set(
-    groups.filter(g => g.firstCover).map(g => g.firstCover)
-  );
-
+  const usedCovers = new Set(groups.filter(g => g.firstCover).map(g => g.firstCover));
   for (const group of missing) {
     try {
-      // Try with full title first (includes "Season 2" etc for better MAL match)
       let details = await fetchJikanDetailsExact(group.title);
-      // Fall back to base title if no result
       if (!details) details = await fetchJikanDetails(group.title);
       if (!details) continue;
-
-      // If this cover is already used by another show, try AniList for a unique one
       let coverUrl = details.image;
       if (coverUrl && usedCovers.has(coverUrl)) {
         const anilist = await fetchAniListBanner(group.title);
-        if (anilist?.cover && !usedCovers.has(anilist.cover)) {
-          coverUrl = anilist.cover;
-        } else {
-          // Skip cover update to avoid duplication, only update description
-          coverUrl = null;
-        }
+        if (anilist?.cover && !usedCovers.has(anilist.cover)) coverUrl = anilist.cover;
+        else coverUrl = null;
       }
       if (coverUrl) usedCovers.add(coverUrl);
-
       const toUpdate = group.videos.filter(v => v.id && (!v.coverUrl || !v.description));
       for (const video of toUpdate) {
         const updates = { ...video };
@@ -739,8 +666,7 @@ async function bulkAutoSaveMetadata() {
           const saved = await supabaseUpdate(video.id, updates);
           const idx   = AppState.baseVideos.findIndex(v => v.id === video.id);
           if (idx >= 0) AppState.baseVideos[idx] = saved;
-          video.coverUrl    = saved.coverUrl;
-          video.description = saved.description;
+          video.coverUrl = saved.coverUrl; video.description = saved.description;
         } catch (err) { console.warn('Cover save failed:', video.title, err); }
       }
       syncVideos(); render(); rebuildHero();
@@ -784,7 +710,6 @@ const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 let _bannerOverrides = {};
 
 function loadBannerOverrides() {
-  // Fall back to localStorage cache while Supabase loads
   try { return { ...JSON.parse(localStorage.getItem(BANNER_OVERRIDE_KEY) || '{}'), ..._bannerOverrides }; } catch { return _bannerOverrides; }
 }
 async function saveBannerOverride(s, url) {
@@ -794,17 +719,12 @@ async function saveBannerOverride(s, url) {
   all[s] = url;
   await setSiteSetting('banner_overrides', all);
 }
-async function getBannerOverrides() {
-  return (await getSiteSetting('banner_overrides')) || {};
-}
+async function getBannerOverrides() { return (await getSiteSetting('banner_overrides')) || {}; }
 async function loadBannerOverridesFromSupabase() {
   try {
     _bannerOverrides = await getBannerOverrides();
-    // Also persist to localStorage as cache
     localStorage.setItem(BANNER_OVERRIDE_KEY, JSON.stringify(_bannerOverrides));
-  } catch (e) {
-    console.warn('Could not load banner overrides from Supabase:', e);
-  }
+  } catch (e) { console.warn('Could not load banner overrides from Supabase:', e); }
 }
 
 function renderHeroSlideInto(el, idx) {
@@ -818,7 +738,6 @@ function renderHeroSlideInto(el, idx) {
     <button class="hero-banner-override" data-slug="${escapeHtml(g.slug)}" type="button">Set Banner</button>
     <button class="hero-delete-show danger" data-collection="${escapeHtml(g.title)}" type="button">Delete Show</button>
   ` : '';
-
   el.className    = 'hero-slide';
   el.dataset.slug = g.slug;
   el.innerHTML    = `
@@ -838,7 +757,6 @@ function renderHeroSlideInto(el, idx) {
       </div>
     </div>
   `;
-
   el.querySelector('.hero-banner-override')?.addEventListener('click', async () => {
     const url = prompt('Enter banner image URL (wide, ~1900×500):');
     if (!url) return;
@@ -853,7 +771,6 @@ function renderHeroSlideInto(el, idx) {
       refreshArchive();
     } catch (err) { alert(`Delete failed: ${err.message}`); }
   });
-
   if (!overrides[g.slug]) {
     fetchAniListBanner(g.title).then(result => {
       if (!result?.banner) return;
@@ -944,31 +861,17 @@ function wireNavAuth() {
 // ---------- Wire ----------
 function wireAll() {
   if (search) search.addEventListener('input', render);
-
-  // Prevent accidental drag-and-drop on the main grid
   collectionGrid?.addEventListener('dragover', e => e.preventDefault());
   collectionGrid?.addEventListener('drop', e => e.preventDefault());
-
-  // Mobile search toggle
   const mobileSearchBtn  = document.getElementById('mobileSearchBtn');
   const mobileSearchBar  = document.getElementById('mobileSearchBar');
   const mobileSearchInput = document.getElementById('mobileSearch');
   const mobileSearchClose = document.getElementById('mobileSearchClose');
   if (mobileSearchBtn && mobileSearchBar) {
-    mobileSearchBtn.addEventListener('click', () => {
-      mobileSearchBar.hidden = false;
-      mobileSearchInput?.focus();
-    });
-    mobileSearchClose?.addEventListener('click', () => {
-      mobileSearchBar.hidden = true;
-      if (mobileSearchInput) { mobileSearchInput.value = ''; render(); }
-    });
-    mobileSearchInput?.addEventListener('input', () => {
-      if (search) search.value = mobileSearchInput.value;
-      render();
-    });
+    mobileSearchBtn.addEventListener('click', () => { mobileSearchBar.hidden = false; mobileSearchInput?.focus(); });
+    mobileSearchClose?.addEventListener('click', () => { mobileSearchBar.hidden = true; if (mobileSearchInput) { mobileSearchInput.value = ''; render(); } });
+    mobileSearchInput?.addEventListener('input', () => { if (search) search.value = mobileSearchInput.value; render(); });
   }
-
   updateAdminUi();
   if (adminLoginButton) {
     adminLoginButton.addEventListener('click', () => {
@@ -978,12 +881,9 @@ function wireAll() {
   }
   if (adminCancelButton) adminCancelButton.addEventListener('click', closeAdminDialog);
   if (adminLoginForm)    adminLoginForm.addEventListener('submit', handleAdminSubmit);
-
   document.getElementById('epFixerScanBtn')?.addEventListener('click', epFixerScan);
   document.getElementById('epFixerRunBtn')?.addEventListener('click', epFixerRun);
-
   document.getElementById('saveSlideshowBtn')?.addEventListener('click', saveSlideshowOrder);
-
   const syncMetaButton = document.getElementById('syncMetaButton');
   if (syncMetaButton) {
     syncMetaButton.addEventListener('click', async () => {
@@ -994,7 +894,6 @@ function wireAll() {
       syncMetaButton.textContent = 'Sync All Covers';
     });
   }
-
   wireTabs();
   wireThemeToggle();
 }
@@ -1004,7 +903,6 @@ function wireAll() {
   sessionStorage.removeItem('fromAbyss');
   showSkeleton();
   await coreInit();
-  // Load global settings
   getCoverOverrides().then(overrides => {
     Object.entries(overrides).forEach(([s, url]) => {
       AppState.baseVideos.filter(v => slug(v.collection) === s).forEach(v => v.coverUrl = url);
@@ -1018,97 +916,22 @@ function wireAll() {
   buildFilters();
   buildGenreFilters();
   render();
+  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
   renderContinueWatching();
-
-  // Load ratings in background
   const groups = groupVideos(AppState.videos);
   loadRatings(groups);
-
-  // Fetch Jikan tags for all shows in background so genre filter works
   (async () => {
     const seenBase = new Set();
     for (const g of groups) {
       const base = g.title.replace(/\s+season\s+\d+/i,'').replace(/\s+part\s+\d+/i,'').replace(/\s+S\d+$/i,'').trim();
       if (seenBase.has(base)) continue;
       seenBase.add(base);
-      if (AppState.jikanCache[slug(g.title)]) continue; // already cached
-      try {
-        await fetchJikanDetails(g.title);
-        await new Promise(r => setTimeout(r, 600));
-      } catch { /* silent */ }
+      if (AppState.jikanCache[slug(g.title)]) continue;
+      try { await fetchJikanDetails(g.title); await new Promise(r => setTimeout(r, 600)); } catch { /* silent */ }
     }
-    // Re-render with full tag data
     render();
   })();
 })();
-
-
-// ---- Sync progress button ----
-document.getElementById('syncProgressBtn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('syncProgressBtn');
-  if (!btn) return;
-  btn.classList.add('syncing');
-  btn.textContent = '↻';
-  try {
-    await pushLocalProgressToSupabase();
-    await loadAllProgressFromSupabase();
-    await renderContinueWatching();
-  } catch {}
-  btn.classList.remove('syncing');
-  btn.textContent = '↻ Sync';
-});
-
-// ---- ADMIN FEEDBACK ----
-async function loadFeedback() {
-  const list = document.getElementById('feedbackList');
-  if (!list) return;
-  list.innerHTML = '<div class="feedback-empty">Loading…</div>';
-  const cat    = document.getElementById('feedbackCatFilter')?.value || '';
-  const status = document.getElementById('feedbackStatusFilter')?.value || '';
-  try {
-    let query = getSupabase().from('feedback').select('*').order('created_at', { ascending: false });
-    if (cat)    query = query.eq('category', cat);
-    if (status) query = query.eq('status', status);
-    const { data, error } = await query;
-    if (error) throw error;
-    if (!data?.length) { list.innerHTML = '<div class="feedback-empty">No submissions yet.</div>'; return; }
-    const CAT_LABELS = { bug: 'Bug', missing_anime: 'Missing Anime', not_loading: 'Not Loading', new_anime: 'New Anime', other: 'Other' };
-    list.innerHTML = data.map(f => `
-      <div class="feedback-item status-${f.status || 'new'}" data-id="${f.id}">
-        <div>
-          <div class="feedback-item-header">
-            <span class="feedback-item-cat ${f.category}">${CAT_LABELS[f.category] || f.category}</span>
-            <span class="feedback-item-date">${new Date(f.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-          </div>
-          <div class="feedback-item-msg">${escapeHtml(f.message)}</div>
-        </div>
-        <select class="feedback-status-select" onchange="updateFeedbackStatus('${f.id}', this.value)">
-          <option value="new"      ${(f.status||'new')==='new'      ?'selected':''}>New</option>
-          <option value="reviewed" ${f.status==='reviewed' ?'selected':''}>Reviewed</option>
-          <option value="done"     ${f.status==='done'     ?'selected':''}>Done</option>
-        </select>
-      </div>
-    `).join('');
-  } catch (err) { list.innerHTML = `<div class="feedback-empty">Error: ${err.message}</div>`; }
-}
-
-async function updateFeedbackStatus(id, status) {
-  try {
-    await getSupabase().from('feedback').update({ status }).eq('id', id);
-    const item = document.querySelector(`.feedback-item[data-id="${id}"]`);
-    if (item) item.className = `feedback-item status-${status}`;
-  } catch (err) { console.warn('Feedback update failed:', err); }
-}
-
-// Load feedback when admin section is expanded
-document.addEventListener('click', e => {
-  const toggle = e.target.closest('.admin-section-toggle');
-  if (!toggle) return;
-  const label = toggle.querySelector('span')?.textContent;
-  if (label === 'Feedback' && toggle.getAttribute('aria-expanded') === 'false') {
-    setTimeout(loadFeedback, 100);
-  }
-});
