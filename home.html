@@ -640,8 +640,8 @@ document.getElementById('abyssAdminBtn')?.addEventListener('click',()=>{
 });
 
 document.addEventListener('DOMContentLoaded',()=>{
-  const ok=sessionStorage.getItem('abyssAccess')==='1'||document.referrer.includes('abyss-gate');
-  if(!ok){window.location.href='abyss-gate.html';return;}
+  const ok=sessionStorage.getItem('abyssAccess')==='1'||document.referrer.includes('external');
+  if(!ok){window.location.href='external.html';return;}
   sessionStorage.setItem('abyssAccess','1');
   startPassiveCorruption();
   initAbyssSearch();
