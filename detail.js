@@ -56,7 +56,7 @@ function renderDetail() {
       <div class="detail-empty">
         <h2>Show not found</h2>
         <p>This collection doesn't exist or may have been removed.</p>
-        <a href="${_fv ? 'abyss.html' : 'index.html'}" class="btn btn-outline">${_fv ? 'Back to Abyss' : 'Back to Onyx'}</a>
+        <a href="${_fv ? 'home.html' : 'index.html'}" class="btn btn-outline">${_fv ? 'Back to Abyss' : 'Back to Onyx'}</a>
       </div>`;
     return;
   }
@@ -870,7 +870,7 @@ async function autoSaveMetadata(details) {
 
   const showSlug = getShowSlug();
   if (!showSlug) {
-    const backHref  = fromAbyss ? 'abyss.html' : 'index.html';
+    const backHref  = fromAbyss ? 'home.html' : 'index.html';
     const backLabel = fromAbyss ? 'Back to Abyss' : 'Back to Onyx';
     detailMain.innerHTML = `<div class="detail-empty"><h2>No show specified</h2><a href="${backHref}" class="btn btn-outline">${backLabel}</a></div>`;
     wireAdmin(); wireNavAuth(); return;
@@ -925,14 +925,14 @@ async function autoSaveMetadata(details) {
     document.body.prepend(s2); document.body.prepend(s1);
 
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
-      a.href = 'abyss.html';
+      a.href = 'home.html';
       if (a.id === 'backLink') a.textContent = '← Back to Abyss';
       if (a.getAttribute('aria-label') === 'Onyx home') {
         a.setAttribute('aria-label', 'Abyss home');
         a.textContent = 'ABYSS';
       }
     });
-    document.querySelectorAll('a[href="abyss.html"]').forEach(a => {
+    document.querySelectorAll('a[href="home.html"]').forEach(a => {
       if (a.textContent.includes('Back to Aurum') || a.textContent.includes('Back to Onyx')) {
         a.textContent = '← Back to Abyss';
       }
