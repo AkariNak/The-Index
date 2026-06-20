@@ -169,7 +169,6 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0, episodeNu
   const k = slug(collectionName);
   const existing = AppState.progress[k];
   const existingEp = existing?.episodeNumber || 0;
-  // Always update local if same or higher episode
   if (episodeNumber >= existingEp) {
     AppState.progress[k] = {
       lastEpisodeTitle: videoTitle,
@@ -179,7 +178,6 @@ function markEpisodeWatched(collectionName, videoTitle, timestamp = 0, episodeNu
     };
     saveProgress();
   }
-  // Always sync to Supabase so other devices get the update
   getCurrentUser().then(user => {
     if (!user) return;
     getSupabase().from('watch_progress').upsert({
@@ -202,7 +200,6 @@ function saveTimestamp(collectionName, videoTitle, timestamp) {
   existing.timestamp = timestamp;
   AppState.progress[k] = existing;
   saveProgress();
-  // Also sync to Supabase if signed in
   getCurrentUser().then(user => {
     if (!user) return;
     getSupabase().from('watch_progress').upsert({
@@ -232,7 +229,6 @@ async function getLastWatchedRemote(collectionName) {
       .eq('collection', collectionName)
       .single();
     if (data) {
-      // Merge into local state
       const k = slug(collectionName);
       AppState.progress[k] = {
         lastEpisodeTitle: data.last_episode_title,
@@ -253,7 +249,7 @@ async function loadAllProgressFromSupabase() {
       .from('watch_progress')
       .select('*')
       .eq('user_id', user.id);
-    if (error || !data) return; // Table may not exist yet - fail silently
+    if (error || !data) return;
     for (const row of data) {
       const k = slug(row.collection);
       if (!AppState.progress[k] || row.timestamp > (AppState.progress[k].timestamp || 0)) {
@@ -265,7 +261,7 @@ async function loadAllProgressFromSupabase() {
     }
     saveProgress();
   } catch (e) {
-    console.warn('watch_progress sync failed - run the SQL to create the table:', e.message);
+    console.warn('watch_progress sync failed:', e.message);
   }
 }
 
@@ -318,13 +314,11 @@ async function getSession() {
   return data?.session || null;
 }
 
-// Async — always accurate
 async function isAdminUnlockedAsync() {
   const session = await getSession();
   return Boolean(session);
 }
 
-// Sync — reads Supabase's localStorage cache; use for rendering only, not for gating writes
 function isAdminUnlocked() {
   try {
     const keys = Object.keys(localStorage);
@@ -351,29 +345,18 @@ async function getCurrentProfile() {
 // ---------- Supabase: sign up ----------
 async function supabaseSignUp(email, password, username) {
   const sb = getSupabase();
-
-  // Check username availability first
   const { data: existing } = await sb.from('user_profiles').select('id').eq('username', username).maybeSingle();
   if (existing) throw new Error('Username is already taken.');
-
-  // Sign up — the database trigger will auto-create the profile
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Sign up failed — please try again.');
-
-  // Sign in to get an active session
   const { error: signInError } = await sb.auth.signInWithPassword({ email, password });
   if (signInError) throw new Error('Account created. Please sign in.');
-
-  // Brief pause to let the session fully establish
   await new Promise(r => setTimeout(r, 500));
-
-  // Update the auto-created profile with the chosen username
   const { error: updateError } = await sb.from('user_profiles')
     .update({ username })
     .eq('id', data.user.id);
   if (updateError) throw new Error(`Could not set username: ${updateError.message}`);
-
   return data;
 }
 
@@ -447,11 +430,9 @@ async function setWatchStatus(collectionName, status) {
   const user = await getCurrentUser();
   if (!user) return;
   if (status === null) {
+    // Only remove from watch_status list — DO NOT delete watch_progress
+    // This preserves resume position even after removing from continue watching
     await getSupabase().from('watch_status').delete().eq('user_id', user.id).eq('collection', collectionName);
-    try { await getSupabase().from('watch_progress').delete().eq('user_id', user.id).eq('collection', collectionName); } catch {}
-    const k = slug(collectionName);
-    delete AppState.progress[k];
-    saveProgress();
     return;
   }
   await getSupabase().from('watch_status').upsert({
@@ -579,7 +560,6 @@ async function jikanRequest(url) {
   const wait = Date.now() - lastJikanCall;
   if (wait < 500) await new Promise(r => setTimeout(r, 500 - wait));
   lastJikanCall = Date.now();
-
   let attempts = 0;
   while (attempts < 3) {
     const res = await fetch(url);
@@ -613,8 +593,6 @@ async function fetchJikanDetailsExact(query) {
     const search = await jikanRequest(`${JIKAN_BASE}?q=${encodeURIComponent(query)}&limit=5&sfw=true`);
     const results = search.data || [];
     if (!results.length) return null;
-
-    // Try to find a result whose title contains the season number
     const seasonMatch = query.match(/season\s*(\d+)/i);
     const seasonNum   = seasonMatch ? seasonMatch[1] : null;
     let best = results[0];
@@ -625,7 +603,6 @@ async function fetchJikanDetailsExact(query) {
       });
       if (specific) best = specific;
     }
-
     const details = {
       malId: best.mal_id, title: best.title_english || best.title,
       synopsis: best.synopsis || '', year: best.year, type: best.type,
@@ -657,7 +634,7 @@ async function fetchJikanDetails(query) {
         .map(g => g.name).filter(Boolean)
     };
     AppState.jikanCache[cacheKey] = details;
-    saveJikanCache(); // persist so next page load skips the fetch
+    saveJikanCache();
     return details;
   } catch (err) { console.warn('Jikan details failed:', err); return null; }
 }
@@ -718,14 +695,11 @@ function removeTag(collectionName, tag) {
 const DEMOGRAPHIC_TAGS = new Set(['shounen', 'seinen', 'shoujo', 'josei', 'kids']);
 
 const TAG_WEIGHTS = {
-  // Core genres — 4 pts
   'action': 4, 'romance': 4, 'drama': 4, 'horror': 4, 'comedy': 4,
   'mystery': 4, 'sci-fi': 4, 'fantasy': 4, 'slice of life': 4,
-  // Thematic — 3 pts
   'psychological': 3, 'supernatural': 3, 'thriller': 3, 'adventure': 3,
   'sports': 3, 'isekai': 3, 'military': 3, 'tragedy': 3, 'survival': 3,
   'gore': 3, 'violence': 3,
-  // Setting / tone — 2 pts
   'school': 2, 'historical': 2, 'mecha': 2, 'music': 2, 'magic': 2,
   'super power': 2, 'martial arts': 2, 'demons': 2, 'vampires': 2,
   'time travel': 2, 'space': 2,
@@ -793,7 +767,7 @@ async function unlockAchievement(key) {
     .from('user_achievements')
     .insert({ user_id: user.id, achievement_key: key })
     .select();
-  if (error) return false; // already unlocked = unique constraint
+  if (error) return false;
   showAchievementToast(ACHIEVEMENTS[key]);
   return true;
 }
@@ -824,19 +798,11 @@ async function checkAchievements(context = {}) {
   const user = await getCurrentUser();
   if (!user) return;
   const unlocked = new Set((await getUnlockedAchievements()).map(a => a.achievement_key));
-
-  // First Watch
-  if (!unlocked.has('first_watch') && context.episodeWatched) {
-    await unlockAchievement('first_watch');
-  }
-
-  // Night Owl
+  if (!unlocked.has('first_watch') && context.episodeWatched) await unlockAchievement('first_watch');
   if (!unlocked.has('night_owl') && context.episodeWatched) {
     const hour = new Date().getHours();
     if (hour >= 1 && hour < 5) await unlockAchievement('night_owl');
   }
-
-  // Binge Mode — 15 eps in one day (tracked in localStorage)
   if (!unlocked.has('binge_mode') && context.episodeWatched) {
     const today = new Date().toDateString();
     const bingeKey = `aurum-binge-${user.id}`;
@@ -847,39 +813,15 @@ async function checkAchievements(context = {}) {
     localStorage.setItem(bingeKey, JSON.stringify(binge));
     if (binge.count >= 15) await unlockAchievement('binge_mode');
   }
-
-  // Century — 100 episodes total
-  if (!unlocked.has('century') && context.totalWatched >= 100) {
-    await unlockAchievement('century');
-  }
-
-  // Completionist — 5 completed shows
-  if (!unlocked.has('completionist') && context.completedCount >= 5) {
-    await unlockAchievement('completionist');
-  }
-
-  // Loyal Fan — rated 10 shows
-  if (!unlocked.has('loyal_fan') && context.ratingCount >= 10) {
-    await unlockAchievement('loyal_fan');
-  }
-
-  // Explorer — 5 shows on list
-  if (!unlocked.has('explorer') && context.watchListCount >= 5) {
-    await unlockAchievement('explorer');
-  }
-
-  // Speed Runner — complete a show in under 3 days
-  if (!unlocked.has('speed_runner') && context.completedFast) {
-    await unlockAchievement('speed_runner');
-  }
-
-  // Critic — rated all completed shows
-  if (!unlocked.has('critic') && context.ratedAllCompleted && context.completedCount > 0) {
-    await unlockAchievement('critic');
-  }
+  if (!unlocked.has('century') && context.totalWatched >= 100) await unlockAchievement('century');
+  if (!unlocked.has('completionist') && context.completedCount >= 5) await unlockAchievement('completionist');
+  if (!unlocked.has('loyal_fan') && context.ratingCount >= 10) await unlockAchievement('loyal_fan');
+  if (!unlocked.has('explorer') && context.watchListCount >= 5) await unlockAchievement('explorer');
+  if (!unlocked.has('speed_runner') && context.completedFast) await unlockAchievement('speed_runner');
+  if (!unlocked.has('critic') && context.ratedAllCompleted && context.completedCount > 0) await unlockAchievement('critic');
 }
 
-// ---------- Site settings (global, stored in Supabase) ----------
+// ---------- Site settings ----------
 const _settingsCache = {};
 
 async function getSiteSetting(key) {
@@ -895,10 +837,7 @@ async function setSiteSetting(key, value) {
   await getSupabase().from('site_settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 }
 
-// Cover overrides: { slug: coverUrl }
-async function getCoverOverrides() {
-  return (await getSiteSetting('cover_overrides')) || {};
-}
+async function getCoverOverrides() { return (await getSiteSetting('cover_overrides')) || {}; }
 async function setCoverOverride(slug, url) {
   const overrides = await getCoverOverrides();
   overrides[slug] = url;
@@ -906,10 +845,7 @@ async function setCoverOverride(slug, url) {
   await setSiteSetting('cover_overrides', overrides);
 }
 
-// Season order: { seriesBase: [slug, slug, ...] }
-async function getSeasonOrder() {
-  return (await getSiteSetting('season_order')) || {};
-}
+async function getSeasonOrder() { return (await getSiteSetting('season_order')) || {}; }
 async function setSeasonOrder(seriesBase, slugArray) {
   const order = await getSeasonOrder();
   order[seriesBase] = slugArray;
@@ -917,10 +853,7 @@ async function setSeasonOrder(seriesBase, slugArray) {
   await setSiteSetting('season_order', order);
 }
 
-// Genre overrides: { slug: ['Action', 'Fantasy'] }
-async function getGenreOverrides() {
-  return (await getSiteSetting('genre_overrides')) || {};
-}
+async function getGenreOverrides() { return (await getSiteSetting('genre_overrides')) || {}; }
 async function setGenreOverride(slug, genres) {
   const overrides = await getGenreOverrides();
   if (!genres || !genres.length) delete overrides[slug];
@@ -932,10 +865,7 @@ async function setGenreOverride(slug, genres) {
 // ---------- Community ratings ----------
 async function getRatingForCollection(collectionName) {
   const sb = getSupabase();
-  const { data } = await sb
-    .from('ratings')
-    .select('rating')
-    .eq('collection', collectionName);
+  const { data } = await sb.from('ratings').select('rating').eq('collection', collectionName);
   if (!data || !data.length) return { average: 0, count: 0 };
   const avg = data.reduce((sum, r) => sum + Number(r.rating), 0) / data.length;
   return { average: Math.round(avg * 2) / 2, count: data.length };
@@ -945,12 +875,7 @@ async function getUserRating(collectionName) {
   const user = await getCurrentUser();
   if (!user) return null;
   const sb = getSupabase();
-  const { data } = await sb
-    .from('ratings')
-    .select('rating')
-    .eq('user_id', user.id)
-    .eq('collection', collectionName)
-    .maybeSingle();
+  const { data } = await sb.from('ratings').select('rating').eq('user_id', user.id).eq('collection', collectionName).maybeSingle();
   return data ? Number(data.rating) : null;
 }
 
@@ -958,12 +883,7 @@ async function setUserRating(collectionName, rating) {
   const user = await getCurrentUser();
   if (!user) throw new Error('Not signed in.');
   const sb = getSupabase();
-  await sb.from('ratings').upsert({
-    user_id: user.id,
-    collection: collectionName,
-    rating
-  }, { onConflict: 'user_id,collection' });
-  // Check loyal fan achievement
+  await sb.from('ratings').upsert({ user_id: user.id, collection: collectionName, rating }, { onConflict: 'user_id,collection' });
   const { data } = await sb.from('ratings').select('id').eq('user_id', user.id);
   checkAchievements({ ratingCount: data?.length || 0 });
 }
@@ -973,7 +893,6 @@ const HERO_ORDER_KEY = 'aurum-hero-order';
 let _heroOrder = {};
 
 function loadHeroOrder() {
-  // Use in-memory cache (populated from Supabase) with localStorage fallback
   if (Object.keys(_heroOrder).length) return _heroOrder;
   try { return JSON.parse(localStorage.getItem(HERO_ORDER_KEY) || '{}'); }
   catch { return {}; }
@@ -990,9 +909,7 @@ async function loadHeroOrderFromSupabase() {
     const order = (await getSiteSetting('hero_slideshow_order')) || {};
     _heroOrder = order;
     localStorage.setItem(HERO_ORDER_KEY, JSON.stringify(order));
-  } catch (e) {
-    console.warn('Could not load hero order from Supabase:', e);
-  }
+  } catch (e) { console.warn('Could not load hero order:', e); }
 }
 
 function applyHeroOrder(groups) {
@@ -1010,6 +927,9 @@ function initGlobalSearch() {
   const close   = document.getElementById('globalSearchClose');
   const results = document.getElementById('globalSearchResults');
   if (!btn || !overlay) return;
+
+  // Detect if we're in abyss context
+  const isAbyss = sessionStorage.getItem('fromAbyss') === '1' || window.location.pathname.includes('home.html');
 
   function openSearch() {
     overlay.hidden = false;
@@ -1040,7 +960,12 @@ function initGlobalSearch() {
     const q = input.value.trim().toLowerCase();
     if (!q || q.length < 2) { results.innerHTML = ''; return; }
 
-    const groups  = groupVideos(AppState.videos);
+    // In abyss, only search void shows; on main, only search non-void
+    const sourceVideos = isAbyss
+      ? AppState.videos.filter(v => v.void)
+      : AppState.videos.filter(v => !v.void);
+
+    const groups  = groupVideos(sourceVideos);
     const matches = groups.filter(g =>
       g.title.toLowerCase().includes(q) ||
       g.category?.toLowerCase().includes(q)
@@ -1066,39 +991,24 @@ function initGlobalSearch() {
   });
 }
 
-
-
-// ---------- Push all local progress to Supabase ----------
+// ---------- Push local progress to Supabase ----------
 async function pushLocalProgressToSupabase() {
   const user = await getCurrentUser();
   if (!user) return;
   const localProgress = AppState.progress;
   if (!localProgress || !Object.keys(localProgress).length) return;
-
-  // Get all remote progress first
-  const { data: remoteData } = await getSupabase()
-    .from('watch_progress')
-    .select('*')
-    .eq('user_id', user.id);
+  const { data: remoteData } = await getSupabase().from('watch_progress').select('*').eq('user_id', user.id);
   const remoteMap = {};
-  for (const row of (remoteData || [])) {
-    remoteMap[slug(row.collection)] = row;
-  }
-
+  for (const row of (remoteData || [])) remoteMap[slug(row.collection)] = row;
   const upserts = [];
   for (const [k, local] of Object.entries(localProgress)) {
-    const localEp = local.episodeNumber || 0;
-    const remote = remoteMap[k];
+    const localEp  = local.episodeNumber || 0;
+    const remote   = remoteMap[k];
     const remoteEp = remote?.episode_number || 0;
-
-    // Find the real collection name from videos
     const matchingVideo = AppState.videos.find(v => slug(v.collection) === k);
     if (!matchingVideo) continue;
     const collectionName = matchingVideo.collection;
-
-    // Only push if local is higher
     if (localEp > remoteEp) {
-      // Find the video title for this episode number
       let episodeTitle = local.lastEpisodeTitle || '';
       if (localEp > 0) {
         const match = AppState.videos.find(v =>
@@ -1107,23 +1017,12 @@ async function pushLocalProgressToSupabase() {
         );
         if (match) episodeTitle = match.title;
       }
-      upserts.push({
-        user_id: user.id,
-        collection: collectionName,
-        last_episode_title: episodeTitle,
-        timestamp: local.timestamp || 0,
-        episode_number: localEp,
-        updated_at: new Date().toISOString()
-      });
+      upserts.push({ user_id: user.id, collection: collectionName, last_episode_title: episodeTitle, timestamp: local.timestamp || 0, episode_number: localEp, updated_at: new Date().toISOString() });
     }
   }
-
   if (!upserts.length) return;
-  const { error } = await getSupabase()
-    .from('watch_progress')
-    .upsert(upserts, { onConflict: 'user_id,collection' });
+  const { error } = await getSupabase().from('watch_progress').upsert(upserts, { onConflict: 'user_id,collection' });
   if (error) console.warn('pushLocalProgress failed:', error.message);
-  else console.log('[Sync] Pushed', upserts.length, 'local progress entries to Supabase');
 }
 
 // ---------- Progress sync (polling) ----------
@@ -1133,20 +1032,16 @@ async function startProgressSync() {
   stopProgressSync();
   const user = await getCurrentUser();
   if (!user) return;
-
   async function poll() {
     try {
-      const { data, error } = await getSupabase()
-        .from('watch_progress')
-        .select('*')
-        .eq('user_id', user.id);
+      const { data, error } = await getSupabase().from('watch_progress').select('*').eq('user_id', user.id);
       if (error || !data) return;
       let changed = false;
       for (const row of data) {
         const k = slug(row.collection);
         const local = AppState.progress[k];
-        const remoteEp = row.episode_number || 0;
-        const localEp  = local?.episodeNumber || 0;
+        const remoteEp   = row.episode_number || 0;
+        const localEp    = local?.episodeNumber || 0;
         const remoteTime = new Date(row.updated_at || 0).getTime();
         const localTime  = new Date(local?.lastWatched || 0).getTime();
         if (!local || remoteEp > localEp || (remoteEp === localEp && remoteTime > localTime)) {
@@ -1158,12 +1053,7 @@ async function startProgressSync() {
             );
             if (match) episodeTitle = match.title;
           }
-          AppState.progress[k] = {
-            lastEpisodeTitle: episodeTitle,
-            timestamp:        row.timestamp || 0,
-            episodeNumber:    remoteEp,
-            lastWatched:      row.updated_at
-          };
+          AppState.progress[k] = { lastEpisodeTitle: episodeTitle, timestamp: row.timestamp || 0, episodeNumber: remoteEp, lastWatched: row.updated_at };
           changed = true;
         }
       }
@@ -1173,7 +1063,6 @@ async function startProgressSync() {
       }
     } catch {}
   }
-
   await poll();
   _progressPollTimer = setInterval(poll, 30000);
 }
