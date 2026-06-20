@@ -456,7 +456,7 @@ function wireFog() {
   const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   if (_fromAbyss) {
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
-      a.href = 'abyss.html';
+      a.href = 'home.html';
       if (a.getAttribute('aria-label') === 'Onyx home') {
         a.setAttribute('aria-label', 'Abyss home');
         a.textContent = 'ABYSS';
