@@ -49,19 +49,15 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-nav-link.main{color:var(--ink-soft)}
 .void-nav-link.main:hover{color:var(--ink)}
 
-/* Search */
-.void-search-btn{background:transparent;border:1px solid rgba(220,38,38,0.3);color:var(--ink-mute);width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:all .2s;flex-shrink:0}
-.void-search-btn:hover{border-color:var(--red);color:var(--red)}
-.void-search-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;padding-top:80px}
-.void-search-overlay[hidden]{display:none}
-.void-search-box{width:100%;max-width:520px;margin:0 16px}
-.void-search-input-wrap{display:flex;align-items:center;gap:8px;background:var(--paper2);border:1px solid var(--red);padding:0 12px}
-.void-search-input-wrap input{flex:1;background:transparent;border:none;padding:10px 0;font-family:var(--mono);font-size:13px;color:var(--ink);outline:none;letter-spacing:.05em}
-.void-search-input-wrap input::placeholder{color:#374151}
-.void-search-close{background:transparent;border:none;color:#374151;font-size:14px;cursor:pointer;padding:4px;transition:color .2s}
-.void-search-close:hover{color:var(--ink)}
-.void-search-results{margin-top:4px;background:var(--paper2);border:1px solid rgba(220,38,38,0.2);max-height:400px;overflow-y:auto}
-.void-search-result{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid rgba(220,38,38,0.08);text-decoration:none;cursor:pointer;transition:background .15s}
+.void-nav-search{flex:1;max-width:360px;display:flex;align-items:center;gap:8px;background:rgba(13,8,12,0.8);border:1px solid rgba(220,38,38,0.2);padding:0 12px;transition:border-color .2s;position:relative}
+.void-nav-search:focus-within{border-color:rgba(220,38,38,0.5)}
+.void-nav-search-icon{color:#7f1d1d;font-size:14px;flex-shrink:0}
+.void-nav-search input{flex:1;background:transparent;border:none;padding:8px 0;font-family:var(--mono);font-size:11px;color:var(--ink);outline:none;letter-spacing:.05em}
+.void-nav-search input::placeholder{color:#1f1014}
+.void-search-results-bar{position:fixed;top:49px;left:0;right:0;z-index:200;display:none}
+.void-search-results-bar.active{display:block}
+.void-search-results-inner{max-width:600px;margin:0 auto;background:var(--paper2);border:1px solid rgba(220,38,38,0.25);border-top:none;max-height:380px;overflow-y:auto}
+.void-search-result{display:grid;grid-template-columns:36px 1fr auto;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(220,38,38,0.08);text-decoration:none;cursor:pointer;transition:background .15s;color:inherit}
 .void-search-result:last-child{border-bottom:none}
 .void-search-result:hover{background:rgba(220,38,38,0.06)}
 .void-search-result-cover{width:36px;aspect-ratio:2/3;overflow:hidden;background:var(--paper3)}
@@ -69,7 +65,7 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 .void-search-result-title{font-family:var(--mono);font-size:11px;color:var(--ink-soft);letter-spacing:.04em}
 .void-search-result-meta{font-family:var(--mono);font-size:9px;color:#374151;margin-top:2px;letter-spacing:.08em}
 .void-search-result-arrow{color:var(--red);font-size:12px}
-.void-search-empty{padding:16px;font-family:var(--mono);font-size:10px;color:#374151;letter-spacing:.1em;text-align:center}
+.void-search-empty{padding:14px;font-family:var(--mono);font-size:10px;color:#374151;letter-spacing:.1em;text-align:center}
 
 /* Hero */
 .void-hero{position:relative;height:clamp(280px,46vw,580px);max-height:620px;overflow:hidden;background:var(--paper2);border-bottom:1px solid rgba(220,38,38,0.15);margin:0 0 28px;cursor:pointer}
@@ -136,28 +132,20 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
 <div class="crt-lines"></div>
 <div class="vignette"></div>
 
-<!-- Search overlay -->
-<div class="void-search-overlay" id="abyssSearchOverlay" hidden>
-  <div class="void-search-box">
-    <div class="void-search-input-wrap">
-      <span style="color:#7f1d1d;font-size:14px">⌕</span>
-      <input type="search" id="abyssSearchInput" placeholder="Search the abyss…" autocomplete="off" autofocus>
-      <button class="void-search-close" id="abyssSearchClose">✕</button>
-    </div>
-    <div class="void-search-results" id="abyssSearchResults"></div>
-  </div>
-</div>
-
 <div id="mainPage">
   <nav class="void-nav" role="navigation" aria-label="Abyss navigation">
     <a class="void-brand" href="home.html" aria-label="Abyss home">ABYSS</a>
     <div class="void-tag" aria-label="Restricted">RESTRICTED</div>
+    <div class="void-nav-search">
+      <span class="void-nav-search-icon">⌕</span>
+      <input type="search" id="abyssSearchInput" placeholder="Search the abyss…" autocomplete="off">
+    </div>
     <div class="void-nav-right">
-      <button class="void-search-btn" id="abyssSearchBtn" aria-label="Search">⌕</button>
       <a class="void-nav-link main" href="index.html">← back to onyx</a>
       <span class="void-nav-link" id="navCorrupt" aria-hidden="true">DARK SECTOR</span>
     </div>
   </nav>
+  <div id="abyssSearchResults" class="void-search-results-bar"></div>
 
   <div class="void-hero" role="banner" id="abyssHero">
     <div class="void-hero-bg" id="heroBg"></div>
@@ -183,10 +171,16 @@ html,body{background:var(--paper);color:var(--ink);min-height:100vh;overflow-x:h
     <div id="abyssContinueGrid"></div>
   </section>
 
-  <div style="padding:12px 24px 0;display:flex;gap:8px" role="group" aria-label="Language filter">
+  <div style="padding:12px 24px 0;display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Filters">
     <button class="abyss-chip active" data-lang="all" onclick="setLang(this)">All</button>
     <button class="abyss-chip" data-lang="dubbed" onclick="setLang(this)">Dubbed</button>
     <button class="abyss-chip" data-lang="subbed" onclick="setLang(this)">Subbed</button>
+    <span style="width:1px;background:rgba(220,38,38,0.15);margin:0 4px;align-self:stretch"></span>
+    <button class="abyss-chip abyss-cat-chip active" data-cat="all" onclick="setCat(this)">All Categories</button>
+    <button class="abyss-chip abyss-cat-chip" data-cat="extreme violence" onclick="setCat(this)">Extreme Violence</button>
+    <button class="abyss-chip abyss-cat-chip" data-cat="psychological horror" onclick="setCat(this)">Psychological Horror</button>
+    <button class="abyss-chip abyss-cat-chip" data-cat="mature & explicit" onclick="setCat(this)">Mature & Explicit</button>
+    <button class="abyss-chip abyss-cat-chip" data-cat="dark thriller" onclick="setCat(this)">Dark Thriller</button>
   </div>
 
   <div class="void-section">
@@ -321,18 +315,31 @@ const CATEGORY_ORDER=['psychological horror','extreme violence','mature & explic
 
 let _allGroups=[];
 let _activeLang='all';
+let _activeCat='all';
 let _allVoidVideos=[];
 
 function setLang(btn){
-  document.querySelectorAll('.abyss-chip').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.abyss-chip[data-lang]').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   _activeLang=btn.dataset.lang;
   renderAllSections();
 }
 
+function setCat(btn){
+  document.querySelectorAll('.abyss-cat-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeCat=btn.dataset.cat;
+  renderAllSections();
+}
+
 function filterGroups(groups){
-  if(_activeLang==='all') return groups;
-  return groups.filter(g=>g.videos[0]?.language===_activeLang);
+  let result=groups;
+  if(_activeLang!=='all') result=result.filter(g=>g.videos[0]?.language===_activeLang);
+  if(_activeCat!=='all') result=result.filter(g=>{
+    const cat=(g.videos[0]?.abyss_category||'').toLowerCase().trim();
+    return cat===_activeCat;
+  });
+  return result;
 }
 
 function renderAllSections(){
@@ -343,31 +350,33 @@ function renderAllSections(){
   const catContainer=document.getElementById('categoryRows');
   catContainer.innerHTML='';
 
-  const catMap={};
-  filtered.forEach(g=>{
-    const cat=g.videos[0]?.abyss_category||'';
-    if(!cat)return;
-    const key=cat.toLowerCase().trim();
-    if(!catMap[key])catMap[key]=[];
-    catMap[key].push(g);
-  });
-
-  const orderedKeys=[...CATEGORY_ORDER.filter(k=>catMap[k]),...Object.keys(catMap).filter(k=>!CATEGORY_ORDER.includes(k))];
-  orderedKeys.forEach(cat=>{
-    const groups=catMap[cat];
-    if(!groups||!groups.length)return;
-    const section=document.createElement('div');
-    section.innerHTML=`
-      <div class="void-section">
-        <div class="void-section-head">
-          <div class="void-section-label">// ${cat}</div>
-          <div class="void-section-line"></div>
+  // Only show category rows when not filtering by a specific category
+  if(_activeCat==='all'){
+    const catMap={};
+    filtered.forEach(g=>{
+      const cat=g.videos[0]?.abyss_category||'';
+      if(!cat)return;
+      const key=cat.toLowerCase().trim();
+      if(!catMap[key])catMap[key]=[];
+      catMap[key].push(g);
+    });
+    const orderedKeys=[...CATEGORY_ORDER.filter(k=>catMap[k]),...Object.keys(catMap).filter(k=>!CATEGORY_ORDER.includes(k))];
+    orderedKeys.forEach(cat=>{
+      const groups=catMap[cat];
+      if(!groups||!groups.length)return;
+      const section=document.createElement('div');
+      section.innerHTML=`
+        <div class="void-section">
+          <div class="void-section-head">
+            <div class="void-section-label">// ${cat}</div>
+            <div class="void-section-line"></div>
+          </div>
         </div>
-      </div>
-      <div class="void-grid" id="catGrid_${cat.replace(/[^a-z0-9]/g,'')}"></div>`;
-    catContainer.appendChild(section);
-    fillGrid('catGrid_'+cat.replace(/[^a-z0-9]/g,''),groups);
-  });
+        <div class="void-grid" id="catGrid_${cat.replace(/[^a-z0-9]/g,'')}"></div>`;
+      catContainer.appendChild(section);
+      fillGrid('catGrid_'+cat.replace(/[^a-z0-9]/g,''),groups);
+    });
+  }
 }
 
 async function buildGrids(){
@@ -398,32 +407,16 @@ function startPassiveCorruption(){
   setTimeout(corrupt,1200);
 }
 
-// ---- SEARCH ----
+// ---- INLINE SEARCH ----
 function initAbyssSearch(){
-  const btn=document.getElementById('abyssSearchBtn');
-  const overlay=document.getElementById('abyssSearchOverlay');
   const input=document.getElementById('abyssSearchInput');
-  const close=document.getElementById('abyssSearchClose');
-  const results=document.getElementById('abyssSearchResults');
-  if(!btn||!overlay)return;
+  const resultsBar=document.getElementById('abyssSearchResults');
+  if(!input||!resultsBar)return;
 
-  function openSearch(){overlay.hidden=false;document.body.style.overflow='hidden';setTimeout(()=>input?.focus(),50);}
-  function closeSearch(){overlay.hidden=true;document.body.style.overflow='';if(input)input.value='';if(results)results.innerHTML='';}
-
-  btn.addEventListener('click',openSearch);
-  close?.addEventListener('click',closeSearch);
-  overlay.addEventListener('mousedown',e=>{if(e.target===overlay)closeSearch();});
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'&&!overlay.hidden)closeSearch();
-    if((e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey)))&&overlay.hidden){e.preventDefault();openSearch();}
-  });
-
-  input?.addEventListener('input',()=>{
-    const q=input.value.trim().toLowerCase();
-    if(!q||q.length<2){results.innerHTML='';return;}
-    const matches=_allGroups.filter(g=>g.title.toLowerCase().includes(q)).slice(0,10);
-    if(!matches.length){results.innerHTML=`<div class="void-search-empty">NO DATA FOUND FOR "${input.value.toUpperCase()}"</div>`;return;}
-    results.innerHTML=matches.map(g=>`
+  function showResults(matches){
+    if(!matches.length){resultsBar.className='void-search-results-bar';return;}
+    resultsBar.className='void-search-results-bar active';
+    resultsBar.innerHTML=`<div class="void-search-results-inner">${matches.map(g=>`
       <a class="void-search-result" href="detail.html?show=${encodeURIComponent(g.slug)}" onclick="sessionStorage.setItem('fromAbyss','1')">
         <div class="void-search-result-cover">
           ${g.firstCover?`<img src="${g.firstCover}" alt="">`:'<div style="width:100%;height:100%;background:#130b10"></div>'}
@@ -434,8 +427,28 @@ function initAbyssSearch(){
         </div>
         <span class="void-search-result-arrow">→</span>
       </a>
-    `).join('');
+    `).join('')}</div>`;
+  }
+
+  input.addEventListener('input',()=>{
+    const q=input.value.trim().toLowerCase();
+    if(!q||q.length<2){resultsBar.className='void-search-results-bar';return;}
+    const matches=_allGroups.filter(g=>g.title.toLowerCase().includes(q)).slice(0,10);
+    if(!matches.length){
+      resultsBar.className='void-search-results-bar active';
+      resultsBar.innerHTML=`<div class="void-search-results-inner"><div class="void-search-empty">NO DATA FOUND FOR "${input.value.toUpperCase()}"</div></div>`;
+      return;
+    }
+    showResults(matches);
   });
+
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.void-nav-search')&&!e.target.closest('.void-search-results-bar')){
+      resultsBar.className='void-search-results-bar';
+    }
+  });
+
+  input.addEventListener('keydown',e=>{if(e.key==='Escape'){resultsBar.className='void-search-results-bar';input.blur();}});
 }
 
 // ---- ANILIST BANNER ----
