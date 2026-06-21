@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" href="favicon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -58,11 +58,11 @@
   <nav class="tabs" aria-label="Sections">
     <button class="tab active" data-tab="collections" type="button">Collections</button>
     <button class="tab" data-tab="download-index" type="button">Download Index</button>
-    <a class="tab" href="recent.html" style="text-decoration:none">Recently Updated</a>
-    <a class="tab" href="genre.html" style="text-decoration:none">All Shows</a>
   </nav>
 
   <div class="filters-bar" id="filters" aria-label="Category filters"></div>
+
+  <div class="filters-bar" id="langFilters" aria-label="Language filters" style="padding-top:0"></div>
 
   <div class="genre-filters-wrap" id="genreFiltersWrap">
     <span class="genre-filters-label">Genre</span>
@@ -70,10 +70,7 @@
   </div>
 
   <section id="continueWatching" class="continue-watching-section" hidden>
-    <div class="continue-watching-header">
-      <h2 class="section-heading">Continue Watching</h2>
-      <button id="syncProgressBtn" class="sync-progress-btn" type="button" title="Sync progress across devices">↻ Sync</button>
-    </div>
+    <h2 class="section-heading">Continue Watching</h2>
     <div id="continueWatchingGrid" class="continue-watching-grid"></div>
   </section>
 
@@ -97,10 +94,10 @@
   <section id="adminPanel" class="add-panel" hidden>
 
     <div class="admin-section">
-      <button class="admin-section-toggle" aria-expanded="false" onclick="toggleAdminSection(this)">
+      <button class="admin-section-toggle" aria-expanded="true" onclick="toggleAdminSection(this)">
         <span>Slideshow Manager</span><span class="admin-chevron">▾</span>
       </button>
-      <div class="admin-section-body" hidden>
+      <div class="admin-section-body">
         <p class="add-sub">Set which shows appear in the hero slideshow and their order. Positions 1–6 are shown. Leave blank to exclude a show.</p>
         <div id="slideshowManager" class="slideshow-manager"></div>
         <div class="form-actions" style="margin-top:20px">
@@ -250,6 +247,5 @@ function toggleAdminSection(btn) {
 document.addEventListener('DOMContentLoaded', restoreAdminSectionState);
 </script>
 <script src="feedback.js"></script>
-<script src="font-switcher.js"></script>
 </body>
 </html>
