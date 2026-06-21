@@ -35,6 +35,7 @@ if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 // ---------- State ----------
 let activeCategory = 'all';
 let activeGenre    = 'all';
+let activeLang     = 'all';
 let _ratingCache   = {};
 
 // ---------- Skeleton ----------
@@ -93,6 +94,7 @@ function getFilteredVideos() {
   return AppState.videos.filter(video => {
     const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchCat) return false;
+    if (activeLang !== 'all' && (video.language || '') !== activeLang) return false;
     if (activeGenre !== 'all') {
       const needed = GENRE_TAG_MAP[activeGenre] || [];
       const jikan  = AppState.jikanCache[slug(video.collection)];
@@ -108,6 +110,22 @@ function getFilteredVideos() {
     }
     if (!query) return true;
     return [video.title, video.description, video.collection, video.category].join(' ').toLowerCase().includes(query);
+  });
+}
+
+function buildLangFilters() {
+  const container = document.getElementById('langFilters');
+  if (!container) return;
+  const langs = ['all', 'dubbed', 'subbed'];
+  container.innerHTML = langs.map(l =>
+    `<button class="chip ${l === activeLang ? 'active' : ''}" data-lang="${l}" type="button">${l === 'all' ? 'All' : l.charAt(0).toUpperCase() + l.slice(1)}</button>`
+  ).join('');
+  container.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeLang = btn.dataset.lang;
+      container.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === btn));
+      render();
+    });
   });
 }
 
@@ -334,13 +352,17 @@ function renderGenreRows(groups) {
 
 function genreRowHtml(label, groups) {
   if (!groups.length) return '';
+  const viewAllHref = label === 'Recently Added'
+    ? 'genre.html'
+    : `genre.html?genre=${encodeURIComponent(label)}`;
   return `
     <div class="genre-row">
       <div class="genre-row-header">
         <h2 class="genre-row-title">${escapeHtml(label)}</h2>
+        <a class="genre-view-all" href="${viewAllHref}">View All</a>
       </div>
-      <div class="genre-row-track">
-        ${groups.map(posterCardHtml).join('')}
+      <div class="genre-row-scroll">
+        ${groups.slice(0, 12).map(posterCardHtml).join('')}
       </div>
     </div>
   `;
@@ -363,6 +385,7 @@ function render() {
 function refreshArchive() {
   syncVideos();
   buildFilters();
+  buildLangFilters();
   buildGenreFilters();
   render();
   renderRecentlyAdded();
@@ -954,6 +977,7 @@ function wireAll() {
   loadHeroOrderFromSupabase().then(() => rebuildHero());
   hideSkeleton();
   buildFilters();
+  buildLangFilters();
   buildGenreFilters();
   render();
   renderRecentlyAdded();
