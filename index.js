@@ -306,7 +306,7 @@ function renderGenreRows(groups) {
   hideSkeleton();
 
   const query = (search?.value || '').trim().toLowerCase();
-  const isFiltered = activeCategory !== 'all' || activeGenre !== 'all' || query;
+  const isFiltered = activeCategory !== 'all' || activeGenre !== 'all' || activeLang !== 'all' || query;
 
   if (isFiltered) {
     const filtered = getFilteredVideos();
