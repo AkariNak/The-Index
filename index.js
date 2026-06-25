@@ -34,7 +34,7 @@ if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
 // ---------- State ----------
 let activeCategory = 'all';
-let activeGenre    = 'all';
+let activeGenres   = new Set();
 let activeLang     = 'all';
 let _ratingCache   = {};
 
@@ -95,17 +95,21 @@ function getFilteredVideos() {
     const matchCat = activeCategory === 'all' || video.category.toLowerCase() === activeCategory.toLowerCase();
     if (!matchCat) return false;
     if (activeLang !== 'all' && (video.language || '') !== activeLang) return false;
-    if (activeGenre !== 'all') {
-      const needed = GENRE_TAG_MAP[activeGenre] || [];
+    if (activeGenres.size > 0) {
       const jikan  = AppState.jikanCache[slug(video.collection)];
       const raw    = jikan?.tags;
       if (raw && raw.length > 0) {
         const DEMO = new Set(['shounen','seinen','shoujo','josei','kids']);
         const tags = raw.filter(t => !DEMO.has(t.toLowerCase())).map(t => t.toLowerCase());
-        const match = needed.length === 1
-          ? tags.includes(needed[0])
-          : needed.every(n => tags.includes(n));
-        if (!match) return false;
+        for (const genre of activeGenres) {
+          const needed = GENRE_TAG_MAP[genre] || [];
+          const match = needed.length === 1
+            ? tags.includes(needed[0])
+            : needed.every(n => tags.includes(n));
+          if (!match) return false;
+        }
+      } else {
+        return false;
       }
     }
     if (!query) return true;
@@ -132,12 +136,14 @@ function buildLangFilters() {
 function buildGenreFilters() {
   if (!genreFilters) return;
   genreFilters.innerHTML = GENRE_FILTERS.map(g =>
-    `<button class="genre-chip ${g === activeGenre ? 'active' : ''}" data-genre="${escapeHtml(g)}" type="button">${escapeHtml(g)}</button>`
+    `<button class="genre-chip ${activeGenres.has(g) ? 'active' : ''}" data-genre="${escapeHtml(g)}" type="button">${escapeHtml(g)}</button>`
   ).join('');
   genreFilters.querySelectorAll('.genre-chip').forEach(btn => {
     btn.addEventListener('click', () => {
-      activeGenre = btn.dataset.genre === activeGenre ? 'all' : btn.dataset.genre;
-      genreFilters.querySelectorAll('.genre-chip').forEach(c => c.classList.toggle('active', c.dataset.genre === activeGenre));
+      const g = btn.dataset.genre;
+      if (activeGenres.has(g)) activeGenres.delete(g);
+      else activeGenres.add(g);
+      btn.classList.toggle('active', activeGenres.has(g));
       render();
     });
   });
@@ -230,7 +236,13 @@ function renderRecentlyAdded() {
 
 function buildFilters() {
   if (!filters) return;
-  const categories = ['all', ...new Set(AppState.videos.map(v => v.category).filter(Boolean))];
+  const categories = ['all', ...new Set(
+    AppState.videos
+      .filter(v => !v.void)
+      .map(v => v.category)
+      .filter(Boolean)
+      .map(c => c.charAt(0).toUpperCase() + c.slice(1).toLowerCase())
+  )].filter((c, i, arr) => arr.indexOf(c) === i);
   filters.innerHTML = categories.map(c =>
     `<button class="chip ${c === activeCategory ? 'active' : ''}" data-category="${escapeHtml(c)}" type="button">${c === 'all' ? 'All' : escapeHtml(c)}</button>`
   ).join('');
@@ -306,7 +318,7 @@ function renderGenreRows(groups) {
   hideSkeleton();
 
   const query = (search?.value || '').trim().toLowerCase();
-  const isFiltered = activeCategory !== 'all' || activeGenre !== 'all' || activeLang !== 'all' || query;
+  const isFiltered = activeCategory !== 'all' || activeGenres.size > 0 || activeLang !== 'all' || query;
 
   if (isFiltered) {
     const filtered = getFilteredVideos();
@@ -339,7 +351,7 @@ function renderGenreRows(groups) {
   }
 
   html += `
-    <div class="genre-row">
+    <div class="genre-row" id="allShowsRow">
       <div class="genre-row-header">
         <h2 class="genre-row-title">All Shows</h2>
       </div>
@@ -352,14 +364,14 @@ function renderGenreRows(groups) {
 
 function genreRowHtml(label, groups) {
   if (!groups.length) return '';
-  const viewAllHref = label === 'Recently Added'
-    ? 'genre.html'
-    : `genre.html?genre=${encodeURIComponent(label)}`;
+  const isRecent = label === 'Recently Added';
+  const viewAllHref = isRecent ? '#allShowsRow' : `genre.html?genre=${encodeURIComponent(label)}`;
+  const viewAllOnClick = isRecent ? `onclick="document.getElementById('allShowsRow')?.scrollIntoView({behavior:'smooth'});return false;"` : '';
   return `
     <div class="genre-row">
       <div class="genre-row-header">
         <h2 class="genre-row-title">${escapeHtml(label)}</h2>
-        <a class="genre-view-all" href="${viewAllHref}">View All</a>
+        <a class="genre-view-all" href="${viewAllHref}" ${viewAllOnClick}>View All</a>
       </div>
       <div class="genre-row-scroll">
         ${groups.slice(0, 12).map(posterCardHtml).join('')}
@@ -388,7 +400,6 @@ function refreshArchive() {
   buildLangFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   renderContinueWatching();
   rebuildHero();
 }
@@ -980,7 +991,6 @@ function wireAll() {
   buildLangFilters();
   buildGenreFilters();
   render();
-  renderRecentlyAdded();
   buildHero(groupVideos(AppState.videos));
   wireAll();
   wireNavAuth();
