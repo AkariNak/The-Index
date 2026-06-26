@@ -80,18 +80,12 @@ function loadVideo(video, overrideTs) {
 
   // Enable download only for Akari Admin
   getCurrentUser().then(async user => {
-    if (user) {
-      const profile = await getCurrentProfile();
-      if (profile?.username === 'Akari Admin') {
+    if (user && user.email === 'lukehare1007@gmail.com') {
         playerVideoEl.removeAttribute('controlsList');
         playerVideoEl.oncontextmenu = null;
-      } else {
+    } else {
         playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
         playerVideoEl.oncontextmenu = () => false;
-      }
-    } else {
-      playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
-      playerVideoEl.oncontextmenu = () => false;
     }
   });
 
