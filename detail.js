@@ -219,33 +219,15 @@ function wireDetailEvents() {
       downloadAllBtn.disabled = true;
 
       for (let i = 0; i < eps.length; i++) {
-        const v = eps[i];
         downloadAllBtn.textContent = `↓ ${i + 1} / ${eps.length}`;
-        try {
-          const resp = await fetch(v.downloadUrl);
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          const ext = v.downloadUrl.split('.').pop().split('?')[0] || 'mp4';
-          a.download = `${v.title || (v.collection + ' E' + v.episode)}.${ext}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-        } catch (e) {
-          console.warn('Download failed for', v.title, e);
-        }
-        // Wait for download to start before fetching next
-        await new Promise(r => setTimeout(r, 2000));
+        window.open(eps[i].downloadUrl, '_blank');
+        await new Promise(r => setTimeout(r, 1500));
       }
 
       downloadAllBtn.textContent = '✓ Done';
       setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = '↓ All'; }, 3000);
     });
   }
-
-  // getCurrentUser().then async block removed — button now rendered inline via isAkariAdmin flag
 
   document.querySelectorAll('.season-tab').forEach(btn => {
     btn.addEventListener('click', () => { activeSeason = btn.dataset.season === 'all' ? null : btn.dataset.season; renderDetail(); });
