@@ -206,6 +206,45 @@ function wireDetailEvents() {
     });
   }
 
+  // Download all episodes button — Akari Admin only
+  getCurrentUser().then(async user => {
+    if (!user) return;
+    const profile = await getCurrentProfile();
+    if (profile?.username !== 'Akari Admin') return;
+    const headRight = document.querySelector('.episodes-head-right');
+    if (!headRight || document.getElementById('downloadAllBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'downloadAllBtn';
+    btn.type = 'button';
+    btn.className = 'btn btn-outline btn-small';
+    btn.textContent = '↓ Download All';
+    btn.title = 'Download all episodes sequentially';
+    headRight.appendChild(btn);
+    btn.addEventListener('click', async () => {
+      const group = currentGroup;
+      if (!group) return;
+      const eps = group.videos.filter(v => v.downloadUrl && v.downloadUrl !== '#' && !v.downloadUrl.startsWith('blob:'));
+      if (!eps.length) { alert('No downloadable episodes found.'); return; }
+      btn.disabled = true;
+      btn.textContent = `↓ 0 / ${eps.length}`;
+      for (let i = 0; i < eps.length; i++) {
+        const v = eps[i];
+        const a = document.createElement('a');
+        a.href = v.downloadUrl;
+        const ext = v.downloadUrl.split('.').pop().split('?')[0] || 'mp4';
+        a.download = `${v.title || v.collection + ' E' + v.episode}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        btn.textContent = `↓ ${i + 1} / ${eps.length}`;
+        // Small delay between triggers to avoid browser blocking
+        await new Promise(r => setTimeout(r, 1200));
+      }
+      btn.textContent = '✓ Done';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '↓ Download All'; }, 3000);
+    });
+  });
+
   document.querySelectorAll('.season-tab').forEach(btn => {
     btn.addEventListener('click', () => { activeSeason = btn.dataset.season === 'all' ? null : btn.dataset.season; renderDetail(); });
   });
