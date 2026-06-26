@@ -896,9 +896,9 @@ async function autoSaveMetadata(details) {
   await coreInit();
   await loadGlobalSettings();
 
-  // Cache Akari Admin status so renderDetail can use it synchronously
-  const _initProfile = await getCurrentProfile();
-  isAkariAdmin = _initProfile?.username === 'Akari Admin';
+  // Cache Akari Admin status — check by email, not profile username
+  const _initUser = await getCurrentUser();
+  isAkariAdmin = _initUser?.email === 'lukehare1007@gmail.com';
 
   initGlobalSearch();
 
