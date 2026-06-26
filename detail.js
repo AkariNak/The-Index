@@ -217,19 +217,29 @@ function wireDetailEvents() {
       const eps = group.videos.filter(v => v.downloadUrl && v.downloadUrl !== '#' && !v.downloadUrl.startsWith('blob:'));
       if (!eps.length) { alert('No downloadable episodes found.'); return; }
       downloadAllBtn.disabled = true;
-      downloadAllBtn.textContent = `↓ 0 / ${eps.length}`;
+
       for (let i = 0; i < eps.length; i++) {
         const v = eps[i];
-        const a = document.createElement('a');
-        a.href = v.downloadUrl;
-        const ext = v.downloadUrl.split('.').pop().split('?')[0] || 'mp4';
-        a.download = `${v.title || v.collection + ' E' + v.episode}.${ext}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
         downloadAllBtn.textContent = `↓ ${i + 1} / ${eps.length}`;
-        await new Promise(r => setTimeout(r, 1200));
+        try {
+          const resp = await fetch(v.downloadUrl);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          const ext = v.downloadUrl.split('.').pop().split('?')[0] || 'mp4';
+          a.download = `${v.title || (v.collection + ' E' + v.episode)}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        } catch (e) {
+          console.warn('Download failed for', v.title, e);
+        }
+        // Wait for download to start before fetching next
+        await new Promise(r => setTimeout(r, 2000));
       }
+
       downloadAllBtn.textContent = '✓ Done';
       setTimeout(() => { downloadAllBtn.disabled = false; downloadAllBtn.textContent = '↓ All'; }, 3000);
     });
