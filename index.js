@@ -159,25 +159,41 @@ async function renderContinueWatching() {
   const watchList = await getUserWatchList();
   const watching  = watchList.filter(w => w.status === 'watching');
   if (!watching.length) { section.hidden = true; return; }
+
+  // Load watch_progress so we can sort by most recently watched
+  const { data: progressData } = await getSupabase()
+    .from('watch_progress').select('collection, updated_at, last_episode_title, timestamp, episode_number')
+    .eq('user_id', user.id);
+  const progressMap = {};
+  for (const row of (progressData || [])) progressMap[row.collection] = row;
+
+  // Sort watching list by watch_progress.updated_at descending
+  watching.sort((a, b) => {
+    const aTime = new Date(progressMap[a.collection]?.updated_at || a.updated_at || 0).getTime();
+    const bTime = new Date(progressMap[b.collection]?.updated_at || b.updated_at || 0).getTime();
+    return bTime - aTime;
+  });
+
   const groups = groupVideos(AppState.videos);
   const cards = watching.map(w => {
     const group    = groups.find(g => g.title === w.collection);
     if (!group) return null;
-    const progress = getLastWatched(w.collection);
+    const progress = progressMap[w.collection];
+    const lastEp = progress?.last_episode_title
+      ? group.videos.find(v => v.title === progress.last_episode_title)
+      : group.videos[0];
+    const epIdx  = lastEp ? group.videos.indexOf(lastEp) : 0;
+    const tsParam = progress?.timestamp > 5 ? `&t=${Math.floor(progress.timestamp)}` : '';
     const cover    = group.firstCover
       ? `<img src="${escapeHtml(group.firstCover)}" alt="${escapeHtml(group.title)}" loading="lazy">`
       : `<div class="cover-placeholder">${escapeHtml(group.title.charAt(0))}</div>`;
-    const lastEp = progress?.lastEpisodeTitle
-      ? group.videos.find(v => v.title === progress.lastEpisodeTitle)
-      : group.videos[0];
-    const epIdx  = lastEp ? group.videos.indexOf(lastEp) : 0;
     const totalEps   = group.videos.length;
     const watchedIdx = epIdx + 1;
     const pct        = Math.round((watchedIdx / totalEps) * 100);
     const epLabel = lastEp ? `EP ${lastEp.episode || watchedIdx}` : 'EP 1';
     return `
       <div class="cw-card-wrap">
-        <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}">
+        <a class="cw-card" href="player.html?show=${encodeURIComponent(group.slug)}&ep=${epIdx}${tsParam}">
           <div class="cw-cover">
             ${cover}
             <div class="cw-overlay"><span class="cw-play">▶</span></div>
