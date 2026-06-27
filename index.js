@@ -910,16 +910,39 @@ function injectTrendingIntoHero(trendingTitles) {
   console.log('[Trending] Library groups:', groups.map(g => g.title).slice(0, 10));
   console.log('[Trending] heroFeature before:', heroFeature?.map(g => g.title));
 
+  function baseTitle(title) {
+    return title.toLowerCase()
+      .replace(/\s*season\s*\d+/i, '')
+      .replace(/\s*part\s*\d+/i, '')
+      .replace(/\s*s\d+$/i, '')
+      .replace(/[:\-]/g, '')
+      .trim();
+  }
+
   function matchesTrending(title) {
-    const gt = title.toLowerCase().replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
+    const gt = baseTitle(title);
     return trendingTitles.some(t => {
-      const lt = t.toLowerCase().replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
+      const lt = baseTitle(t);
       return gt === lt || gt.includes(lt) || lt.includes(gt);
     });
   }
 
-  const trending = groups.filter(g => matchesTrending(g.title) && g.firstCover);
-  console.log('[Trending] Matched library shows:', trending.map(g => g.title));
+  const matched = groups.filter(g => matchesTrending(g.title) && g.firstCover);
+  console.log('[Trending] Matched library shows:', matched.map(g => g.title));
+
+  // Deduplicate — keep only the highest season per base title
+  const seenBase = new Map();
+  for (const g of matched) {
+    const base = baseTitle(g.title);
+    const existing = seenBase.get(base);
+    if (!existing) { seenBase.set(base, g); continue; }
+    // Prefer higher season number
+    const existingSeason = Number((existing.title.match(/season\s*(\d+)/i) || [])[1] || 1);
+    const thisSeason     = Number((g.title.match(/season\s*(\d+)/i) || [])[1] || 1);
+    if (thisSeason > existingSeason) seenBase.set(base, g);
+  }
+  const trending = [...seenBase.values()];
+  console.log('[Trending] Deduped matches:', trending.map(g => g.title));
 
   if (!trending.length) { console.log('[Trending] No matches in library'); return; }
 
