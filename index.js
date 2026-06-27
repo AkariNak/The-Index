@@ -879,57 +879,54 @@ async function fetchTrendingAndInjectHero() {
   try {
     const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
     if (cached.ts && Date.now() - cached.ts < TRENDING_CACHE_TTL && cached.titles?.length) {
+      console.log('[Trending] Using cached titles:', cached.titles.slice(0, 5));
       injectTrendingIntoHero(cached.titles);
       return;
     }
   } catch {}
 
-  const query = `
-    query {
-      Page(page: 1, perPage: 20) {
-        media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
-          title { english romaji }
-        }
-      }
-    }
-  `;
+  const query = `query{Page(page:1,perPage:20){media(type:ANIME,sort:TRENDING_DESC,status_in:[RELEASING,FINISHED]){title{english romaji}}}}`;
   try {
     const res = await fetch('https://graphql.anilist.co', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ query })
     });
-    if (!res.ok) return;
+    if (!res.ok) { console.warn('[Trending] AniList fetch failed:', res.status); return; }
     const json = await res.json();
     const titles = (json?.data?.Page?.media || [])
       .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
+    console.log('[Trending] Fetched titles:', titles.slice(0, 10));
     localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), titles }));
     injectTrendingIntoHero(titles);
   } catch (e) {
-    console.warn('Trending fetch failed:', e);
+    console.warn('[Trending] Error:', e);
   }
 }
 
 function injectTrendingIntoHero(trendingTitles) {
-  if (!trendingTitles?.length) return;
+  if (!trendingTitles?.length) { console.log('[Trending] No titles to inject'); return; }
   const groups = groupVideos(AppState.videos.filter(v => !v.void));
-  const lowerTitles = trendingTitles.map(t => t.toLowerCase());
+  console.log('[Trending] Library groups:', groups.map(g => g.title).slice(0, 10));
+  console.log('[Trending] heroFeature before:', heroFeature?.map(g => g.title));
 
   function matchesTrending(title) {
     const gt = title.toLowerCase().replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
-    return lowerTitles.some(t => {
-      const lt = t.replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
+    return trendingTitles.some(t => {
+      const lt = t.toLowerCase().replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
       return gt === lt || gt.includes(lt) || lt.includes(gt);
     });
   }
 
   const trending = groups.filter(g => matchesTrending(g.title) && g.firstCover);
-  if (!trending.length) return;
+  console.log('[Trending] Matched library shows:', trending.map(g => g.title));
 
-  // Reorder: trending first, then remaining, cap at 6
+  if (!trending.length) { console.log('[Trending] No matches in library'); return; }
+
   const trendingSlugs = new Set(trending.map(g => g.slug));
   const rest = (heroFeature || []).filter(g => !trendingSlugs.has(g.slug));
   heroFeature = [...trending, ...rest].slice(0, 6);
+  console.log('[Trending] heroFeature after:', heroFeature.map(g => g.title));
 
   if (!heroFeature.length) return;
 
