@@ -391,6 +391,43 @@ async function buildGrids(){
   initAbyssHero(_allGroups);
   renderAbyssContinueWatching(_allGroups);
   document.getElementById('statusCount').textContent=`${_allGroups.length} SHOWS · ${all.length} EPS`;
+  fetchAbyssTrending();
+}
+
+const ABYSS_TRENDING_KEY='onyx-abyss-trending';
+const ABYSS_TRENDING_TTL=1000*60*60*6;
+
+async function fetchAbyssTrending(){
+  let titles=[];
+  try{
+    const cached=JSON.parse(localStorage.getItem(ABYSS_TRENDING_KEY)||'{}');
+    if(cached.ts&&Date.now()-cached.ts<ABYSS_TRENDING_TTL&&cached.titles?.length){
+      titles=cached.titles;
+    } else {
+      const gql=`query{Page(page:1,perPage:20){media(type:ANIME,sort:TRENDING_DESC,status_in:[RELEASING,FINISHED]){title{english romaji}}}}`;
+      const res=await fetch('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({query:gql})});
+      if(!res.ok)return;
+      const json=await res.json();
+      titles=(json?.data?.Page?.media||[]).flatMap(m=>[m.title?.english,m.title?.romaji].filter(Boolean));
+      localStorage.setItem(ABYSS_TRENDING_KEY,JSON.stringify({ts:Date.now(),titles}));
+    }
+  }catch(e){return;}
+
+  if(!titles.length||!_heroGroups.length)return;
+  const lower=titles.map(t=>t.toLowerCase());
+  const matches=_allGroups.filter(g=>{
+    const gt=g.title.toLowerCase();
+    return lower.some(t=>gt===t||gt.includes(t)||t.includes(gt)||gt.replace(/\s*season\s*\d+/i,'').trim()===t.replace(/\s*season\s*\d+/i,'').trim());
+  }).filter(g=>g.firstCover);
+
+  if(!matches.length)return;
+  const existingSlugs=new Set(_heroGroups.map(g=>g.slug));
+  const newGroups=matches.filter(g=>!existingSlugs.has(g.slug));
+  if(!newGroups.length)return;
+
+  _heroGroups=[...newGroups,..._heroGroups].slice(0,6);
+  buildHeroDots();
+  showHeroSlide(0);
 }
 
 function startPassiveCorruption(){
