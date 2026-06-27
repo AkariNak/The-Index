@@ -931,6 +931,7 @@ function injectTrendingIntoHero(trendingTitles) {
   if (!heroFeature.length) return;
 
   stopHeroTimer();
+  heroIndex = 0;
   const dotsEl = document.getElementById('heroDots');
   if (dotsEl) {
     dotsEl.innerHTML = heroFeature.map((_, i) =>
@@ -941,7 +942,7 @@ function injectTrendingIntoHero(trendingTitles) {
     });
   }
   document.getElementById('heroSlideshow').hidden = false;
-  goToSlide(0);
+  renderHeroSlide(0);
   startHeroTimer();
 }
 
