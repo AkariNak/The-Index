@@ -754,6 +754,7 @@ function wireTabs() {
 let heroIndex   = 0;
 let heroTimer   = null;
 let heroFeature = [];
+let _lastTrendingTitles = null;
 let _sliding    = false;
 const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
@@ -906,6 +907,7 @@ async function fetchTrendingAndInjectHero() {
 
 function injectTrendingIntoHero(trendingTitles) {
   if (!trendingTitles?.length) { console.log('[Trending] No titles to inject'); return; }
+  _lastTrendingTitles = trendingTitles;
   const groups = groupVideos(AppState.videos.filter(v => !v.void));
   console.log('[Trending] Library groups:', groups.map(g => g.title).slice(0, 10));
   console.log('[Trending] heroFeature before:', heroFeature?.map(g => g.title));
@@ -991,7 +993,14 @@ function buildHero(groups) {
 
 function rebuildHero() {
   const groups = groupVideos(AppState.videos.filter(v => !v.void));
-  heroFeature  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
+  const fresh  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
+  // If trending already injected, re-run inject to preserve order
+  if (_lastTrendingTitles?.length) {
+    heroFeature = fresh;
+    injectTrendingIntoHero(_lastTrendingTitles);
+    return;
+  }
+  heroFeature = fresh;
   if (!heroFeature.length) { const s = document.getElementById('heroSlideshow'); if (s) s.hidden = true; return; }
   heroIndex = Math.min(heroIndex, heroFeature.length - 1);
   renderHeroSlide(heroIndex);
