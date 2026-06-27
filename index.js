@@ -871,7 +871,7 @@ function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToS
 function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
 // ---------- Trending hero injection ----------
-const TRENDING_CACHE_KEY = 'onyx-trending-hero';
+const TRENDING_CACHE_KEY = 'onyx-trending-hero-v2';
 const TRENDING_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
 
 async function fetchTrendingAndInjectHero() {
@@ -911,33 +911,29 @@ async function fetchTrendingAndInjectHero() {
 }
 
 function injectTrendingIntoHero(trendingTitles) {
-  if (!trendingTitles?.length || !heroFeature?.length) return;
+  if (!trendingTitles?.length) return;
   const groups = groupVideos(AppState.videos.filter(v => !v.void));
   const lowerTitles = trendingTitles.map(t => t.toLowerCase());
 
-  // Find groups that match a trending title
-  const matches = groups.filter(g => {
-    const gt = g.title.toLowerCase();
-    return lowerTitles.some(t =>
-      gt === t ||
-      gt.includes(t) ||
-      t.includes(gt) ||
-      // fuzzy: strip "season X" and compare base
-      gt.replace(/\s*season\s*\d+/i, '').trim() === t.replace(/\s*season\s*\d+/i, '').trim()
-    );
-  }).filter(g => g.firstCover);
+  function matchesTrending(title) {
+    const gt = title.toLowerCase().replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
+    return lowerTitles.some(t => {
+      const lt = t.replace(/\s*season\s*\d+/i, '').replace(/[:\-]/g, '').trim();
+      return gt === lt || gt.includes(lt) || lt.includes(gt);
+    });
+  }
 
-  if (!matches.length) return;
+  const trending = groups.filter(g => matchesTrending(g.title) && g.firstCover);
+  if (!trending.length) return;
 
-  // Put trending matches at front, dedupe against existing heroFeature
-  const existingSlugs = new Set(heroFeature.map(g => g.slug));
-  const newFeatures = matches.filter(g => !existingSlugs.has(g.slug));
-  if (!newFeatures.length) return;
+  // Reorder: trending first, then remaining, cap at 6
+  const trendingSlugs = new Set(trending.map(g => g.slug));
+  const rest = (heroFeature || []).filter(g => !trendingSlugs.has(g.slug));
+  heroFeature = [...trending, ...rest].slice(0, 6);
 
-  // Inject at front, keep total at 6
-  heroFeature = [...newFeatures, ...heroFeature].slice(0, 6);
+  if (!heroFeature.length) return;
 
-  // Rebuild dots
+  stopHeroTimer();
   const dotsEl = document.getElementById('heroDots');
   if (dotsEl) {
     dotsEl.innerHTML = heroFeature.map((_, i) =>
@@ -947,7 +943,9 @@ function injectTrendingIntoHero(trendingTitles) {
       dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
     });
   }
+  document.getElementById('heroSlideshow').hidden = false;
   goToSlide(0);
+  startHeroTimer();
 }
 
 function buildHero(groups) {
