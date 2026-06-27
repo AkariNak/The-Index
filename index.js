@@ -870,6 +870,86 @@ function goToSlide(idx) {
 function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL); }
 function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
+// ---------- Trending hero injection ----------
+const TRENDING_CACHE_KEY = 'onyx-trending-hero';
+const TRENDING_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+
+async function fetchTrendingAndInjectHero() {
+  // Check cache first
+  try {
+    const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
+    if (cached.ts && Date.now() - cached.ts < TRENDING_CACHE_TTL && cached.titles?.length) {
+      injectTrendingIntoHero(cached.titles);
+      return;
+    }
+  } catch {}
+
+  const query = `
+    query {
+      Page(page: 1, perPage: 20) {
+        media(type: ANIME, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
+          title { english romaji }
+        }
+      }
+    }
+  `;
+  try {
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    const titles = (json?.data?.Page?.media || [])
+      .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
+    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), titles }));
+    injectTrendingIntoHero(titles);
+  } catch (e) {
+    console.warn('Trending fetch failed:', e);
+  }
+}
+
+function injectTrendingIntoHero(trendingTitles) {
+  if (!trendingTitles?.length || !heroFeature?.length) return;
+  const groups = groupVideos(AppState.videos.filter(v => !v.void));
+  const lowerTitles = trendingTitles.map(t => t.toLowerCase());
+
+  // Find groups that match a trending title
+  const matches = groups.filter(g => {
+    const gt = g.title.toLowerCase();
+    return lowerTitles.some(t =>
+      gt === t ||
+      gt.includes(t) ||
+      t.includes(gt) ||
+      // fuzzy: strip "season X" and compare base
+      gt.replace(/\s*season\s*\d+/i, '').trim() === t.replace(/\s*season\s*\d+/i, '').trim()
+    );
+  }).filter(g => g.firstCover);
+
+  if (!matches.length) return;
+
+  // Put trending matches at front, dedupe against existing heroFeature
+  const existingSlugs = new Set(heroFeature.map(g => g.slug));
+  const newFeatures = matches.filter(g => !existingSlugs.has(g.slug));
+  if (!newFeatures.length) return;
+
+  // Inject at front, keep total at 6
+  heroFeature = [...newFeatures, ...heroFeature].slice(0, 6);
+
+  // Rebuild dots
+  const dotsEl = document.getElementById('heroDots');
+  if (dotsEl) {
+    dotsEl.innerHTML = heroFeature.map((_, i) =>
+      `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
+    ).join('');
+    dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+      dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
+    });
+  }
+  goToSlide(0);
+}
+
 function buildHero(groups) {
   const section  = document.getElementById('heroSlideshow');
   const dotsEl   = document.getElementById('heroDots');
@@ -1008,6 +1088,7 @@ function wireAll() {
   buildGenreFilters();
   render();
   buildHero(groupVideos(AppState.videos));
+  fetchTrendingAndInjectHero();
   wireAll();
   wireNavAuth();
   renderContinueWatching();
