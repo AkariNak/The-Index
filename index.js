@@ -973,7 +973,6 @@ function rebuildHero() {
   heroIndex = Math.min(heroIndex, heroFeature.length - 1);
   renderHeroSlide(heroIndex);
 }
-
 // ---------- Nav auth ----------
 function wireNavAuth() {
   const signInBtn   = document.getElementById('signInNavBtn');
@@ -1076,15 +1075,15 @@ function wireAll() {
     syncVideos(); render(); rebuildHero();
   });
   getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
-  loadBannerOverridesFromSupabase().then(() => rebuildHero());
-  loadHeroOrderFromSupabase().then(() => rebuildHero());
+  await loadBannerOverridesFromSupabase();
+  await loadHeroOrderFromSupabase();
   hideSkeleton();
   buildFilters();
   buildLangFilters();
   buildGenreFilters();
   render();
   buildHero(groupVideos(AppState.videos.filter(v => !v.void)));
-  fetchTrendingAndInjectHero();
+  await fetchTrendingAndInjectHero();
   wireAll();
   wireNavAuth();
   renderContinueWatching();
