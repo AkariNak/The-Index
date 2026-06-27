@@ -873,12 +873,19 @@ function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer
 
 // ---------- Trending hero injection ----------
 const TRENDING_CACHE_KEY = 'onyx-trending-hero-v3';
-const TRENDING_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+
+function getTrendingCacheSlot() {
+  const now = new Date();
+  const h = now.getHours();
+  // Returns a string like "2024-06-27-18" representing the current 6-hour slot
+  const slot = h < 6 ? 0 : h < 12 ? 6 : h < 18 ? 12 : 18;
+  return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${slot}`;
+}
 
 async function fetchTrendingAndInjectHero() {
   try {
     const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
-    if (cached.ts && Date.now() - cached.ts < TRENDING_CACHE_TTL && cached.titles?.length) {
+    if (cached.slot === getTrendingCacheSlot() && cached.titles?.length) {
       console.log('[Trending] Using cached titles:', cached.titles.slice(0, 5));
       injectTrendingIntoHero(cached.titles);
       return;
@@ -907,7 +914,7 @@ async function fetchTrendingAndInjectHero() {
       console.log(`[Trending] Page ${page}: ${allTitles.length} titles, ${matches} library matches`);
       if (matches >= 6) break;
     }
-    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), titles: allTitles }));
+    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ slot: getTrendingCacheSlot(), titles: allTitles }));
     injectTrendingIntoHero(allTitles);
   } catch (e) {
     console.warn('[Trending] Error:', e);
