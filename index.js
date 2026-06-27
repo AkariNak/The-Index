@@ -988,22 +988,20 @@ function buildHero(groups) {
   document.getElementById('heroPrev')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer(); });
   document.getElementById('heroNext')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer(); });
   renderHeroSlide(0);
+  // If trending already cached, inject immediately
+  if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles);
   // Don't start timer here — fetchTrendingAndInjectHero will start it after updating heroFeature
 }
 
 function rebuildHero() {
   const groups = groupVideos(AppState.videos.filter(v => !v.void));
   const fresh  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
-  // If trending already injected, re-run inject to preserve order
-  if (_lastTrendingTitles?.length) {
-    heroFeature = fresh;
-    injectTrendingIntoHero(_lastTrendingTitles);
-    return;
-  }
-  heroFeature = fresh;
+  heroFeature  = fresh;
   if (!heroFeature.length) { const s = document.getElementById('heroSlideshow'); if (s) s.hidden = true; return; }
   heroIndex = Math.min(heroIndex, heroFeature.length - 1);
   renderHeroSlide(heroIndex);
+  // Re-inject trending on top of whatever admin order set
+  if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles);
 }
 // ---------- Nav auth ----------
 function wireNavAuth() {
@@ -1115,13 +1113,14 @@ function wireAll() {
   buildGenreFilters();
   render();
   buildHero(groupVideos(AppState.videos.filter(v => !v.void)));
-  await fetchTrendingAndInjectHero();
   wireAll();
   wireNavAuth();
   renderContinueWatching();
-  const groups = groupVideos(AppState.videos);
-  loadRatings(groups);
+  loadRatings(groupVideos(AppState.videos));
+
+  // Run Jikan tag loading first, then inject trending so groupVideos has all shows
   (async () => {
+    const groups = groupVideos(AppState.videos);
     const seenBase = new Set();
     for (const g of groups) {
       const base = g.title.replace(/\s+season\s+\d+/i,'').replace(/\s+part\s+\d+/i,'').replace(/\s+S\d+$/i,'').trim();
@@ -1131,5 +1130,6 @@ function wireAll() {
       try { await fetchJikanDetails(g.title); await new Promise(r => setTimeout(r, 600)); } catch { /* silent */ }
     }
     render();
+    await fetchTrendingAndInjectHero();
   })();
 })();
