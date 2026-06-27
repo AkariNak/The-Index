@@ -954,7 +954,7 @@ function buildHero(groups) {
   const section  = document.getElementById('heroSlideshow');
   const dotsEl   = document.getElementById('heroDots');
   if (!section || !dotsEl) return;
-  heroFeature = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
+  heroFeature = applyHeroOrder(groups.filter(g => !g.videos.some(v => v.void))).filter(g => g.firstCover).slice(0, 6);
   if (!heroFeature.length) { section.hidden = true; return; }
   section.hidden = false;
   heroIndex = 0;
@@ -971,7 +971,7 @@ function buildHero(groups) {
 }
 
 function rebuildHero() {
-  const groups = groupVideos(AppState.videos);
+  const groups = groupVideos(AppState.videos.filter(v => !v.void));
   heroFeature  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
   if (!heroFeature.length) { const s = document.getElementById('heroSlideshow'); if (s) s.hidden = true; return; }
   heroIndex = Math.min(heroIndex, heroFeature.length - 1);
@@ -1087,7 +1087,7 @@ function wireAll() {
   buildLangFilters();
   buildGenreFilters();
   render();
-  buildHero(groupVideos(AppState.videos));
+  buildHero(groupVideos(AppState.videos.filter(v => !v.void)));
   fetchTrendingAndInjectHero();
   wireAll();
   wireNavAuth();
