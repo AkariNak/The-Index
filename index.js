@@ -872,7 +872,7 @@ function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToS
 function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
 // ---------- Trending hero injection ----------
-const TRENDING_CACHE_KEY = 'onyx-trending-hero-v2';
+const TRENDING_CACHE_KEY = 'onyx-trending-hero-v3';
 const TRENDING_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
 
 async function fetchTrendingAndInjectHero() {
@@ -885,24 +885,52 @@ async function fetchTrendingAndInjectHero() {
     }
   } catch {}
 
-  const query = `query{Page(page:1,perPage:20){media(type:ANIME,sort:TRENDING_DESC,status_in:[RELEASING,FINISHED]){title{english romaji}}}}`;
+  // Fetch up to 5 pages (100 shows) until we have enough library matches
+  const allTitles = [];
   try {
-    const res = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ query })
-    });
-    if (!res.ok) { console.warn('[Trending] AniList fetch failed:', res.status); startHeroTimer(); return; }
-    const json = await res.json();
-    const titles = (json?.data?.Page?.media || [])
-      .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
-    console.log('[Trending] Fetched titles:', titles.slice(0, 10));
-    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), titles }));
-    injectTrendingIntoHero(titles);
+    for (let page = 1; page <= 5; page++) {
+      const query = `query{Page(page:${page},perPage:20){media(type:ANIME,sort:TRENDING_DESC,status_in:[RELEASING,FINISHED]){title{english romaji}}}}`;
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      if (!res.ok) break;
+      const json = await res.json();
+      const titles = (json?.data?.Page?.media || [])
+        .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
+      if (!titles.length) break;
+      allTitles.push(...titles);
+
+      // Check how many library matches we have so far
+      const matches = countLibraryMatches(allTitles);
+      console.log(`[Trending] Page ${page}: ${allTitles.length} titles, ${matches} library matches`);
+      if (matches >= 6) break;
+    }
+    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ ts: Date.now(), titles: allTitles }));
+    injectTrendingIntoHero(allTitles);
   } catch (e) {
     console.warn('[Trending] Error:', e);
-    startHeroTimer(); // fallback so slideshow still works
+    startHeroTimer();
   }
+}
+
+function countLibraryMatches(trendingTitles) {
+  const groups = groupVideos(AppState.videos.filter(v => !v.void));
+  function baseTitle(t) {
+    return t.toLowerCase().replace(/\s*season\s*\d+/i,'').replace(/\s*part\s*\d+/i,'').replace(/\s*s\d+$/i,'').replace(/[:\-]/g,'').trim();
+  }
+  const seenBase = new Map();
+  for (const g of groups) {
+    const gt = baseTitle(g.title);
+    if (!g.firstCover) continue;
+    if (trendingTitles.some(t => { const lt = baseTitle(t); return gt===lt||gt.includes(lt)||lt.includes(gt); })) {
+      const existingSeason = Number((seenBase.get(gt)?.title.match(/season\s*(\d+)/i)||[])[1]||0);
+      const thisSeason = Number((g.title.match(/season\s*(\d+)/i)||[])[1]||0);
+      if (!seenBase.has(gt) || thisSeason > existingSeason) seenBase.set(gt, g);
+    }
+  }
+  return seenBase.size;
 }
 
 function injectTrendingIntoHero(trendingTitles) {
@@ -946,11 +974,10 @@ function injectTrendingIntoHero(trendingTitles) {
   const trending = [...seenBase.values()];
   console.log('[Trending] Deduped matches:', trending.map(g => g.title));
 
-  if (!trending.length) { console.log('[Trending] No matches in library'); return; }
+  if (!trending.length) { console.log('[Trending] No matches in library'); startHeroTimer(); return; }
 
-  const trendingSlugs = new Set(trending.map(g => g.slug));
-  const rest = (heroFeature || []).filter(g => !trendingSlugs.has(g.slug));
-  heroFeature = [...trending, ...rest].slice(0, 6);
+  // Trending only — no admin fallback
+  heroFeature = trending.slice(0, 6);
   console.log('[Trending] heroFeature after:', heroFeature.map(g => g.title));
 
   if (!heroFeature.length) return;
