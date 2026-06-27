@@ -875,7 +875,6 @@ const TRENDING_CACHE_KEY = 'onyx-trending-hero-v2';
 const TRENDING_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
 
 async function fetchTrendingAndInjectHero() {
-  // Check cache first
   try {
     const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
     if (cached.ts && Date.now() - cached.ts < TRENDING_CACHE_TTL && cached.titles?.length) {
@@ -892,7 +891,7 @@ async function fetchTrendingAndInjectHero() {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ query })
     });
-    if (!res.ok) { console.warn('[Trending] AniList fetch failed:', res.status); return; }
+    if (!res.ok) { console.warn('[Trending] AniList fetch failed:', res.status); startHeroTimer(); return; }
     const json = await res.json();
     const titles = (json?.data?.Page?.media || [])
       .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
@@ -901,6 +900,7 @@ async function fetchTrendingAndInjectHero() {
     injectTrendingIntoHero(titles);
   } catch (e) {
     console.warn('[Trending] Error:', e);
+    startHeroTimer(); // fallback so slideshow still works
   }
 }
 
@@ -963,7 +963,7 @@ function buildHero(groups) {
   document.getElementById('heroPrev')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer(); });
   document.getElementById('heroNext')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer(); });
   renderHeroSlide(0);
-  startHeroTimer();
+  // Don't start timer here — fetchTrendingAndInjectHero will start it after updating heroFeature
 }
 
 function rebuildHero() {
