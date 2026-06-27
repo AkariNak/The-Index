@@ -394,7 +394,7 @@ async function buildGrids(){
   fetchAbyssTrending();
 }
 
-const ABYSS_TRENDING_KEY='onyx-abyss-trending';
+const ABYSS_TRENDING_KEY='onyx-abyss-trending-v2';
 const ABYSS_TRENDING_TTL=1000*60*60*6;
 
 async function fetchAbyssTrending(){
@@ -413,19 +413,22 @@ async function fetchAbyssTrending(){
     }
   }catch(e){return;}
 
-  if(!titles.length||!_heroGroups.length)return;
-  const lower=titles.map(t=>t.toLowerCase());
-  const matches=_allGroups.filter(g=>{
-    const gt=g.title.toLowerCase();
-    return lower.some(t=>gt===t||gt.includes(t)||t.includes(gt)||gt.replace(/\s*season\s*\d+/i,'').trim()===t.replace(/\s*season\s*\d+/i,'').trim());
-  }).filter(g=>g.firstCover);
+  if(!titles.length||!_allGroups.length)return;
 
+  function matchesTrending(title){
+    const gt=title.toLowerCase().replace(/\s*season\s*\d+/i,'').replace(/[:\-]/g,'').trim();
+    return titles.some(t=>{
+      const lt=t.toLowerCase().replace(/\s*season\s*\d+/i,'').replace(/[:\-]/g,'').trim();
+      return gt===lt||gt.includes(lt)||lt.includes(gt);
+    });
+  }
+
+  const matches=_allGroups.filter(g=>matchesTrending(g.title)&&g.firstCover);
   if(!matches.length)return;
-  const existingSlugs=new Set(_heroGroups.map(g=>g.slug));
-  const newGroups=matches.filter(g=>!existingSlugs.has(g.slug));
-  if(!newGroups.length)return;
 
-  _heroGroups=[...newGroups,..._heroGroups].slice(0,6);
+  const trendingSlugs=new Set(matches.map(g=>g.slug));
+  const rest=_heroGroups.filter(g=>!trendingSlugs.has(g.slug));
+  _heroGroups=[...matches,...rest].slice(0,6);
   buildHeroDots();
   showHeroSlide(0);
 }
