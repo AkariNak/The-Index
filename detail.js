@@ -132,7 +132,7 @@ function renderDetail() {
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title)}</h1>
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
-        ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis)}</p>` : ''}
+        ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis.replace(/\s*\[Written by MAL Rewrite\]/gi, '').replace(/\s*\[Source:.*?\]/gi, '').trim())}</p>` : ''}
         <div id="watchStatusContainer"></div>
         <div id="episodeProgressContainer"></div>
         <div id="communityRatingContainer"></div>
