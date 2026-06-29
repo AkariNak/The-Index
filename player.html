@@ -485,18 +485,54 @@
 
   // Re-hide controls when entering/exiting fullscreen
   document.addEventListener('fullscreenchange', () => {
-    if (document.fullscreenElement) {
-      // In fullscreen, mousemove on document triggers showControls
-      document.addEventListener('mousemove', _fsMouseMove);
+    const video = document.getElementById('playerVideo');
+    const wrap  = document.querySelector('.video-wrap');
+    if (document.fullscreenElement && video) {
+      video.addEventListener('mousemove', _fsMouseMove);
+      video.addEventListener('mouseleave', _fsTipHide);
       setTimeout(hideAll, 2500);
-    } else {
-      document.removeEventListener('mousemove', _fsMouseMove);
+    } else if (video) {
+      video.removeEventListener('mousemove', _fsMouseMove);
+      video.removeEventListener('mouseleave', _fsTipHide);
     }
   });
-  function _fsMouseMove() {
+
+  function _fsTipHide() {
+    const tip = document.getElementById('timestampTip');
+    if (tip) tip.style.display = 'none';
+  }
+
+  function _fsMouseMove(e) {
     if (!document.fullscreenElement) return;
     const wrap = document.querySelector('.video-wrap');
-    if (wrap) wrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: false, clientX: event.clientX, clientY: event.clientY }));
+    const bar  = document.querySelector('.video-controls-bar');
+    const video = document.getElementById('playerVideo');
+    const tip   = document.getElementById('timestampTip');
+    if (!wrap || !bar || !video) return;
+
+    // Show controls
+    wrap.classList.remove('cursor-hidden');
+    bar.classList.remove('controls-hidden');
+    video.setAttribute('controls', '');
+    clearTimeout(window._fsHideTimer);
+    window._fsHideTimer = setTimeout(hideAll, 2500);
+
+    // Timestamp tip
+    if (!tip || !video.duration) { if (tip) tip.style.display = 'none'; return; }
+    const rect = video.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (y >= rect.height * 0.82 && y <= rect.height && x >= 0 && x <= rect.width) {
+      const h = Math.floor(video.duration * (x / rect.width) / 3600);
+      const total = video.duration * (x / rect.width);
+      const m = Math.floor((total % 3600) / 60);
+      const sec = Math.floor(total % 60);
+      tip.textContent = h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}` : `${m}:${String(sec).padStart(2,'0')}`;
+      tip.style.display = 'block';
+      tip.style.left = `${x}px`;
+    } else {
+      tip.style.display = 'none';
+    }
   }
 
   // Cache Akari Admin status on load, then use it synchronously in contextmenu
