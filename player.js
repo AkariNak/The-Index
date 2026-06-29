@@ -118,9 +118,70 @@ function loadVideo(video, overrideTs) {
     });
   }
 
+const EP_DESC_CACHE_KEY = 'onyx-ep-desc';
+
+function stripMalCredit(text) {
+  if (!text) return '';
+  return text.replace(/\s*\[Written by MAL Rewrite\]/gi, '').replace(/\s*\[Source:.*?\]/gi, '').trim();
+}
+
+function loadEpDescCache() {
+  try { return JSON.parse(localStorage.getItem(EP_DESC_CACHE_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveEpDescCache(cache) {
+  try { localStorage.setItem(EP_DESC_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+async function fetchEpisodeDescription(collectionTitle, episodeNumber) {
+  if (!episodeNumber) return null;
+  const epNum = parseInt(String(episodeNumber).replace(/[^0-9]/g, ''), 10);
+  if (!epNum) return null;
+
+  const cacheKey = `${slug(collectionTitle)}-${epNum}`;
+  const cache = loadEpDescCache();
+  if (cache[cacheKey]) return cache[cacheKey];
+
+  try {
+    // Search for the show on Jikan to get MAL ID
+    const searchRes = await jikanRequest(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(collectionTitle)}&limit=1`);
+    const malId = searchRes?.data?.[0]?.mal_id;
+    if (!malId) return null;
+
+    await new Promise(r => setTimeout(r, 500));
+
+    const epRes = await jikanRequest(`https://api.jikan.moe/v4/anime/${malId}/episodes/${epNum}`);
+    const synopsis = epRes?.data?.synopsis;
+    if (!synopsis) return null;
+
+    const cleaned = stripMalCredit(synopsis);
+    cache[cacheKey] = cleaned;
+    saveEpDescCache(cache);
+    return cleaned;
+  } catch (e) {
+    console.warn('[EpDesc] Failed:', e);
+    return null;
+  }
+}
+
   // Update UI
   if (playerTitleEl) playerTitleEl.textContent = video.title;
-  if (playerDescEl)  { playerDescEl.textContent = video.description || ''; playerDescEl.hidden = !video.description; }
+  if (playerDescEl) {
+    // Start with show description stripped of MAL credit as fallback
+    const fallback = stripMalCredit(video.description || '');
+    playerDescEl.textContent = fallback;
+    playerDescEl.hidden = !fallback;
+
+    // Then try to fetch actual episode description
+    if (currentGroup) {
+      fetchEpisodeDescription(currentGroup.title, video.episode).then(desc => {
+        if (desc && playerDescEl) {
+          playerDescEl.textContent = desc;
+          playerDescEl.hidden = false;
+        }
+      });
+    }
+  }
   if (playerEpMetaEl) {
     const parts = [];
     if (video.episode) parts.push(`EP ${video.episode}`);
@@ -291,7 +352,7 @@ function renderShowInfo(group, jikan) {
     showMetaEl.textContent = parts.join(' · ');
     showMetaEl.hidden = !parts.length;
   }
-  if (showSynopsisEl) { showSynopsisEl.textContent = jikan?.synopsis || ''; showSynopsisEl.hidden = !jikan?.synopsis; }
+  if (showSynopsisEl) { showSynopsisEl.textContent = stripMalCredit(jikan?.synopsis || ''); showSynopsisEl.hidden = !jikan?.synopsis; }
   if (tagListEl) {
     const tags = getTagsForCollection(group.title, jikan?.tags || []);
     tagListEl.innerHTML = tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : '';
