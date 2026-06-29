@@ -141,20 +141,30 @@ function loadVideo(video, overrideTs) {
     startTimestampSaving();
   }, { once: true });
 
-  // Mark watched + auto-set status + check achievements
+  // Mark watched only when near end (within 10 mins) — not on load
   if (currentGroup) {
     const epNum = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
-    markEpisodeWatched(currentGroup.title, video.title, startTs, epNum);
+    let _markedWatched = false;
+
+    playerVideoEl.addEventListener('timeupdate', function onTimeUpdate() {
+      if (_markedWatched) return;
+      const duration = playerVideoEl.duration;
+      if (!duration || duration < 1) return;
+      const remaining = duration - playerVideoEl.currentTime;
+      if (remaining <= 600) { // within 10 mins of end
+        _markedWatched = true;
+        markEpisodeWatched(currentGroup.title, video.title, playerVideoEl.currentTime, epNum);
+        renderSeriesOnPlayer(groupVideos(AppState.videos)); // refresh gold pills
+        playerVideoEl.removeEventListener('timeupdate', onTimeUpdate);
+      }
+    });
+
     getCurrentUser().then(async user => {
       if (!user) return;
       const status = await getWatchStatus(currentGroup.title);
       if (!status) setWatchStatus(currentGroup.title, 'watching');
-
-      // Count total watched episodes from progress
       const progress = AppState.progress || {};
       const totalWatched = Object.keys(progress).length;
-
-      // Check achievements
       checkAchievements({ episodeWatched: true, totalWatched });
     });
   }
@@ -247,10 +257,15 @@ function renderSidebar(group, allGroups) {
   }
 
   if (useGrid) {
+    const lastWatchedTitle = progress?.lastEpisodeTitle;
+    const lastWatchedIdx = lastWatchedTitle
+      ? group.videos.findIndex(v => v.title === lastWatchedTitle)
+      : -1;
+
     episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
       const ep       = cleanEpNum(video.episode, i);
       const isActive = currentVideo && video.title === currentVideo.title;
-      const watched  = progress && progress.lastEpisodeTitle === video.title;
+      const watched  = i <= lastWatchedIdx && lastWatchedIdx >= 0;
       return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-title="${escapeHtml(video.title)}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
     }).join('')}</div>`;
   } else {
