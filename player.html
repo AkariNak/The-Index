@@ -531,6 +531,9 @@
         bar.classList.add('controls-hidden');
         video.removeAttribute('controls');
         video.blur();
+        // Also hide timestamp tip
+        const tip = document.getElementById('timestampTip');
+        if (tip) tip.style.display = 'none';
         hideInterval = setInterval(() => {
           if (wrap.classList.contains('cursor-hidden')) {
             video.removeAttribute('controls');
