@@ -386,6 +386,7 @@
   }
 
   // Unified controls + timestamp tip show/hide
+  let hideAll = () => {};
   (function() {
     const wrap  = document.querySelector('.video-wrap');
     const bar   = document.querySelector('.video-controls-bar');
@@ -403,13 +404,14 @@
       return `${m}:${String(sec).padStart(2,'0')}`;
     }
 
-    function hideAll() {
+    function _hideAll() {
       wrap.classList.add('cursor-hidden');
       bar.classList.add('controls-hidden');
       video.removeAttribute('controls');
       video.blur();
       if (tip) { tip.style.display = 'none'; }
     }
+    hideAll = _hideAll;
 
     function showControls() {
       wrap.classList.remove('cursor-hidden');
@@ -417,12 +419,11 @@
       video.setAttribute('controls', '');
       if (hideInterval) { clearInterval(hideInterval); hideInterval = null; }
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(hideAll, 2500);
+      hideTimer = setTimeout(_hideAll, 2500);
     }
 
     wrap.addEventListener('mousemove', e => {
       showControls();
-      // Timestamp tip — only show in bottom 18% of the video element
       if (!tip) return;
       const videoEl = document.getElementById('playerVideo');
       if (!videoEl || !videoEl.duration) { tip.style.display = 'none'; return; }
@@ -433,7 +434,7 @@
         const pct = Math.max(0, Math.min(1, x / rect.width));
         tip.textContent = formatTime(pct * videoEl.duration);
         tip.style.display = 'block';
-        tip.style.left = `${rect.left + x}px`;
+        tip.style.left = `${x}px`;
       } else {
         tip.style.display = 'none';
       }
@@ -485,19 +486,18 @@
   // Re-hide controls when entering/exiting fullscreen
   document.addEventListener('fullscreenchange', () => {
     if (document.fullscreenElement) {
-      const video = document.getElementById('playerVideo');
-      const wrap = document.querySelector('.video-wrap');
-      const bar = document.querySelector('.video-controls-bar');
-      if (video && wrap && bar) {
-        setTimeout(() => {
-          video.removeAttribute('controls');
-          video.blur();
-          wrap.classList.add('cursor-hidden');
-          bar.classList.add('controls-hidden');
-        }, 2500);
-      }
+      // In fullscreen, mousemove on document triggers showControls
+      document.addEventListener('mousemove', _fsMouseMove);
+      setTimeout(hideAll, 2500);
+    } else {
+      document.removeEventListener('mousemove', _fsMouseMove);
     }
   });
+  function _fsMouseMove() {
+    if (!document.fullscreenElement) return;
+    const wrap = document.querySelector('.video-wrap');
+    if (wrap) wrap.dispatchEvent(new MouseEvent('mousemove', { bubbles: false, clientX: event.clientX, clientY: event.clientY }));
+  }
 
   // Cache Akari Admin status on load, then use it synchronously in contextmenu
   let _isAkariAdmin = false;
