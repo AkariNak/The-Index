@@ -872,7 +872,7 @@ function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToS
 function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
 // ---------- Trending hero injection ----------
-const TRENDING_CACHE_KEY = 'onyx-trending-hero-v3';
+const TRENDING_CACHE_KEY = 'onyx-trending-hero-v4';
 
 function getTrendingCacheSlot() {
   const now = new Date();
@@ -887,13 +887,15 @@ async function fetchTrendingAndInjectHero() {
     const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
     if (cached.slot === getTrendingCacheSlot() && cached.titles?.length) {
       console.log('[Trending] Using cached titles:', cached.titles.slice(0, 5));
+      console.log('[Trending] Last fetched:', new Date(cached.fetchedAt || 0).toLocaleString());
       injectTrendingIntoHero(cached.titles);
       return;
     }
   } catch {}
 
-  // Fetch up to 5 pages (100 shows) until we have enough library matches
-  const allTitles = [];
+  let allTitles = [];
+
+  // Source 1: AniList
   try {
     for (let page = 1; page <= 5; page++) {
       const query = `query{Page(page:${page},perPage:20){media(type:ANIME,sort:TRENDING_DESC,status_in:[RELEASING,FINISHED]){title{english romaji}}}}`;
@@ -908,18 +910,39 @@ async function fetchTrendingAndInjectHero() {
         .flatMap(m => [m.title?.english, m.title?.romaji].filter(Boolean));
       if (!titles.length) break;
       allTitles.push(...titles);
-
-      // Check how many library matches we have so far
-      const matches = countLibraryMatches(allTitles);
-      console.log(`[Trending] Page ${page}: ${allTitles.length} titles, ${matches} library matches`);
-      if (matches >= 6) break;
+      if (countLibraryMatches(allTitles) >= 6) break;
     }
-    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({ slot: getTrendingCacheSlot(), titles: allTitles }));
-    injectTrendingIntoHero(allTitles);
+    console.log('[Trending] AniList titles fetched:', allTitles.length);
   } catch (e) {
-    console.warn('[Trending] Error:', e);
-    startHeroTimer();
+    console.warn('[Trending] AniList failed:', e);
   }
+
+  // Source 2: Jikan fallback if fewer than 6 matches found
+  if (countLibraryMatches(allTitles) < 6) {
+    try {
+      const res = await fetch('https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=25');
+      if (res.ok) {
+        const json = await res.json();
+        const jikanTitles = (json?.data || [])
+          .flatMap(m => [m.title_english, m.title].filter(Boolean));
+        allTitles = [...new Set([...allTitles, ...jikanTitles])];
+        console.log('[Trending] Jikan added, total titles:', allTitles.length);
+      }
+    } catch (e) {
+      console.warn('[Trending] Jikan fallback failed:', e);
+    }
+  }
+
+  if (allTitles.length) {
+    localStorage.setItem(TRENDING_CACHE_KEY, JSON.stringify({
+      slot: getTrendingCacheSlot(),
+      fetchedAt: Date.now(),
+      titles: allTitles
+    }));
+  }
+
+  injectTrendingIntoHero(allTitles);
+  if (!allTitles.length) startHeroTimer();
 }
 
 function countLibraryMatches(trendingTitles) {
