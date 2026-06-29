@@ -408,7 +408,7 @@
       bar.classList.add('controls-hidden');
       video.removeAttribute('controls');
       video.blur();
-      if (tip) tip.style.display = 'none';
+      if (tip) { tip.style.display = 'none'; }
     }
 
     function showControls() {
@@ -417,35 +417,25 @@
       video.setAttribute('controls', '');
       if (hideInterval) { clearInterval(hideInterval); hideInterval = null; }
       clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        hideAll();
-        hideInterval = setInterval(() => {
-          if (wrap.classList.contains('cursor-hidden')) {
-            video.removeAttribute('controls');
-            video.blur();
-          } else {
-            clearInterval(hideInterval);
-            hideInterval = null;
-          }
-        }, 100);
-      }, 2500);
+      hideTimer = setTimeout(hideAll, 2500);
     }
 
     wrap.addEventListener('mousemove', e => {
       showControls();
-      // Timestamp tip — only show when hovering bottom 18% of video
-      if (tip && video.duration) {
-        const rect = video.getBoundingClientRect();
-        const y = e.clientY - rect.top;
-        const x = e.clientX - rect.left;
-        if (y >= rect.height * 0.82 && x >= 0 && x <= rect.width) {
-          const pct = Math.max(0, Math.min(1, x / rect.width));
-          tip.textContent = formatTime(pct * video.duration);
-          tip.style.display = 'block';
-          tip.style.left = `${x}px`;
-        } else {
-          tip.style.display = 'none';
-        }
+      // Timestamp tip — only show in bottom 18% of the video element
+      if (!tip) return;
+      const videoEl = document.getElementById('playerVideo');
+      if (!videoEl || !videoEl.duration) { tip.style.display = 'none'; return; }
+      const rect = videoEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      if (y >= rect.height * 0.82 && y <= rect.height && x >= 0 && x <= rect.width) {
+        const pct = Math.max(0, Math.min(1, x / rect.width));
+        tip.textContent = formatTime(pct * videoEl.duration);
+        tip.style.display = 'block';
+        tip.style.left = `${rect.left + x}px`;
+      } else {
+        tip.style.display = 'none';
       }
     });
 
