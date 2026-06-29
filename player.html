@@ -385,10 +385,16 @@
     });
   }
 
-  // Timestamp tooltip on progress bar hover
-  const video   = document.getElementById('playerVideo');
-  const tip     = document.getElementById('timestampTip');
-  if (video && tip) {
+  // Unified controls + timestamp tip show/hide
+  (function() {
+    const wrap  = document.querySelector('.video-wrap');
+    const bar   = document.querySelector('.video-controls-bar');
+    const video = document.getElementById('playerVideo');
+    const tip   = document.getElementById('timestampTip');
+    if (!wrap || !bar || !video) return;
+    let hideTimer   = null;
+    let hideInterval = null;
+
     function formatTime(s) {
       const h = Math.floor(s / 3600);
       const m = Math.floor((s % 3600) / 60);
@@ -396,22 +402,64 @@
       if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
       return `${m}:${String(sec).padStart(2,'0')}`;
     }
-    video.addEventListener('mousemove', e => {
-      if (!video.duration) return;
-      const rect   = video.getBoundingClientRect();
-      const y      = e.clientY - rect.top;
-      if (y < rect.height * 0.82) { tip.style.display = 'none'; return; }
-      const x      = e.clientX - rect.left;
-      const pct    = Math.max(0, Math.min(1, x / rect.width));
-      const time   = pct * video.duration;
-      tip.textContent      = formatTime(time);
-      tip.style.display    = 'block';
-      tip.style.left       = `${x}px`;
-    });
-    video.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
-  }
 
-  // Keyboard shortcuts
+    function hideAll() {
+      wrap.classList.add('cursor-hidden');
+      bar.classList.add('controls-hidden');
+      video.removeAttribute('controls');
+      video.blur();
+      if (tip) tip.style.display = 'none';
+    }
+
+    function showControls() {
+      wrap.classList.remove('cursor-hidden');
+      bar.classList.remove('controls-hidden');
+      video.setAttribute('controls', '');
+      if (hideInterval) { clearInterval(hideInterval); hideInterval = null; }
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        hideAll();
+        hideInterval = setInterval(() => {
+          if (wrap.classList.contains('cursor-hidden')) {
+            video.removeAttribute('controls');
+            video.blur();
+          } else {
+            clearInterval(hideInterval);
+            hideInterval = null;
+          }
+        }, 100);
+      }, 2500);
+    }
+
+    wrap.addEventListener('mousemove', e => {
+      showControls();
+      // Timestamp tip — only show when hovering bottom 18% of video
+      if (tip && video.duration) {
+        const rect = video.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const x = e.clientX - rect.left;
+        if (y >= rect.height * 0.82 && x >= 0 && x <= rect.width) {
+          const pct = Math.max(0, Math.min(1, x / rect.width));
+          tip.textContent = formatTime(pct * video.duration);
+          tip.style.display = 'block';
+          tip.style.left = `${x}px`;
+        } else {
+          tip.style.display = 'none';
+        }
+      }
+    });
+
+    wrap.addEventListener('mouseenter', showControls);
+    wrap.addEventListener('mouseleave', () => { if (tip) tip.style.display = 'none'; });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') showControls();
+    });
+
+    video.addEventListener('play', showControls);
+    video.addEventListener('pause', showControls);
+    video.addEventListener('seeked', showControls);
+  })();
   document.addEventListener('keydown', e => {
     if (!playerVideoEl) return;
     if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
@@ -509,53 +557,6 @@
         disableFocus();
       }
     });
-  })();
-
-  // Auto-hide cursor and controls bar when inactive
-  (function() {
-    const wrap = document.querySelector('.video-wrap');
-    const bar = document.querySelector('.video-controls-bar');
-    const video = document.getElementById('playerVideo');
-    if (!wrap || !bar || !video) return;
-    let hideTimer = null;
-    let hideInterval = null;
-
-    function showControls() {
-      wrap.classList.remove('cursor-hidden');
-      bar.classList.remove('controls-hidden');
-      video.setAttribute('controls', '');
-      if (hideInterval) { clearInterval(hideInterval); hideInterval = null; }
-      clearTimeout(hideTimer);
-      hideTimer = setTimeout(() => {
-        wrap.classList.add('cursor-hidden');
-        bar.classList.add('controls-hidden');
-        video.removeAttribute('controls');
-        video.blur();
-        // Also hide timestamp tip
-        const tip = document.getElementById('timestampTip');
-        if (tip) tip.style.display = 'none';
-        hideInterval = setInterval(() => {
-          if (wrap.classList.contains('cursor-hidden')) {
-            video.removeAttribute('controls');
-            video.blur();
-          } else {
-            clearInterval(hideInterval);
-            hideInterval = null;
-          }
-        }, 100);
-      }, 2500);
-    }
-
-    wrap.addEventListener('mousemove', showControls);
-    wrap.addEventListener('mouseenter', showControls);
-
-    document.addEventListener('keydown', e => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === ' ') showControls();
-    });
-
-    video.addEventListener('play', showControls);
-    video.addEventListener('pause', showControls);
-    video.addEventListener('seeked', showControls);
   })();
 
   const _st = document.getElementById('showTitle');
