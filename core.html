@@ -69,8 +69,10 @@
 .heatmap-line-view { padding: 8px 4px 0; }
 .heatmap-line-path { fill: none; stroke: #4ade80; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(74,222,128,0.6)); }
 .heatmap-line-area { fill: url(#lineGradient); opacity: .5; }
-.heatmap-line-dot { fill: #4ade80; cursor: pointer; }
-.heatmap-line-dot:hover { fill: #fff; }
+.heatmap-line-dot { fill: #4ade80; cursor: pointer; transition: r .1s; }
+.heatmap-line-hitarea { cursor: pointer; }
+.heatmap-line-hitarea:hover + .heatmap-line-dot,
+.heatmap-line-dot:hover { fill: #fff; r: 5; }
 .heatmap-line-axis-label { font-family: var(--mono); font-size: 9px; fill: #4ade80; opacity: .6; }
 </style>
 </head>
@@ -535,7 +537,10 @@ function buildLineGraph(days) {
     tickLabels += `<text x="${p.x.toFixed(1)}" y="${height - 4}" class="heatmap-line-axis-label" text-anchor="middle">${label}</text>`;
   }
 
-  const dots = points.map(p => `<circle class="heatmap-line-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" data-date="${p.day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}" data-seconds="${p.day.seconds}"></circle>`).join('');
+  const dots = points.map(p => `
+    <circle class="heatmap-line-hitarea" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="transparent" data-date="${p.day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}" data-seconds="${p.day.seconds}"></circle>
+    <circle class="heatmap-line-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" data-date="${p.day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}" data-seconds="${p.day.seconds}"></circle>
+  `).join('');
 
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   svg.innerHTML = `
@@ -558,7 +563,7 @@ function buildLineGraph(days) {
     tip.className = 'heatmap-tooltip';
     document.body.appendChild(tip);
   }
-  svg.querySelectorAll('.heatmap-line-dot').forEach(dot => {
+  svg.querySelectorAll('.heatmap-line-hitarea').forEach(dot => {
     dot.addEventListener('mouseenter', () => {
       const seconds = parseInt(dot.dataset.seconds, 10);
       tip.textContent = seconds > 0 ? `${formatTime(seconds)} watched on ${dot.dataset.date}` : `No activity on ${dot.dataset.date}`;
