@@ -245,11 +245,13 @@ async function loadStats() {
     return;
   }
 
-  // Group by user/session
+  // Group by user/session — use user_id as the key when available so the
+  // same logged-in account never splits into multiple rows across sessions
   const userMap = {};
   for (const row of data) {
-    const key = row.session_id;
-    if (!userMap[key]) userMap[key] = { key, userId: row.user_id, sessionId: row.session_id, isGuest: row.is_guest, username: row.username, shows: {}, total: 0 };
+    const key = row.user_id || row.session_id;
+    if (!userMap[key]) userMap[key] = { key, userId: row.user_id, sessionIds: new Set(), isGuest: row.is_guest, username: row.username, shows: {}, total: 0 };
+    userMap[key].sessionIds.add(row.session_id);
     if (!userMap[key].shows[row.collection]) userMap[key].shows[row.collection] = 0;
     userMap[key].shows[row.collection] += row.watch_seconds;
     userMap[key].total += row.watch_seconds;
@@ -275,8 +277,17 @@ async function loadStats() {
       const profile = u.userId ? profileMap[u.userId] : null;
       const name = profile?.username || u.username || 'Unknown';
       const avatar = profile?.avatar_url || null;
-      const epsByCol = epCountMap[u.sessionId] || {};
-      const completed = showCompletedMap[u.sessionId] || new Set();
+      // Merge episode counts and completed shows across every session this user has had
+      const epsByCol = {};
+      const completed = new Set();
+      for (const sid of u.sessionIds) {
+        const sidEps = epCountMap[sid] || {};
+        for (const [col, count] of Object.entries(sidEps)) {
+          epsByCol[col] = (epsByCol[col] || 0) + count;
+        }
+        const sidCompleted = showCompletedMap[sid];
+        if (sidCompleted) for (const col of sidCompleted) completed.add(col);
+      }
       const totalUserEps = Object.values(epsByCol).reduce((s, c) => s + c, 0);
       const shows = Object.entries(u.shows)
         .map(([collection, seconds]) => ({
