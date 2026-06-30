@@ -166,8 +166,22 @@ async function loadStats() {
     .select('*')
     .order('watch_seconds', { ascending: false });
 
+  console.log('[Stats] data:', data?.length, 'error:', error);
+
   if (error || !data) {
-    document.getElementById('usersList').innerHTML = '<div class="stats-empty">Could not load stats.</div>';
+    document.getElementById('usersList').innerHTML = `<div class="stats-empty">Could not load stats: ${error?.message || 'unknown error'}</div>`;
+    document.getElementById('guestsList').innerHTML = '';
+    return;
+  }
+
+  if (!data.length) {
+    document.getElementById('usersList').innerHTML = '<div class="stats-empty">No watch data yet — start watching to see stats appear.</div>';
+    document.getElementById('guestsList').innerHTML = '';
+    document.getElementById('showsList').innerHTML = '<div class="stats-empty">No data yet.</div>';
+    document.getElementById('totalTime').textContent = '0m';
+    document.getElementById('totalUsers').textContent = '0';
+    document.getElementById('totalGuests').textContent = '0';
+    document.getElementById('totalShows').textContent = '0';
     return;
   }
 
