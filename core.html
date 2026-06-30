@@ -62,9 +62,9 @@
 .heatmap-tooltip { position: fixed; background: #0a0e0a; border: 1px solid #2ea043; color: #4ade80; font-family: var(--mono); font-size: 11px; padding: 6px 10px; border-radius: 4px; pointer-events: none; z-index: 999; display: none; white-space: nowrap; }
 
 .activity-toggle { display: flex; gap: 6px; }
-.activity-toggle-btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink-mute); cursor: pointer; transition: all .15s; }
-.activity-toggle-btn.active { background: #14391a; border-color: #2ea043; color: #4ade80; }
-.activity-toggle-btn:hover:not(.active) { border-color: var(--ink-mute); }
+.view-toggle-btn, .year-toggle-btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink-mute); cursor: pointer; transition: all .15s; }
+.view-toggle-btn.active, .year-toggle-btn.active { background: #14391a; border-color: #2ea043; color: #4ade80; }
+.view-toggle-btn:hover:not(.active), .year-toggle-btn:hover:not(.active) { border-color: var(--ink-mute); }
 
 .heatmap-line-view { padding: 8px 4px 0; }
 .heatmap-line-path { fill: none; stroke: #4ade80; stroke-width: 2; filter: drop-shadow(0 0 3px rgba(74,222,128,0.6)); }
@@ -105,11 +105,14 @@
     <div class="stats-total-card"><div class="stats-total-label">Episodes Watched</div><div class="stats-total-value" id="totalEps">—</div></div>
   </div>
 
-  <div class="stats-section-head" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between">
+  <div class="stats-section-head" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
     <span>Activity</span>
-    <div class="activity-toggle">
-      <button class="activity-toggle-btn active" data-view="grid" onclick="setActivityView(this)" type="button">⊞ Grid</button>
-      <button class="activity-toggle-btn" data-view="line" onclick="setActivityView(this)" type="button">⟍ Line</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="activity-toggle" id="yearToggle"></div>
+      <div class="activity-toggle">
+        <button class="view-toggle-btn active" data-view="grid" onclick="setActivityView(this)" type="button">⊞ Grid</button>
+        <button class="view-toggle-btn" data-view="line" onclick="setActivityView(this)" type="button">⟍ Line</button>
+      </div>
     </div>
   </div>
   <div class="heatmap-wrap">
@@ -385,34 +388,67 @@ async function loadStats() {
   buildHeatmap(data);
 }
 
+let _allActivityRows = [];
+let _activityYear = new Date().getFullYear();
+
 function buildHeatmap(rows) {
-  // Aggregate watch_seconds by day (using updated_at as the activity date)
-  const dayTotals = {};
+  _allActivityRows = rows;
+
+  // Determine which years have data, always include current year
+  const years = new Set([new Date().getFullYear()]);
   for (const row of rows) {
     const d = new Date(row.updated_at || row.created_at);
-    if (isNaN(d.getTime())) continue;
+    if (!isNaN(d.getTime())) years.add(d.getFullYear());
+  }
+  const sortedYears = [...years].sort((a, b) => b - a);
+
+  const yearToggle = document.getElementById('yearToggle');
+  if (yearToggle) {
+    yearToggle.innerHTML = sortedYears.map(y =>
+      `<button class="year-toggle-btn${y === _activityYear ? ' active' : ''}" data-year="${y}" type="button">${y}</button>`
+    ).join('');
+    yearToggle.querySelectorAll('.year-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _activityYear = parseInt(btn.dataset.year, 10);
+        yearToggle.querySelectorAll('.year-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+        renderActivityForYear(_activityYear);
+      });
+    });
+  }
+
+  renderActivityForYear(_activityYear);
+}
+
+function renderActivityForYear(year) {
+  // Aggregate watch_seconds by day for the selected year
+  const dayTotals = {};
+  for (const row of _allActivityRows) {
+    const d = new Date(row.updated_at || row.created_at);
+    if (isNaN(d.getTime()) || d.getFullYear() !== year) continue;
     const key = d.toISOString().slice(0, 10);
     dayTotals[key] = (dayTotals[key] || 0) + (row.watch_seconds || 0);
   }
 
-  // Build last 365 days, ending today, starting on a Sunday
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(today);
-  start.setDate(start.getDate() - 364);
-  // Roll back to the most recent Sunday on or before start
+  // Build Jan 1 -> Dec 31 of that year, padded to start on Sunday
+  const yearStart = new Date(year, 0, 1);
+  const yearEnd = new Date(year, 11, 31);
+  const start = new Date(yearStart);
   start.setDate(start.getDate() - start.getDay());
+  const end = new Date(yearEnd);
+  end.setDate(end.getDate() + (6 - end.getDay()));
 
   const days = [];
   const cursor = new Date(start);
-  while (cursor <= today) {
+  while (cursor <= end) {
     const key = cursor.toISOString().slice(0, 10);
-    days.push({ date: new Date(cursor), key, seconds: dayTotals[key] || 0 });
+    const inYear = cursor.getFullYear() === year;
+    days.push({ date: new Date(cursor), key, seconds: inYear ? (dayTotals[key] || 0) : -1 });
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  const maxSeconds = Math.max(...days.map(d => d.seconds), 1);
+  const maxSeconds = Math.max(...days.filter(d => d.seconds >= 0).map(d => d.seconds), 1);
   function levelFor(seconds) {
+    if (seconds < 0) return -1; // padding day, render blank/invisible
     if (seconds <= 0) return 0;
     const pct = seconds / maxSeconds;
     if (pct > 0.75) return 4;
@@ -421,7 +457,6 @@ function buildHeatmap(rows) {
     return 1;
   }
 
-  // Render grid (columns = weeks, rows = days Sun-Sat)
   const grid = document.getElementById('heatmapGrid');
   const monthsEl = document.getElementById('heatmapMonths');
   if (!grid) return;
@@ -433,17 +468,20 @@ function buildHeatmap(rows) {
     const day = days[i];
     if (i % 7 === 0) {
       const m = day.date.getMonth();
-      if (m !== lastMonth) { monthLabels.push(day.date.toLocaleDateString('en-US', { month: 'short' })); lastMonth = m; }
+      if (day.seconds >= 0 && m !== lastMonth) { monthLabels.push(day.date.toLocaleDateString('en-US', { month: 'short' })); lastMonth = m; }
       else monthLabels.push('');
     }
     const level = levelFor(day.seconds);
+    if (level === -1) {
+      html += `<div class="heatmap-cell" style="visibility:hidden"></div>`;
+      continue;
+    }
     const dateLabel = day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     html += `<div class="heatmap-cell" data-level="${level}" data-date="${dateLabel}" data-seconds="${day.seconds}"></div>`;
   }
   grid.innerHTML = html;
   monthsEl.innerHTML = monthLabels.map(m => `<span class="heatmap-month-label">${m}</span>`).join('');
 
-  // Tooltip
   let tip = document.getElementById('heatmapTooltip');
   if (!tip) {
     tip = document.createElement('div');
@@ -451,8 +489,8 @@ function buildHeatmap(rows) {
     tip.className = 'heatmap-tooltip';
     document.body.appendChild(tip);
   }
-  grid.querySelectorAll('.heatmap-cell').forEach(cell => {
-    cell.addEventListener('mouseenter', e => {
+  grid.querySelectorAll('.heatmap-cell[data-seconds]').forEach(cell => {
+    cell.addEventListener('mouseenter', () => {
       const seconds = parseInt(cell.dataset.seconds, 10);
       tip.textContent = seconds > 0 ? `${formatTime(seconds)} watched on ${cell.dataset.date}` : `No activity on ${cell.dataset.date}`;
       tip.style.display = 'block';
@@ -464,26 +502,24 @@ function buildHeatmap(rows) {
     cell.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
   });
 
-  // Save for the line view
-  window._heatmapDays = days;
-  buildLineGraph(days);
+  window._heatmapDays = days.filter(d => d.seconds >= 0);
+  const lineView = document.getElementById('heatmapLineView');
+  if (lineView && lineView.style.display !== 'none') buildLineGraph(window._heatmapDays);
 }
 
 function buildLineGraph(days) {
   const svg = document.getElementById('heatmapLineSvg');
-  if (!svg) return;
+  if (!svg || !days.length) return;
 
-  // Only show the last 90 days on the line graph for readability
-  const recent = days.slice(-90);
   const width = 900;
   const height = 160;
   const padding = { top: 10, right: 10, bottom: 20, left: 10 };
   const plotW = width - padding.left - padding.right;
   const plotH = height - padding.top - padding.bottom;
-  const maxSeconds = Math.max(...recent.map(d => d.seconds), 1);
+  const maxSeconds = Math.max(...days.map(d => d.seconds), 1);
 
-  const points = recent.map((d, i) => {
-    const x = padding.left + (i / (recent.length - 1 || 1)) * plotW;
+  const points = days.map((d, i) => {
+    const x = padding.left + (i / (days.length - 1 || 1)) * plotW;
     const y = padding.top + plotH - (d.seconds / maxSeconds) * plotH;
     return { x, y, day: d };
   });
@@ -491,9 +527,9 @@ function buildLineGraph(days) {
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
   const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${(padding.top + plotH).toFixed(1)} L ${points[0].x.toFixed(1)} ${(padding.top + plotH).toFixed(1)} Z`;
 
-  // Month tick labels — show one label every ~14 days
   let tickLabels = '';
-  for (let i = 0; i < points.length; i += 14) {
+  const tickStep = Math.max(Math.ceil(points.length / 12), 1);
+  for (let i = 0; i < points.length; i += tickStep) {
     const p = points[i];
     const label = p.day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     tickLabels += `<text x="${p.x.toFixed(1)}" y="${height - 4}" class="heatmap-line-axis-label" text-anchor="middle">${label}</text>`;
@@ -537,7 +573,7 @@ function buildLineGraph(days) {
 }
 
 function setActivityView(btn) {
-  document.querySelectorAll('.activity-toggle-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   const view = btn.dataset.view;
   const gridView = document.getElementById('heatmapGridView');
