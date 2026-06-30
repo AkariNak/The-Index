@@ -96,10 +96,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="core.js"></script>
 <script>
-const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
 let _sb = null;
-function getSB() { if (_sb) return _sb; _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); return _sb; }
+function getSB() { if (_sb) return _sb; _sb = getSupabase(); return _sb; }
 
 function formatTime(seconds) {
   if (!seconds || seconds < 60) return `${seconds || 0}s`;
