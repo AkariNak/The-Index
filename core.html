@@ -96,8 +96,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="core.js"></script>
 <script>
-let _sb = null;
-function getSB() { if (_sb) return _sb; _sb = getSupabase(); return _sb; }
+function getSB() { return getSupabase(); }
 
 function formatTime(seconds) {
   if (!seconds || seconds < 60) return `${seconds || 0}s`;
