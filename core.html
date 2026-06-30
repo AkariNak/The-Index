@@ -72,7 +72,8 @@
     <div class="stats-total-card"><div class="stats-total-label">Total Watch Time</div><div class="stats-total-value" id="totalTime">—</div></div>
     <div class="stats-total-card"><div class="stats-total-label">Registered Users</div><div class="stats-total-value" id="totalUsers">—</div></div>
     <div class="stats-total-card"><div class="stats-total-label">Guest Sessions</div><div class="stats-total-value" id="totalGuests">—</div></div>
-    <div class="stats-total-card"><div class="stats-total-label">Shows Watched</div><div class="stats-total-value" id="totalShows">—</div></div>
+    <div class="stats-total-card"><div class="stats-total-label">Shows Completed</div><div class="stats-total-value" id="totalShows">—</div></div>
+    <div class="stats-total-card"><div class="stats-total-label">Episodes Watched</div><div class="stats-total-value" id="totalEps">—</div></div>
   </div>
 
   <div class="stats-tabs">
@@ -113,22 +114,27 @@ function switchTab(btn) {
   document.getElementById('tabShows').style.display = btn.dataset.tab === 'shows' ? '' : 'none';
 }
 
-function buildUserRow(name, isGuest, totalSeconds, shows, avatarUrl) {
+function buildUserRow(name, isGuest, totalSeconds, shows, avatarUrl, totalEps, completedShows) {
   const id = 'u-' + Math.random().toString(36).slice(2);
   const maxSec = Math.max(...shows.map(s => s.seconds), 1);
   const initial = (name || '?').charAt(0).toUpperCase();
-  const avatarHtml = avatarUrl
-    ? `<img src="${avatarUrl}" alt="">`
-    : initial;
+  const avatarHtml = avatarUrl ? `<img src="${avatarUrl}" alt="">` : initial;
 
   const showRows = shows.map(s => `
     <div class="stats-show-row">
       ${s.cover ? `<img class="stats-show-cover" src="${s.cover}" alt="">` : `<div class="stats-show-cover"></div>`}
-      <div class="stats-show-title">${s.collection}</div>
+      <div class="stats-show-title">${s.collection}${s.completed ? ' <span style="color:#f59e0b;font-size:11px">✓ Completed</span>' : ''}</div>
+      <div style="font-size:11px;color:var(--ink-mute);font-family:var(--mono);white-space:nowrap;margin-right:8px">${s.epsWatched}${s.totalEps ? '/' + s.totalEps : ''} eps</div>
       <div class="stats-show-bar-wrap"><div class="stats-show-bar" style="width:${Math.round((s.seconds/maxSec)*100)}%"></div></div>
       <div class="stats-show-time">${formatTime(s.seconds)}</div>
     </div>
   `).join('');
+
+  const meta = [
+    formatTime(totalSeconds),
+    totalEps != null ? `${totalEps} eps watched` : '',
+    completedShows != null ? `${completedShows} shows completed` : ''
+  ].filter(Boolean).join(' · ');
 
   return `
     <div class="stats-user">
@@ -136,7 +142,7 @@ function buildUserRow(name, isGuest, totalSeconds, shows, avatarUrl) {
         <div class="stats-user-avatar">${avatarHtml}</div>
         <div class="stats-user-name">${name}</div>
         ${isGuest ? '<span class="stats-guest-badge">Guest</span>' : ''}
-        <div class="stats-user-total">${formatTime(totalSeconds)}</div>
+        <div class="stats-user-total">${meta}</div>
         <div class="stats-user-chevron" id="chev-${id}">▾</div>
       </div>
       <div class="stats-user-body" id="${id}">
@@ -171,6 +177,63 @@ async function loadStats() {
     return;
   }
 
+  // Fetch episodes_watched
+  const { data: epData } = await sb.from('episodes_watched').select('*');
+  const epRows = epData || [];
+
+  // Build episode counts per session+collection
+  const epCountMap = {}; // key: sessionId -> collection -> count
+  const showCompletedMap = {}; // key: sessionId -> Set of completed collections
+  for (const row of epRows) {
+    const key = row.session_id;
+    if (!epCountMap[key]) epCountMap[key] = {};
+    if (!epCountMap[key][row.collection]) epCountMap[key][row.collection] = 0;
+    epCountMap[key][row.collection]++;
+  }
+
+  // Fetch total episode counts per collection from videos table
+  const collections = [...new Set([...data.map(r => r.collection), ...epRows.map(r => r.collection)])];
+  const coverMap = {};
+  const totalEpMap = {}; // collection -> total episodes
+  if (collections.length) {
+    const { data: videos } = await sb
+      .from('videos')
+      .select('collection, cover_url')
+      .in('collection', collections);
+    for (const v of (videos || [])) {
+      if (!coverMap[v.collection] && v.cover_url) coverMap[v.collection] = v.cover_url;
+    }
+    // Count total episodes per collection
+    const { data: epCounts } = await sb
+      .from('videos')
+      .select('collection')
+      .in('collection', collections)
+      .eq('void', false);
+    for (const v of (epCounts || [])) {
+      totalEpMap[v.collection] = (totalEpMap[v.collection] || 0) + 1;
+    }
+  }
+
+  // Determine show completions — all episodes watched for that session
+  for (const [sessionId, colMap] of Object.entries(epCountMap)) {
+    showCompletedMap[sessionId] = new Set();
+    for (const [col, count] of Object.entries(colMap)) {
+      const total = totalEpMap[col] || 0;
+      if (total > 0 && count >= total) showCompletedMap[sessionId].add(col);
+    }
+  }
+
+  // Fetch user profiles
+  const userIds = [...new Set(data.filter(r => r.user_id).map(r => r.user_id))];
+  const profileMap = {};
+  if (userIds.length) {
+    const { data: profiles } = await sb
+      .from('user_profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds);
+    for (const p of (profiles || [])) profileMap[p.id] = p;
+  }
+
   if (!data.length) {
     document.getElementById('usersList').innerHTML = '<div class="stats-empty">No watch data yet — start watching to see stats appear.</div>';
     document.getElementById('guestsList').innerHTML = '';
@@ -182,34 +245,10 @@ async function loadStats() {
     return;
   }
 
-  // Fetch cover URLs from videos table
-  const collections = [...new Set(data.map(r => r.collection))];
-  const coverMap = {};
-  if (collections.length) {
-    const { data: videos } = await sb
-      .from('videos')
-      .select('collection, cover_url')
-      .in('collection', collections);
-    for (const v of (videos || [])) {
-      if (!coverMap[v.collection] && v.cover_url) coverMap[v.collection] = v.cover_url;
-    }
-  }
-
-  // Fetch user profiles for avatars
-  const userIds = [...new Set(data.filter(r => r.user_id).map(r => r.user_id))];
-  const profileMap = {};
-  if (userIds.length) {
-    const { data: profiles } = await sb
-      .from('user_profiles')
-      .select('id, username, avatar_url')
-      .in('id', userIds);
-    for (const p of (profiles || [])) profileMap[p.id] = p;
-  }
-
   // Group by user/session
   const userMap = {};
   for (const row of data) {
-    const key = row.user_id || row.session_id;
+    const key = row.session_id;
     if (!userMap[key]) userMap[key] = { key, userId: row.user_id, sessionId: row.session_id, isGuest: row.is_guest, username: row.username, shows: {}, total: 0 };
     if (!userMap[key].shows[row.collection]) userMap[key].shows[row.collection] = 0;
     userMap[key].shows[row.collection] += row.watch_seconds;
@@ -222,51 +261,56 @@ async function loadStats() {
 
   // Totals
   const totalSeconds = data.reduce((s, r) => s + r.watch_seconds, 0);
-  const totalShows = new Set(data.map(r => r.collection)).size;
+  const totalEpsWatched = epRows.length;
+  const totalShowsCompleted = Object.values(showCompletedMap).reduce((sum, set) => sum + set.size, 0);
   document.getElementById('totalTime').textContent = formatTime(totalSeconds);
   document.getElementById('totalUsers').textContent = registered.length;
   document.getElementById('totalGuests').textContent = guests.length;
-  document.getElementById('totalShows').textContent = totalShows;
+  document.getElementById('totalShows').textContent = totalShowsCompleted;
+  document.getElementById('totalEps').textContent = totalEpsWatched;
 
-  // Render registered users
-  const usersEl = document.getElementById('usersList');
-  if (!registered.length) {
-    usersEl.innerHTML = '<div class="stats-empty">No registered user data yet.</div>';
-  } else {
-    usersEl.innerHTML = registered.map(u => {
+  function renderUserList(list, el) {
+    if (!list.length) { el.innerHTML = '<div class="stats-empty">No data yet.</div>'; return; }
+    el.innerHTML = list.map(u => {
       const profile = u.userId ? profileMap[u.userId] : null;
-      const name = profile?.username || u.username || 'Unknown User';
+      const name = profile?.username || u.username || 'Unknown';
       const avatar = profile?.avatar_url || null;
-      const shows = Object.entries(u.shows).map(([collection, seconds]) => ({ collection, seconds, cover: coverMap[collection] || '' })).sort((a, b) => b.seconds - a.seconds);
-      return buildUserRow(name, false, u.total, shows, avatar);
+      const epsByCol = epCountMap[u.sessionId] || {};
+      const completed = showCompletedMap[u.sessionId] || new Set();
+      const totalUserEps = Object.values(epsByCol).reduce((s, c) => s + c, 0);
+      const shows = Object.entries(u.shows)
+        .map(([collection, seconds]) => ({
+          collection, seconds,
+          cover: coverMap[collection] || '',
+          epsWatched: epsByCol[collection] || 0,
+          totalEps: totalEpMap[collection] || 0,
+          completed: completed.has(collection)
+        }))
+        .sort((a, b) => b.seconds - a.seconds);
+      return buildUserRow(name, u.isGuest, u.total, shows, avatar, totalUserEps, completed.size);
     }).join('');
   }
 
-  // Render guests
-  const guestsEl = document.getElementById('guestsList');
-  if (!guests.length) {
-    guestsEl.innerHTML = '<div class="stats-empty">No guest data yet.</div>';
-  } else {
-    guestsEl.innerHTML = guests.map((u, i) => {
-      const name = `Guest ${i + 1}`;
-      const shows = Object.entries(u.shows).map(([collection, seconds]) => ({ collection, seconds, cover: coverMap[collection] || '' })).sort((a, b) => b.seconds - a.seconds);
-      return buildUserRow(name, true, u.total, shows, null);
-    }).join('');
-  }
+  renderUserList(registered, document.getElementById('usersList'));
+  renderUserList(guests, document.getElementById('guestsList'));
 
-  // Render by show
+  // By show
   const showTotals = {};
   for (const row of data) {
-    if (!showTotals[row.collection]) showTotals[row.collection] = 0;
-    showTotals[row.collection] += row.watch_seconds;
+    if (!showTotals[row.collection]) showTotals[row.collection] = { seconds: 0, eps: 0 };
+    showTotals[row.collection].seconds += row.watch_seconds;
   }
-  const sortedShows = Object.entries(showTotals).sort((a, b) => b[1] - a[1]);
-  const maxShowSec = sortedShows[0]?.[1] || 1;
-
-  document.getElementById('showsList').innerHTML = sortedShows.map(([collection, seconds]) => `
+  for (const row of epRows) {
+    if (!showTotals[row.collection]) showTotals[row.collection] = { seconds: 0, eps: 0 };
+    showTotals[row.collection].eps++;
+  }
+  const sortedShows = Object.entries(showTotals).sort((a, b) => b[1].seconds - a[1].seconds);
+  const maxShowSec = sortedShows[0]?.[1].seconds || 1;
+  document.getElementById('showsList').innerHTML = sortedShows.map(([collection, { seconds, eps }]) => `
     <div class="stats-show-row">
       ${coverMap[collection] ? `<img class="stats-show-cover" src="${coverMap[collection]}" alt="">` : `<div class="stats-show-cover"></div>`}
       <div class="stats-show-title">${collection}</div>
+      <div class="stats-show-eps" style="font-size:11px;color:var(--ink-mute);font-family:var(--mono);white-space:nowrap">${eps} ep${eps !== 1 ? 's' : ''}</div>
       <div class="stats-show-bar-wrap"><div class="stats-show-bar" style="width:${Math.round((seconds/maxShowSec)*100)}%"></div></div>
       <div class="stats-show-time">${formatTime(seconds)}</div>
     </div>
