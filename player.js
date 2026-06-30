@@ -117,36 +117,42 @@ async function flushAnalytics() {
   const seconds = Math.floor(_analyticsAccum);
   _analyticsAccum = 0;
   const sessionId = getSessionId();
-  const sb = getSupabase();
+  console.log('[Analytics] flushing', seconds, 'seconds for', _analyticsCollection);
   try {
+    const sb = getSupabase();
     const user = await getCurrentUser();
     const userId = user?.id || null;
-    const username = userId ? (await getCurrentProfile())?.username || null : null;
     const isGuest = !userId;
-    // Upsert — add seconds to existing row for this session+collection
-    const { data: existing } = await sb
+    let username = null;
+    if (userId) {
+      try {
+        const { data: profile } = await sb.from('user_profiles').select('username').eq('id', userId).maybeSingle();
+        username = profile?.username || null;
+      } catch {}
+    }
+    const { data: existing, error: fetchErr } = await sb
       .from('watch_analytics')
       .select('id, watch_seconds')
       .eq('session_id', sessionId)
       .eq('collection', _analyticsCollection)
       .maybeSingle();
+    if (fetchErr) { console.warn('[Analytics] fetch error:', fetchErr.message); return; }
     if (existing) {
-      await sb.from('watch_analytics').update({
-        watch_seconds: existing.watch_seconds + seconds,
-        updated_at: new Date().toISOString()
-      }).eq('id', existing.id);
+      const { error: updateErr } = await sb.from('watch_analytics')
+        .update({ watch_seconds: existing.watch_seconds + seconds, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+      if (updateErr) console.warn('[Analytics] update error:', updateErr.message);
+      else console.log('[Analytics] updated row, total:', existing.watch_seconds + seconds);
     } else {
-      await sb.from('watch_analytics').insert({
-        session_id: sessionId,
-        user_id: userId,
-        username,
-        collection: _analyticsCollection,
-        watch_seconds: seconds,
-        is_guest: isGuest
+      const { error: insertErr } = await sb.from('watch_analytics').insert({
+        session_id: sessionId, user_id: userId, username,
+        collection: _analyticsCollection, watch_seconds: seconds, is_guest: isGuest
       });
+      if (insertErr) console.warn('[Analytics] insert error:', insertErr.message);
+      else console.log('[Analytics] inserted new row');
     }
   } catch (e) {
-    console.warn('[Analytics] flush failed:', e);
+    console.warn('[Analytics] flush failed:', e.message);
   }
 }
 
@@ -156,7 +162,10 @@ function startAnalytics(collection) {
   _analyticsAccum = 0;
   _analyticsLastTick = null;
   _analyticsTimer = setInterval(() => {
-    if (!playerVideoEl || playerVideoEl.paused || playerVideoEl.ended) return;
+    if (!playerVideoEl || playerVideoEl.paused || playerVideoEl.ended) {
+      _analyticsLastTick = null;
+      return;
+    }
     const now = Date.now();
     if (_analyticsLastTick) _analyticsAccum += (now - _analyticsLastTick) / 1000;
     _analyticsLastTick = now;
