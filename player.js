@@ -179,6 +179,34 @@ function stopAnalytics() {
   _analyticsLastTick = null;
 }
 
+async function logEpisodeWatched(collection, episodeTitle, episodeNumber) {
+  try {
+    const sb = getSupabase();
+    const user = await getCurrentUser();
+    const sessionId = getSessionId();
+    // Avoid duplicate logs for same session+episode
+    const { data: existing } = await sb
+      .from('episodes_watched')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('collection', collection)
+      .eq('episode_title', episodeTitle)
+      .maybeSingle();
+    if (existing) return; // already logged
+    await sb.from('episodes_watched').insert({
+      session_id: sessionId,
+      user_id: user?.id || null,
+      collection,
+      episode_title: episodeTitle,
+      episode_number: episodeNumber || null,
+      is_guest: !user
+    });
+    console.log('[Analytics] episode logged:', episodeTitle);
+  } catch (e) {
+    console.warn('[Analytics] episode log failed:', e.message);
+  }
+}
+
 function loadVideo(video, overrideTs) {
   if (!video) return;
   stopTimestampSaving();
@@ -239,8 +267,10 @@ function loadVideo(video, overrideTs) {
       if (remaining <= 600) { // within 10 mins of end
         _markedWatched = true;
         markEpisodeWatched(currentGroup.title, video.title, playerVideoEl.currentTime, epNum);
-        renderSeriesOnPlayer(groupVideos(AppState.videos)); // refresh gold pills
+        renderSeriesOnPlayer(groupVideos(AppState.videos));
         playerVideoEl.removeEventListener('timeupdate', onTimeUpdate);
+        // Log episode completion
+        logEpisodeWatched(currentGroup.title, video.title, epNum);
       }
     });
 
