@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Onyx — Stats</title>
+<link rel="icon" type="image/png" href="favicon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.stats-page { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+.stats-hero { margin-bottom: 32px; }
+.stats-hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+.stats-hero p { color: var(--ink-mute); font-size: 14px; }
+.stats-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 32px; }
+.stats-total-card { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 20px; }
+.stats-total-label { font-size: 11px; color: var(--ink-mute); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+.stats-total-value { font-size: 24px; font-weight: 800; color: var(--ink); }
+.stats-total-sub { font-size: 12px; color: var(--ink-mute); margin-top: 2px; }
+.stats-section-head { font-size: 13px; font-weight: 700; color: var(--ink); margin: 28px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.stats-user { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+.stats-user-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; transition: background .15s; }
+.stats-user-header:hover { background: var(--paper-3); }
+.stats-user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--paper-3); border: 1px solid var(--line); overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: var(--ink-mute); }
+.stats-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.stats-user-name { font-weight: 600; font-size: 14px; flex: 1; }
+.stats-user-total { font-size: 13px; color: var(--ink-mute); margin-right: 8px; }
+.stats-user-chevron { color: var(--ink-mute); font-size: 12px; transition: transform .2s; }
+.stats-user-chevron.open { transform: rotate(180deg); }
+.stats-user-body { display: none; border-top: 1px solid var(--line); }
+.stats-user-body.open { display: block; }
+.stats-show-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line-soft); }
+.stats-show-row:last-child { border-bottom: none; }
+.stats-show-cover { width: 32px; aspect-ratio: 2/3; border-radius: 3px; object-fit: cover; background: var(--paper-3); flex-shrink: 0; }
+.stats-show-title { flex: 1; font-size: 13px; font-weight: 500; }
+.stats-show-bar-wrap { width: 120px; height: 4px; background: var(--paper-3); border-radius: 2px; flex-shrink: 0; }
+.stats-show-bar { height: 100%; border-radius: 2px; background: var(--accent); }
+.stats-show-time { font-size: 12px; color: var(--ink-mute); min-width: 70px; text-align: right; font-family: var(--mono); }
+.stats-guest-badge { font-size: 10px; color: var(--ink-mute); background: var(--paper-3); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; flex-shrink: 0; }
+.stats-empty { text-align: center; color: var(--ink-mute); padding: 48px 20px; font-size: 14px; }
+.stats-loading { text-align: center; color: var(--ink-mute); padding: 48px 20px; }
+.stats-tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+.stats-tab { font-size: 13px; font-weight: 600; padding: 7px 16px; border-radius: var(--radius); cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--ink-mute); transition: all .15s; }
+.stats-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#statsMain">Skip to main content</a>
+
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html" aria-label="Onyx home">
+    <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+      <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">STREAMING</text>
+    </svg>
+  </a>
+  <div class="topnav-right" style="margin-left:auto;display:flex;gap:12px;align-items:center">
+    <a href="index.html" class="btn btn-outline btn-small">← Back</a>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<main class="stats-page" id="statsMain">
+  <div class="stats-hero">
+    <h1>Watch Stats</h1>
+    <p>Time spent watching across all users — including guests.</p>
+  </div>
+
+  <div class="stats-totals" id="statsTotals">
+    <div class="stats-total-card"><div class="stats-total-label">Total Watch Time</div><div class="stats-total-value" id="totalTime">—</div></div>
+    <div class="stats-total-card"><div class="stats-total-label">Registered Users</div><div class="stats-total-value" id="totalUsers">—</div></div>
+    <div class="stats-total-card"><div class="stats-total-label">Guest Sessions</div><div class="stats-total-value" id="totalGuests">—</div></div>
+    <div class="stats-total-card"><div class="stats-total-label">Shows Watched</div><div class="stats-total-value" id="totalShows">—</div></div>
+  </div>
+
+  <div class="stats-tabs">
+    <button class="stats-tab active" data-tab="users" onclick="switchTab(this)">By User</button>
+    <button class="stats-tab" data-tab="shows" onclick="switchTab(this)">By Show</button>
+  </div>
+
+  <div id="tabUsers">
+    <div class="stats-section-head">Registered Users</div>
+    <div id="usersList"><div class="stats-loading">Loading...</div></div>
+    <div class="stats-section-head" style="margin-top:32px">Guests</div>
+    <div id="guestsList"><div class="stats-loading">Loading...</div></div>
+  </div>
+
+  <div id="tabShows" style="display:none">
+    <div class="stats-section-head">Most Watched Shows (All Users)</div>
+    <div id="showsList"><div class="stats-loading">Loading...</div></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="core.js"></script>
+<script>
+const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
+let _sb = null;
+function getSB() { if (_sb) return _sb; _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); return _sb; }
+
+function formatTime(seconds) {
+  if (!seconds || seconds < 60) return `${seconds || 0}s`;
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function switchTab(btn) {
+  document.querySelectorAll('.stats-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabUsers').style.display = btn.dataset.tab === 'users' ? '' : 'none';
+  document.getElementById('tabShows').style.display = btn.dataset.tab === 'shows' ? '' : 'none';
+}
+
+function buildUserRow(name, isGuest, totalSeconds, shows, avatarUrl) {
+  const id = 'u-' + Math.random().toString(36).slice(2);
+  const maxSec = Math.max(...shows.map(s => s.seconds), 1);
+  const initial = (name || '?').charAt(0).toUpperCase();
+  const avatarHtml = avatarUrl
+    ? `<img src="${avatarUrl}" alt="">`
+    : initial;
+
+  const showRows = shows.map(s => `
+    <div class="stats-show-row">
+      ${s.cover ? `<img class="stats-show-cover" src="${s.cover}" alt="">` : `<div class="stats-show-cover"></div>`}
+      <div class="stats-show-title">${s.collection}</div>
+      <div class="stats-show-bar-wrap"><div class="stats-show-bar" style="width:${Math.round((s.seconds/maxSec)*100)}%"></div></div>
+      <div class="stats-show-time">${formatTime(s.seconds)}</div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="stats-user">
+      <div class="stats-user-header" onclick="toggleRow('${id}')">
+        <div class="stats-user-avatar">${avatarHtml}</div>
+        <div class="stats-user-name">${name}</div>
+        ${isGuest ? '<span class="stats-guest-badge">Guest</span>' : ''}
+        <div class="stats-user-total">${formatTime(totalSeconds)}</div>
+        <div class="stats-user-chevron" id="chev-${id}">▾</div>
+      </div>
+      <div class="stats-user-body" id="${id}">
+        ${showRows || '<div style="padding:12px 16px;color:var(--ink-mute);font-size:13px">No show data</div>'}
+      </div>
+    </div>
+  `;
+}
+
+function toggleRow(id) {
+  const body = document.getElementById(id);
+  const chev = document.getElementById('chev-' + id);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (chev) chev.classList.toggle('open', open);
+}
+
+async function loadStats() {
+  const sb = getSB();
+
+  // Fetch all analytics rows
+  const { data, error } = await sb
+    .from('watch_analytics')
+    .select('*')
+    .order('watch_seconds', { ascending: false });
+
+  if (error || !data) {
+    document.getElementById('usersList').innerHTML = '<div class="stats-empty">Could not load stats.</div>';
+    return;
+  }
+
+  // Fetch cover URLs from videos table
+  const collections = [...new Set(data.map(r => r.collection))];
+  const coverMap = {};
+  if (collections.length) {
+    const { data: videos } = await sb
+      .from('videos')
+      .select('collection, cover_url')
+      .in('collection', collections);
+    for (const v of (videos || [])) {
+      if (!coverMap[v.collection] && v.cover_url) coverMap[v.collection] = v.cover_url;
+    }
+  }
+
+  // Fetch user profiles for avatars
+  const userIds = [...new Set(data.filter(r => r.user_id).map(r => r.user_id))];
+  const profileMap = {};
+  if (userIds.length) {
+    const { data: profiles } = await sb
+      .from('user_profiles')
+      .select('id, username, avatar_url')
+      .in('id', userIds);
+    for (const p of (profiles || [])) profileMap[p.id] = p;
+  }
+
+  // Group by user/session
+  const userMap = {};
+  for (const row of data) {
+    const key = row.user_id || row.session_id;
+    if (!userMap[key]) userMap[key] = { key, userId: row.user_id, sessionId: row.session_id, isGuest: row.is_guest, username: row.username, shows: {}, total: 0 };
+    if (!userMap[key].shows[row.collection]) userMap[key].shows[row.collection] = 0;
+    userMap[key].shows[row.collection] += row.watch_seconds;
+    userMap[key].total += row.watch_seconds;
+  }
+
+  const users = Object.values(userMap).sort((a, b) => b.total - a.total);
+  const registered = users.filter(u => !u.isGuest);
+  const guests = users.filter(u => u.isGuest);
+
+  // Totals
+  const totalSeconds = data.reduce((s, r) => s + r.watch_seconds, 0);
+  const totalShows = new Set(data.map(r => r.collection)).size;
+  document.getElementById('totalTime').textContent = formatTime(totalSeconds);
+  document.getElementById('totalUsers').textContent = registered.length;
+  document.getElementById('totalGuests').textContent = guests.length;
+  document.getElementById('totalShows').textContent = totalShows;
+
+  // Render registered users
+  const usersEl = document.getElementById('usersList');
+  if (!registered.length) {
+    usersEl.innerHTML = '<div class="stats-empty">No registered user data yet.</div>';
+  } else {
+    usersEl.innerHTML = registered.map(u => {
+      const profile = u.userId ? profileMap[u.userId] : null;
+      const name = profile?.username || u.username || 'Unknown User';
+      const avatar = profile?.avatar_url || null;
+      const shows = Object.entries(u.shows).map(([collection, seconds]) => ({ collection, seconds, cover: coverMap[collection] || '' })).sort((a, b) => b.seconds - a.seconds);
+      return buildUserRow(name, false, u.total, shows, avatar);
+    }).join('');
+  }
+
+  // Render guests
+  const guestsEl = document.getElementById('guestsList');
+  if (!guests.length) {
+    guestsEl.innerHTML = '<div class="stats-empty">No guest data yet.</div>';
+  } else {
+    guestsEl.innerHTML = guests.map((u, i) => {
+      const name = `Guest ${i + 1}`;
+      const shows = Object.entries(u.shows).map(([collection, seconds]) => ({ collection, seconds, cover: coverMap[collection] || '' })).sort((a, b) => b.seconds - a.seconds);
+      return buildUserRow(name, true, u.total, shows, null);
+    }).join('');
+  }
+
+  // Render by show
+  const showTotals = {};
+  for (const row of data) {
+    if (!showTotals[row.collection]) showTotals[row.collection] = 0;
+    showTotals[row.collection] += row.watch_seconds;
+  }
+  const sortedShows = Object.entries(showTotals).sort((a, b) => b[1] - a[1]);
+  const maxShowSec = sortedShows[0]?.[1] || 1;
+
+  document.getElementById('showsList').innerHTML = sortedShows.map(([collection, seconds]) => `
+    <div class="stats-show-row">
+      ${coverMap[collection] ? `<img class="stats-show-cover" src="${coverMap[collection]}" alt="">` : `<div class="stats-show-cover"></div>`}
+      <div class="stats-show-title">${collection}</div>
+      <div class="stats-show-bar-wrap"><div class="stats-show-bar" style="width:${Math.round((seconds/maxShowSec)*100)}%"></div></div>
+      <div class="stats-show-time">${formatTime(seconds)}</div>
+    </div>
+  `).join('') || '<div class="stats-empty">No data yet.</div>';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Theme toggle
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) {
+    const saved = localStorage.getItem('aurum-theme') || 'dark';
+    document.body.dataset.theme = saved;
+    toggle.textContent = saved === 'dark' ? '☾' : '☀';
+    toggle.addEventListener('click', () => {
+      const next = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.body.dataset.theme = next;
+      localStorage.setItem('aurum-theme', next);
+      toggle.textContent = next === 'dark' ? '☾' : '☀';
+    });
+  }
+  loadStats();
+});
+</script>
+<script src="font-switcher.js"></script>
+</body>
+</html>
