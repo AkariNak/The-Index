@@ -95,6 +95,81 @@ async function fetchEpisodeDescription(collectionTitle, episodeNumber) {
   }
 }
 
+// ---------- Watch Analytics ----------
+const ANALYTICS_SESSION_KEY = 'onyx-session-id';
+
+function getSessionId() {
+  let id = localStorage.getItem(ANALYTICS_SESSION_KEY);
+  if (!id) {
+    id = 'guest-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(ANALYTICS_SESSION_KEY, id);
+  }
+  return id;
+}
+
+let _analyticsTimer = null;
+let _analyticsCollection = null;
+let _analyticsAccum = 0;
+let _analyticsLastTick = null;
+
+async function flushAnalytics() {
+  if (!_analyticsCollection || _analyticsAccum < 1) return;
+  const seconds = Math.floor(_analyticsAccum);
+  _analyticsAccum = 0;
+  const sessionId = getSessionId();
+  const sb = getSupabase();
+  try {
+    const user = await getCurrentUser();
+    const userId = user?.id || null;
+    const username = userId ? (await getCurrentProfile())?.username || null : null;
+    const isGuest = !userId;
+    // Upsert — add seconds to existing row for this session+collection
+    const { data: existing } = await sb
+      .from('watch_analytics')
+      .select('id, watch_seconds')
+      .eq('session_id', sessionId)
+      .eq('collection', _analyticsCollection)
+      .maybeSingle();
+    if (existing) {
+      await sb.from('watch_analytics').update({
+        watch_seconds: existing.watch_seconds + seconds,
+        updated_at: new Date().toISOString()
+      }).eq('id', existing.id);
+    } else {
+      await sb.from('watch_analytics').insert({
+        session_id: sessionId,
+        user_id: userId,
+        username,
+        collection: _analyticsCollection,
+        watch_seconds: seconds,
+        is_guest: isGuest
+      });
+    }
+  } catch (e) {
+    console.warn('[Analytics] flush failed:', e);
+  }
+}
+
+function startAnalytics(collection) {
+  stopAnalytics();
+  _analyticsCollection = collection;
+  _analyticsAccum = 0;
+  _analyticsLastTick = null;
+  _analyticsTimer = setInterval(() => {
+    if (!playerVideoEl || playerVideoEl.paused || playerVideoEl.ended) return;
+    const now = Date.now();
+    if (_analyticsLastTick) _analyticsAccum += (now - _analyticsLastTick) / 1000;
+    _analyticsLastTick = now;
+    if (_analyticsAccum >= 30) flushAnalytics();
+  }, 1000);
+}
+
+function stopAnalytics() {
+  if (_analyticsTimer) { clearInterval(_analyticsTimer); _analyticsTimer = null; }
+  flushAnalytics();
+  _analyticsLastTick = null;
+}
+
 function loadVideo(video, overrideTs) {
   if (!video) return;
   stopTimestampSaving();
@@ -132,6 +207,7 @@ function loadVideo(video, overrideTs) {
 
   playerVideoEl.src = url;
   playerVideoEl.load();
+  if (currentGroup) startAnalytics(currentGroup.title);
 
   playerVideoEl.addEventListener('loadedmetadata', () => {
     if (startTs > 0 && startTs < playerVideoEl.duration - 5) {
@@ -579,6 +655,8 @@ function wireFog() {
   playerVideoEl.addEventListener('pause',   saveCurrentTimestamp);
   window.addEventListener('beforeunload',   saveCurrentTimestamp);
   window.addEventListener('pagehide',       saveCurrentTimestamp);
+  window.addEventListener('beforeunload',   stopAnalytics);
+  window.addEventListener('pagehide',       stopAnalytics);
 
   renderShowInfo(currentGroup, null);
   renderSidebar(currentGroup, allGroups);
