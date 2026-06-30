@@ -264,9 +264,9 @@ function renderSidebar(group, allGroups) {
 
     episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
       const ep       = cleanEpNum(video.episode, i);
-      const isActive = currentVideo && video.title === currentVideo.title;
+      const isActive = currentVideo && i === group.videos.indexOf(currentVideo);
       const watched  = i <= lastWatchedIdx && lastWatchedIdx >= 0;
-      return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-title="${escapeHtml(video.title)}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
+      return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-idx="${i}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
     }).join('')}</div>`;
   } else {
     episodeSidebar.innerHTML = seasonPillsHtml + group.videos.map((video, i) => {
@@ -281,7 +281,8 @@ function renderSidebar(group, allGroups) {
 
   episodeSidebar.querySelectorAll('.sidebar-ep, .ep-pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      const video = group.videos.find(v => v.title === btn.dataset.title);
+      const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : null;
+      const video = idx !== null ? group.videos[idx] : group.videos.find(v => v.title === btn.dataset.title);
       if (video) loadVideo(video);
     });
   });
