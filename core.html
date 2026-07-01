@@ -425,9 +425,10 @@ function renderActivityForYear(year) {
   // Aggregate watch_seconds by day for the selected year
   const dayTotals = {};
   for (const row of _allActivityRows) {
-    const d = new Date(row.updated_at || row.created_at);
+    const dateStr = row.watch_date || new Date(row.updated_at || row.created_at).toISOString().slice(0, 10);
+    const d = new Date(dateStr + 'T00:00:00');
     if (isNaN(d.getTime()) || d.getFullYear() !== year) continue;
-    const key = d.toISOString().slice(0, 10);
+    const key = dateStr.slice(0, 10);
     dayTotals[key] = (dayTotals[key] || 0) + (row.watch_seconds || 0);
   }
 
