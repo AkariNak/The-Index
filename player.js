@@ -271,8 +271,13 @@ function loadVideo(video, overrideTs) {
         _markedWatched = true;
         markEpisodeWatched(currentGroup.title, video.title, playerVideoEl.currentTime, epNum);
         renderSeriesOnPlayer(groupVideos(AppState.videos));
+        // Re-apply active state after re-render since currentVideo may differ by reference
+        const activeIdx = currentGroup.videos.findIndex(v => v.title === video.title);
+        document.querySelectorAll('.ep-pill').forEach(btn => {
+          const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : -1;
+          btn.classList.toggle('active', idx === activeIdx);
+        });
         playerVideoEl.removeEventListener('timeupdate', onTimeUpdate);
-        // Log episode completion
         logEpisodeWatched(currentGroup.title, video.title, epNum);
       }
     });
