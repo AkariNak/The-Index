@@ -234,6 +234,12 @@ function loadVideo(video, overrideTs) {
 
   currentVideo = video;
 
+  // Refresh episode pills so active state reflects currentVideo
+  if (currentGroup) {
+    const allGroups = groupVideos(AppState.videos);
+    renderSeriesOnPlayer(allGroups);
+  }
+
   // Enable download only for Akari Admin
   getCurrentUser().then(async user => {
     if (user && user.email === 'lukehare1007@gmail.com') {
