@@ -1064,9 +1064,16 @@ function rebuildHero() {
 function wireNavAuth() {
   const signInBtn   = document.getElementById('signInNavBtn');
   const accountLink = document.getElementById('accountLink');
+  const statsTab    = document.getElementById('statsTab');
   getCurrentUser().then(user => {
-    if (user) { if (signInBtn) signInBtn.style.display = 'none'; if (accountLink) accountLink.hidden = false; }
-    else { if (signInBtn) { signInBtn.style.display = ''; signInBtn.onclick = () => window.location.href = 'account.html'; } if (accountLink) accountLink.hidden = true; }
+    if (user) {
+      if (signInBtn) signInBtn.style.display = 'none';
+      if (accountLink) accountLink.hidden = false;
+      if (statsTab && user.email === 'lukehare1007@gmail.com') statsTab.style.display = '';
+    } else {
+      if (signInBtn) { signInBtn.style.display = ''; signInBtn.onclick = () => window.location.href = 'account.html'; }
+      if (accountLink) accountLink.hidden = true;
+    }
   });
 }
 
