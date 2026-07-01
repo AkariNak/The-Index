@@ -584,6 +584,7 @@ function getBaseTitle(title) {
     .replace(/\s+(season|part|cour|arc)\s+\w+.*$/i, '')
     .replace(/\s+S\d+.*$/i, '')
     .replace(/\s+\d+(st|nd|rd|th)\s+(season|part|cour).*$/i, '')
+    .replace(/\s+(nonstop|repeat|reloaded|refrain|revolution|returns?|reborn|revival|re-?main)$/i, '')
     .replace(/:\s*.+$/, '')
     .trim()
     .toLowerCase();
@@ -594,6 +595,8 @@ function extractSeriesNum(title) {
             title.match(/(\d+)(?:st|nd|rd|th)?\s*(?:season|part|cour)/i) ||
             title.match(/\bS(\d+)\b/i);
   if (m) return parseInt(m[1], 10);
+  if (/nonstop/i.test(title)) return 3;
+  if (/repeat/i.test(title)) return 2;
   if (/movie|film|ova|special/i.test(title)) return 999;
   return 1;
 }
@@ -601,6 +604,8 @@ function extractSeriesNum(title) {
 function extractSeriesLabel(title) {
   const seasonMatch = title.match(/(?:season|part|cour)\s*\w+/i);
   if (seasonMatch) return seasonMatch[0].replace(/^\w/, c => c.toUpperCase());
+  const subtitleMatch = title.match(/\s+(Nonstop|Repeat|Reloaded|Refrain|Revolution|Returns?|Reborn|Revival)$/i);
+  if (subtitleMatch) return subtitleMatch[1];
   const colonMatch = title.match(/:\s*(.+)$/);
   if (colonMatch) return colonMatch[1].trim();
   const typeMatch = title.match(/\b(Movie|OVA|Special|Film|Final Season|Final Part)\b.*/i);
