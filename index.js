@@ -329,6 +329,20 @@ function groupMatchesGenre(group, tags) {
   return tags.every(t => groupTags.includes(t));
 }
 
+let _watchTotals = {}; // collection -> total watch_seconds across all users
+
+async function loadWatchTotals() {
+  try {
+    const { data } = await getSupabase().from('watch_analytics').select('collection, watch_seconds');
+    _watchTotals = {};
+    for (const row of (data || [])) {
+      _watchTotals[row.collection] = (_watchTotals[row.collection] || 0) + (row.watch_seconds || 0);
+    }
+  } catch (e) {
+    console.warn('[WatchTotals] failed:', e.message);
+  }
+}
+
 function renderGenreRows(groups) {
   if (!collectionGrid) return;
   hideSkeleton();
@@ -366,12 +380,19 @@ function renderGenreRows(groups) {
     if (rowGroups.length >= 3) html += genreRowHtml(row.label, rowGroups);
   }
 
+  const sortedByWatched = [...groups].sort((a, b) => {
+    const aW = _watchTotals[a.title] || 0;
+    const bW = _watchTotals[b.title] || 0;
+    if (bW !== aW) return bW - aW;
+    return a.title.localeCompare(b.title); // alpha fallback
+  });
+
   html += `
     <div class="genre-row" id="allShowsRow">
       <div class="genre-row-header">
         <h2 class="genre-row-title">All Shows</h2>
       </div>
-      <div class="poster-grid all-shows-grid">${groups.map(posterCardHtml).join('')}</div>
+      <div class="poster-grid all-shows-grid">${sortedByWatched.map(posterCardHtml).join('')}</div>
     </div>
   `;
 
@@ -1181,6 +1202,7 @@ function wireAll() {
   wireNavAuth();
   renderContinueWatching();
   loadRatings(groupVideos(AppState.videos));
+  loadWatchTotals().then(() => render());
 
   // Run Jikan tag loading first, then inject trending so groupVideos has all shows
   (async () => {
