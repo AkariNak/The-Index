@@ -130,7 +130,7 @@ function renderDetail() {
       </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-        <h1 class="detail-title">${escapeHtml(g.title)}</h1>
+        <h1 class="detail-title">${escapeHtml(g.title.replace(/:\s*(Season\s*1|Part\s*1|Cour\s*1)$/i, '').trim())}</h1>
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis.replace(/\s*\[Written by MAL Rewrite\]/gi, '').replace(/\s*\[Source:.*?\]/gi, '').trim())}</p>` : ''}
         <div id="watchStatusContainer"></div>
