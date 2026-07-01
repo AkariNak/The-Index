@@ -597,7 +597,7 @@ function setActivityView(btn) {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Theme toggle
   const toggle = document.getElementById('themeToggle');
   if (toggle) {
@@ -611,6 +611,20 @@ document.addEventListener('DOMContentLoaded', () => {
       toggle.textContent = next === 'dark' ? '☾' : '☀';
     });
   }
+
+  // Gate to Akari Admin only
+  const user = await getCurrentUser();
+  if (!user || user.email !== 'lukehare1007@gmail.com') {
+    document.getElementById('statsMain').innerHTML = `
+      <div class="stats-empty" style="padding:80px 20px;text-align:center">
+        <div style="font-size:32px;margin-bottom:16px">🔒</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">Access Restricted</div>
+        <div style="color:var(--ink-mute);font-size:14px">This page is only available to admins.</div>
+        <a href="index.html" class="btn btn-outline btn-small" style="margin-top:20px;display:inline-block">← Go Home</a>
+      </div>`;
+    return;
+  }
+
   loadStats();
 });
 </script>
