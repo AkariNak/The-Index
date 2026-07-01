@@ -404,7 +404,7 @@ function renderSidebar(group, allGroups) {
 
     episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
       const ep       = cleanEpNum(video.episode, i);
-      const isActive = currentVideo && i === group.videos.indexOf(currentVideo);
+      const isActive = currentVideo && video.title === currentVideo.title;
       const watched  = i <= lastWatchedIdx && lastWatchedIdx >= 0;
       return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-idx="${i}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
     }).join('')}</div>`;
