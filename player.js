@@ -289,6 +289,17 @@ function loadVideo(video, overrideTs) {
 
   // Update UI
   if (playerTitleEl) playerTitleEl.textContent = video.title;
+
+  // Update active episode pill without full re-render
+  if (currentGroup) {
+    const newIdx = currentGroup.videos.indexOf(video);
+    document.querySelectorAll('.ep-pill, .sidebar-ep').forEach(btn => {
+      const btnIdx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : null;
+      const isActive = btnIdx !== null ? btnIdx === newIdx : btn.dataset.title === video.title;
+      btn.classList.toggle('active', isActive);
+      if (isActive && !btn.classList.contains('watched')) btn.classList.remove('watched');
+    });
+  }
   if (playerDescEl) {
     const fallback = stripMalCredit(video.description || '');
     playerDescEl.textContent = fallback;
