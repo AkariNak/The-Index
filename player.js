@@ -117,7 +117,8 @@ async function flushAnalytics() {
   const seconds = Math.floor(_analyticsAccum);
   _analyticsAccum = 0;
   const sessionId = getSessionId();
-  console.log('[Analytics] flushing', seconds, 'seconds for', _analyticsCollection);
+  const today = new Date().toISOString().slice(0, 10);
+  console.log('[Analytics] flushing', seconds, 'seconds for', _analyticsCollection, 'on', today);
   try {
     const sb = getSupabase();
     const user = await getCurrentUser();
@@ -135,6 +136,7 @@ async function flushAnalytics() {
       .select('id, watch_seconds')
       .eq('session_id', sessionId)
       .eq('collection', _analyticsCollection)
+      .eq('watch_date', today)
       .maybeSingle();
     if (fetchErr) { console.warn('[Analytics] fetch error:', fetchErr.message); return; }
     if (existing) {
@@ -146,10 +148,11 @@ async function flushAnalytics() {
     } else {
       const { error: insertErr } = await sb.from('watch_analytics').insert({
         session_id: sessionId, user_id: userId, username,
-        collection: _analyticsCollection, watch_seconds: seconds, is_guest: isGuest
+        collection: _analyticsCollection, watch_seconds: seconds,
+        is_guest: isGuest, watch_date: today
       });
       if (insertErr) console.warn('[Analytics] insert error:', insertErr.message);
-      else console.log('[Analytics] inserted new row');
+      else console.log('[Analytics] inserted new row for', today);
     }
   } catch (e) {
     console.warn('[Analytics] flush failed:', e.message);
