@@ -1073,6 +1073,8 @@ function stopProgressSync() {
 
 // ---------- Init ----------
 async function coreInit() {
+  AppState.baseVideos = []; // always reset before fresh fetch
+  AppState.videos = [];
   loadLocalVideos();
   loadTagsOverride();
   loadProgress();
