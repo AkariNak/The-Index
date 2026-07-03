@@ -480,11 +480,18 @@ async function bootAccount() {
 
   // Load ALL videos including void/abyss for cover and link lookups
   try {
-    const { data: allVids } = await getSupabase().from('videos').select('*');
-    const allVideos = (allVids || []).map(normalizeVideo);
-    window._allGroups = groupVideos(allVideos);
+    let allVids = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await getSupabase().from('videos').select('*').range(from, from + pageSize - 1);
+      if (error || !data?.length) break;
+      allVids = allVids.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    window._allGroups = groupVideos(allVids.map(normalizeVideo));
   } catch (e) {
-    // Fallback to non-void only
     window._allGroups = groupVideos(AppState.videos);
   }
 
