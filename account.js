@@ -1,5 +1,5 @@
 // ============================================================
-// Aurum — account.js
+// Onyx — account.js
 // ============================================================
 
 (function() {
@@ -39,12 +39,13 @@ const ACHIEVEMENT_DISPLAY = [
   { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',         icon: '✎' },
 ];
 
-let activeTab      = 'watching';
-let currentUser    = null;
-let currentProfile = null;
-let watchList      = [];
-let userRatings    = [];
+let activeTab        = 'watching';
+let currentUser      = null;
+let currentProfile   = null;
+let watchList        = [];
+let userRatings      = [];
 let userAchievements = [];
+let _allGroups       = []; // includes void/abyss shows
 
 // ---------- Gate ----------
 function renderGate() {
@@ -79,6 +80,19 @@ function starsDisplay(rating) {
   const half  = (rating % 1) >= 0.5 ? 1 : 0;
   const empty = 5 - full - half;
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+}
+
+// Find a group by collection name across ALL shows including abyss
+function findGroup(collection) {
+  return _allGroups.find(g => g.title === collection);
+}
+
+// Get the correct detail page link — abyss shows go to home.html (abyss detail)
+function detailLink(collection) {
+  const group = findGroup(collection);
+  const isAbyss = group?.videos?.some(v => v.void);
+  const page = isAbyss ? 'home.html' : 'detail.html';
+  return `${page}?show=${encodeURIComponent(slug(collection))}`;
 }
 
 // ---------- Render account ----------
@@ -175,28 +189,20 @@ function renderContentBody() {
   if (!body) return;
   if (title) title.textContent = activeTab === 'ratings' ? 'My Ratings' : (STATUS_LABELS[activeTab] || activeTab);
 
-  if (activeTab === 'ratings') {
-    renderRatingsTab(body);
-    return;
-  }
-
-  if (activeTab === 'achievements') {
-    renderAchievementsTab(body);
-    return;
-  }
+  if (activeTab === 'ratings') { renderRatingsTab(body); return; }
+  if (activeTab === 'achievements') { renderAchievementsTab(body); return; }
 
   const entries = watchList.filter(w => w.status === activeTab);
-  const groups  = groupVideos(AppState.videos);
-
   if (!entries.length) { body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`; return; }
 
   body.innerHTML = `<div class="watchlist-grid">${entries.map(entry => {
-    const group = groups.find(g => g.title === entry.collection);
+    const group = findGroup(entry.collection);
     const cover = group?.firstCover;
+    const link  = detailLink(entry.collection);
     return `
       <div class="watchlist-card-wrap">
         <article class="poster-card">
-          <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(slug(entry.collection))}">
+          <a class="poster-clickable" href="${escapeHtml(link)}">
             <div class="poster-cover">
               ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(entry.collection)}" loading="lazy">` : `<div class="cover-placeholder">${escapeHtml(entry.collection.charAt(0).toUpperCase())}</div>`}
               <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
@@ -238,18 +244,18 @@ function renderAchievementsTab(body) {
 }
 
 function renderRatingsTab(body) {
-  const groups = groupVideos(AppState.videos);
   if (!userRatings.length) { body.innerHTML = `<div class="watchlist-empty">No ratings yet.</div>`; return; }
   const sorted = [...userRatings].sort((a, b) => b.rating - a.rating);
   body.innerHTML = `<div class="ratings-list">${sorted.map(r => {
-    const group = groups.find(g => g.title === r.collection);
+    const group = findGroup(r.collection);
     const cover = group?.firstCover;
+    const link  = detailLink(r.collection);
     return `
       <div class="rating-row">
         <div class="rating-row-cover">
           ${cover ? `<img src="${escapeHtml(cover)}" alt="">` : `<div class="cover-placeholder" style="height:100%;font-size:18px">${escapeHtml(r.collection.charAt(0))}</div>`}
         </div>
-        <a class="rating-row-title" href="detail.html?show=${encodeURIComponent(slug(r.collection))}">${escapeHtml(r.collection)}</a>
+        <a class="rating-row-title" href="${escapeHtml(link)}">${escapeHtml(r.collection)}</a>
         <div class="rating-row-stars" title="${r.rating} / 5">${starsDisplay(Number(r.rating))} ${Number(r.rating).toFixed(1)}</div>
       </div>
     `;
@@ -257,20 +263,15 @@ function renderRatingsTab(body) {
 }
 
 function wireAccountEvents() {
-  // Use event delegation on accountMain to handle all clicks
   accountMain.addEventListener('click', async e => {
     const target = e.target;
+    if (target.closest('.profile-avatar-edit')) return;
 
-    // Avatar upload trigger
-    if (target.closest('.profile-avatar-edit')) return; // let label handle it
-
-    // Edit username button
     if (target.id === 'editUsernameBtn') {
       document.getElementById('usernameEditArea').hidden = false;
       document.getElementById('newUsernameInput')?.focus();
     }
 
-    // Cancel username edit
     if (target.id === 'cancelUsernameBtn') {
       document.getElementById('usernameEditArea').hidden = true;
       const input = document.getElementById('newUsernameInput');
@@ -279,7 +280,6 @@ function wireAccountEvents() {
       if (avail) avail.textContent = '';
     }
 
-    // Save username
     if (target.id === 'saveUsernameBtn') {
       const input   = document.getElementById('newUsernameInput');
       const val     = input?.value?.trim();
@@ -298,21 +298,18 @@ function wireAccountEvents() {
       } finally { target.disabled = false; }
     }
 
-    // Sign out
     if (target.id === 'signOutBtn') {
       await supabaseSignOut();
       currentUser = null; currentProfile = null; watchList = []; userRatings = [];
       renderGate();
     }
 
-    // Nav tabs
     if (target.dataset.tab) {
       activeTab = target.dataset.tab;
       document.querySelectorAll('.account-nav-item').forEach(b => b.classList.toggle('active', b === target));
       renderContentBody();
     }
 
-    // Watchlist remove
     if (target.classList.contains('wl-remove')) {
       const collection = target.dataset.collection;
       try {
@@ -340,7 +337,6 @@ function wireAccountEvents() {
     }
   }, { once: false });
 
-  // Avatar file input
   accountMain.addEventListener('change', async e => {
     if (e.target.id !== 'avatarFileInput') return;
     const file = e.target.files?.[0];
@@ -350,7 +346,6 @@ function wireAccountEvents() {
     try {
       currentProfile.avatar_url = await uploadAvatar(file);
       if (msg) msg.textContent = 'Avatar updated!';
-      // Update avatar display without full re-render
       const wrap = document.querySelector('.profile-avatar-wrap');
       if (wrap) {
         const existing = wrap.querySelector('.profile-avatar, .profile-avatar-placeholder');
@@ -367,7 +362,6 @@ function wireAccountEvents() {
     }
   });
 
-  // Username availability check
   accountMain.addEventListener('input', async e => {
     if (e.target.id !== 'newUsernameInput') return;
     const avail = document.getElementById('usernameAvailMsg');
@@ -421,7 +415,7 @@ function signUpFormHtml() {
     <input id="authUsername" type="text" placeholder="Username" maxlength="24">
     <div class="username-availability" id="authUsernameAvail"></div>
     <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
-    <input id="authPassword" type="password" placeholder="Password" autocomplete="new-password">
+    <input id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
     <p id="authError" class="admin-error" hidden></p>
     <div class="admin-actions">
       <button type="button" id="authCancel" class="btn btn-outline btn-small">Cancel</button>
@@ -438,7 +432,6 @@ function wireAuthDialog(mode) {
   document.getElementById('switchToSignUp')?.addEventListener('click', () => { closeAuthDialog(); openAuthDialog('signup'); });
   document.getElementById('switchToSignIn')?.addEventListener('click', () => { closeAuthDialog(); openAuthDialog('signin'); });
 
-  // Username availability check for signup
   let checkTimer = null;
   document.getElementById('authUsername')?.addEventListener('input', e => {
     clearTimeout(checkTimer);
@@ -484,6 +477,17 @@ function wireAuthDialog(mode) {
 async function bootAccount() {
   await coreInit();
   initGlobalSearch();
+
+  // Load ALL videos including void/abyss for cover and link lookups
+  try {
+    const { data: allVids } = await getSupabase().from('videos').select('*');
+    const allVideos = (allVids || []).map(normalizeVideo);
+    _allGroups = groupVideos(allVideos);
+  } catch (e) {
+    // Fallback to non-void only
+    _allGroups = groupVideos(AppState.videos);
+  }
+
   currentUser = await getCurrentUser();
   if (!currentUser) { renderGate(); return; }
   [currentProfile, watchList, userRatings, userAchievements] = await Promise.all([
@@ -492,7 +496,6 @@ async function bootAccount() {
     getSupabase().from('ratings').select('collection, rating').eq('user_id', currentUser.id).then(({ data }) => data || []),
     getUnlockedAchievements()
   ]);
-  // Safety — if profile row doesn't exist yet create a blank one
   if (!currentProfile) currentProfile = { username: currentUser.email?.split('@')[0] || 'User', avatar_url: null };
   await renderAccount();
 }
