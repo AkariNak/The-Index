@@ -45,7 +45,7 @@ let currentProfile   = null;
 let watchList        = [];
 let userRatings      = [];
 let userAchievements = [];
-let _allGroups       = []; // includes void/abyss shows
+window.window._allGroups    = []; // includes void/abyss shows — global for debugging
 
 // ---------- Gate ----------
 function renderGate() {
@@ -84,7 +84,7 @@ function starsDisplay(rating) {
 
 // Find a group by collection name across ALL shows including abyss
 function findGroup(collection) {
-  return _allGroups.find(g => g.title === collection);
+  return window._allGroups.find(g => g.title === collection);
 }
 
 // Get the correct detail page link — abyss shows go to home.html (abyss detail)
@@ -482,10 +482,10 @@ async function bootAccount() {
   try {
     const { data: allVids } = await getSupabase().from('videos').select('*');
     const allVideos = (allVids || []).map(normalizeVideo);
-    _allGroups = groupVideos(allVideos);
+    window._allGroups = groupVideos(allVideos);
   } catch (e) {
     // Fallback to non-void only
-    _allGroups = groupVideos(AppState.videos);
+    window._allGroups = groupVideos(AppState.videos);
   }
 
   currentUser = await getCurrentUser();
