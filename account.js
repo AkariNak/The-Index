@@ -45,7 +45,7 @@ let currentProfile   = null;
 let watchList        = [];
 let userRatings      = [];
 let userAchievements = [];
-window.window._allGroups    = []; // includes void/abyss shows — global for debugging
+window._allGroups    = []; // includes void/abyss shows
 
 // ---------- Gate ----------
 function renderGate() {
