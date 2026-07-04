@@ -84,7 +84,8 @@ function starsDisplay(rating) {
 
 // Find a group by collection name across ALL shows including abyss
 function findGroup(collection) {
-  return window._allGroups.find(g => g.title === collection);
+  const slugged = slug(collection);
+  return window._allGroups.find(g => slug(g.title) === slugged);
 }
 
 // Get the correct detail page link — abyss shows go to home.html (abyss detail)
