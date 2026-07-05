@@ -966,7 +966,7 @@ async function autoSaveMetadata(details) {
       }
     });
     document.querySelectorAll('a[href="home.html"]').forEach(a => {
-      if (a.textContent.includes('Back to Aurum') || a.textContent.includes('Back to Onyx')) {
+      if (a.textContent.includes('Back to Aurum') || a.textContent.includes('Back to Onyx') || a.textContent.includes('Aurum')) {
         a.textContent = '← Back to Abyss';
       }
     });
@@ -979,10 +979,11 @@ async function autoSaveMetadata(details) {
   wireNavAuth();
 
   fetchJikanDetails(currentGroup?.title || '').then(async details => {
-    if (!details) return;
+    const freshGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
+    if (!details) { renderRecommendations(freshGroups); return; }
     currentJikan = details;
     renderDetail();
-    renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
+    renderRecommendations(freshGroups);
     await autoSaveMetadata(details);
 
     const otherGroups = allGroups.filter(g => g.slug !== currentGroup.slug);
