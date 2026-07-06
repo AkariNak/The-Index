@@ -644,17 +644,36 @@ async function initAbyssHero(groups){
     'higurashi',
     'deadman wonderland',
     'akame ga kill',
-    'chainsaw man',
     'corpse party',
+    'happy sugar life',
   ];
-  const sorted = [...groups].sort((a, b) => {
-    const ai = priority.findIndex(p => a.title.toLowerCase().includes(p));
-    const bi = priority.findIndex(p => b.title.toLowerCase().includes(p));
-    const av = ai === -1 ? 999 : ai;
-    const bv = bi === -1 ? 999 : bi;
-    return av - bv;
-  });
-  _heroGroups = sorted.slice(0, 6);
+
+  function basePriority(title) {
+    const t = title.toLowerCase().replace(/\s*(dubbed|subbed|season\s*\d+|\(.*?\))/gi, '').trim();
+    const idx = priority.findIndex(p => t.includes(p));
+    return idx === -1 ? 999 : idx;
+  }
+
+  // Deduplicate — one entry per base show, prefer dubbed over subbed
+  const seen = new Map();
+  for (const g of groups) {
+    const base = g.title.toLowerCase()
+      .replace(/\s*(dubbed|subbed|\(dubbed\)|\(subbed\))/gi, '')
+      .replace(/\s*season\s*\d+/gi, '')
+      .trim();
+    const existing = seen.get(base);
+    if (!existing) { seen.set(base, g); continue; }
+    // Prefer dubbed, then higher season
+    const isDubbed = !g.title.toLowerCase().includes('subbed');
+    const wasSubbed = existing.title.toLowerCase().includes('subbed');
+    if (isDubbed && wasSubbed) { seen.set(base, g); continue; }
+    const thisSeason = Number((g.title.match(/season\s*(\d+)/i)||[])[1]||1);
+    const existSeason = Number((existing.title.match(/season\s*(\d+)/i)||[])[1]||1);
+    if (thisSeason > existSeason && !wasSubbed) seen.set(base, g);
+  }
+
+  const deduped = [...seen.values()].sort((a, b) => basePriority(a.title) - basePriority(b.title));
+  _heroGroups = deduped.slice(0, 6);
   if(!_heroGroups.length)return;
   buildHeroDots();
   showHeroSlide(0);
