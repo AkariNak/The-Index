@@ -635,7 +635,26 @@ let _heroTimer=null;
 const HERO_INTERVAL=6000;
 
 async function initAbyssHero(groups){
-  _heroGroups=groups.slice(0,6);
+  const priority = [
+    'devilman crybaby',
+    'dorohedoro',
+    'hellsing ultimate',
+    'gantz',
+    'elfen lied',
+    'higurashi',
+    'deadman wonderland',
+    'akame ga kill',
+    'chainsaw man',
+    'corpse party',
+  ];
+  const sorted = [...groups].sort((a, b) => {
+    const ai = priority.findIndex(p => a.title.toLowerCase().includes(p));
+    const bi = priority.findIndex(p => b.title.toLowerCase().includes(p));
+    const av = ai === -1 ? 999 : ai;
+    const bv = bi === -1 ? 999 : bi;
+    return av - bv;
+  });
+  _heroGroups = sorted.slice(0, 6);
   if(!_heroGroups.length)return;
   buildHeroDots();
   showHeroSlide(0);
