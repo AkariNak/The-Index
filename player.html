@@ -203,7 +203,13 @@
       #episodeSidebar { max-height: 280px; }
     }
     @media (max-width: 600px) {
-      .player-page { padding: 12px 12px 48px; }
+      .player-page { padding: 8px 0 48px; overflow-x: hidden; }
+      .video-wrap { border-radius: 0; margin-bottom: 8px; }
+      .video-wrap video { max-height: 56vw; }
+      .player-info { padding: 12px 14px; overflow: hidden; }
+      #playerDesc { font-size: 13px; overflow-wrap: break-word; word-break: break-word; max-width: 100%; }
+      #playerTitle { font-size: 15px; overflow-wrap: break-word; }
+      .player-nav { padding: 8px 14px 12px; margin-bottom: 0; }
     }
 
     /* Theater mode */
@@ -312,7 +318,7 @@
 
 <div class="player-page">
   <nav class="player-nav">
-    <a href="index.html">← Onyx</a>
+    <a href="index.html">← Aurum</a>
     <span class="nav-div">/</span>
     <a id="backLink" href="index.html">Show</a>
     <span class="nav-div">/</span>
