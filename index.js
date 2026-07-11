@@ -1189,7 +1189,7 @@ function wireAll() {
     });
     syncVideos(); render(); rebuildHero();
   });
-  getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
+  getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles); });
   await loadBannerOverridesFromSupabase();
   await loadHeroOrderFromSupabase();
   hideSkeleton();
@@ -1202,7 +1202,7 @@ function wireAll() {
   wireNavAuth();
   renderContinueWatching();
   loadRatings(groupVideos(AppState.videos));
-  loadWatchTotals().then(() => render());
+  loadWatchTotals().then(() => { render(); if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles); });
 
   // Run Jikan tag loading first, then inject trending so groupVideos has all shows
   (async () => {
