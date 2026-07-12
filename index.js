@@ -571,6 +571,58 @@ async function loadFeedback() {
   } catch (err) { list.innerHTML = `<div class="feedback-empty">Error: ${err.message}</div>`; }
 }
 
+async function checkNewFeedbackNotification() {
+  try {
+    const since = new Date(Date.now() - 32 * 60 * 60 * 1000).toISOString();
+    const { data } = await getSupabase()
+      .from('feedback')
+      .select('id, category, message, created_at')
+      .eq('status', 'new')
+      .gte('created_at', since)
+      .order('created_at', { ascending: false });
+    if (!data?.length) return;
+
+    const CAT_LABELS = { bug: '🐛 Bug', missing_anime: '📺 Missing Anime', not_loading: '⚠️ Not Loading', new_anime: '✨ New Anime', other: '💬 Other' };
+    const count = data.length;
+    const latest = data[0];
+    const label = CAT_LABELS[latest.category] || latest.category;
+    const msg = latest.message.length > 60 ? latest.message.slice(0, 60) + '…' : latest.message;
+
+    // Don't show if already seen this batch
+    const seenKey = `onyx-feedback-seen-${latest.id}`;
+    if (localStorage.getItem(seenKey)) return;
+    localStorage.setItem(seenKey, '1');
+
+    const toast = document.createElement('div');
+    toast.className = 'feedback-notif';
+    toast.innerHTML = `
+      <div class="feedback-notif-header">
+        <span class="feedback-notif-icon">📬</span>
+        <span class="feedback-notif-title">${count} New Feedback${count > 1 ? ` (+${count - 1} more)` : ''}</span>
+        <button class="feedback-notif-close" type="button">✕</button>
+      </div>
+      <div class="feedback-notif-cat">${escapeHtml(label)}</div>
+      <div class="feedback-notif-msg">${escapeHtml(msg)}</div>
+    `;
+    document.body.appendChild(toast);
+
+    toast.querySelector('.feedback-notif-close').addEventListener('click', () => {
+      toast.classList.remove('feedback-notif-open');
+      setTimeout(() => toast.remove(), 400);
+    });
+
+    // Slide in after short delay
+    setTimeout(() => toast.classList.add('feedback-notif-open'), 300);
+    // Slide back out after 5 seconds
+    setTimeout(() => {
+      toast.classList.remove('feedback-notif-open');
+      setTimeout(() => toast.remove(), 400);
+    }, 5300);
+  } catch (e) {
+    console.warn('Feedback notification failed:', e);
+  }
+}
+
 async function updateFeedbackStatus(id, status) {
   try {
     await getSupabase().from('feedback').update({ status }).eq('id', id);
@@ -669,7 +721,7 @@ function updateAdminUi() {
   const unlocked = isAdminUnlocked();
   if (adminPanel)       adminPanel.hidden           = !unlocked;
   if (adminLoginButton) adminLoginButton.textContent = unlocked ? 'Sign Out' : 'Admin';
-  if (unlocked) { buildSlideshowManager(); initGenreManager(); loadFeedback(); }
+  if (unlocked) { buildSlideshowManager(); initGenreManager(); loadFeedback(); checkNewFeedbackNotification(); }
 }
 
 function openAdminDialog() {
