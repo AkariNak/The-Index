@@ -554,9 +554,13 @@ body.light .topnav { background: rgba(240,244,255,0.95); }
 .feedback-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
 .feedback-filter-label { font-family: var(--mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-mute); }
 .feedback-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
-.feedback-item { background: var(--paper-3); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.feedback-item.status-reviewed { border-color: rgba(59,130,246,0.3); }
-.feedback-item.status-done { opacity: .5; }
+.feedback-item { background: var(--paper-3); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 6px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.feedback-item.status-new { border-left-color: #e05252; }
+.feedback-item.status-reviewed { border-left-color: #e8c040; }
+.feedback-item.status-done { border-left-color: #52c07a; opacity: .7; }
+.feedback-status-select.status-new { border-color: #e05252; color: #e05252; }
+.feedback-status-select.status-reviewed { border-color: #e8c040; color: #e8c040; }
+.feedback-status-select.status-done { border-color: #52c07a; color: #52c07a; }
 .feedback-item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
 .feedback-item-cat { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
 .feedback-item-date { font-family: var(--mono); font-size: 9px; color: var(--ink-mute); }
