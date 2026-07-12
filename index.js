@@ -561,7 +561,7 @@ async function loadFeedback() {
           </div>
           <div class="feedback-message">${escapeHtml(f.message)}</div>
         </div>
-        <select class="feedback-status-select" onchange="updateFeedbackStatus('${f.id}', this.value)">
+        <select class="feedback-status-select status-${f.status}" onchange="updateFeedbackStatus('${f.id}', this.value); this.className='feedback-status-select status-'+this.value;">
           <option value="new"      ${f.status==='new'      ?'selected':''}>New</option>
           <option value="reviewed" ${f.status==='reviewed' ?'selected':''}>Reviewed</option>
           <option value="done"     ${f.status==='done'     ?'selected':''}>Done</option>
