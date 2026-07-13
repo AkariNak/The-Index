@@ -487,7 +487,7 @@ function renderSeriesOnPlayer(allGroups) {
 // ---------- Show info ----------
 function renderShowInfo(group, jikan) {
   if (backLink) backLink.href = `detail.html?show=${encodeURIComponent(group.slug)}`;
-  if (showTitleEl) showTitleEl.textContent = group.title;
+  if (showTitleEl) showTitleEl.textContent = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
   if (showMetaEl) {
     const parts = [];
     if (jikan?.year)     parts.push(String(jikan.year));
@@ -502,6 +502,41 @@ function renderShowInfo(group, jikan) {
     const tags = getTagsForCollection(group.title, jikan?.tags || []);
     tagListEl.innerHTML = tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : '';
     tagListEl.hidden = !tags.length;
+  }
+
+  // Language toggle
+  const allGroups = groupVideos(AppState.videos);
+  const base = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
+  const isSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
+  const paired = allGroups.find(g2 => {
+    if (g2.slug === group.slug) return false;
+    const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
+    if (base2 !== base) return false;
+    const isSubbed2 = /\(subbed\)/i.test(g2.title) || g2.videos[0]?.language === 'subbed';
+    return isSubbed !== isSubbed2;
+  });
+  let langToggle = document.getElementById('playerLangToggle');
+  if (paired) {
+    if (!langToggle) {
+      langToggle = document.createElement('div');
+      langToggle.id = 'playerLangToggle';
+      langToggle.className = 'lang-toggle';
+      showTitleEl?.parentNode?.insertBefore(langToggle, showTitleEl.nextSibling);
+    }
+    langToggle.innerHTML = `
+      <button class="lang-toggle-btn${!isSubbed ? ' active' : ''}" data-slug="${escapeHtml(group.slug)}" data-target="${!isSubbed ? '' : escapeHtml(group.slug)}" type="button">DUB</button>
+      <button class="lang-toggle-btn${isSubbed ? ' active' : ''}" data-target="${isSubbed ? '' : escapeHtml(paired.slug)}" type="button">SUB</button>
+    `;
+    langToggle.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.classList.contains('active')) return;
+        const targetSlug = btn.dataset.target || (isSubbed ? group.slug : paired.slug);
+        const epIdx = currentVideo ? group.videos.findIndex(v => v.title === currentVideo.title) : 0;
+        window.location.href = `player.html?show=${encodeURIComponent(targetSlug)}&ep=${epIdx}`;
+      });
+    });
+  } else if (langToggle) {
+    langToggle.remove();
   }
 }
 
@@ -699,7 +734,7 @@ function wireFog() {
   }
   if (!currentGroup || !currentGroup.videos.length) { if (playerTitleEl) playerTitleEl.textContent = 'Show not found.'; return; }
 
-  document.title = `${currentGroup.title} — Aurum`;
+  document.title = `${currentGroup.title} — Onyx`;
 
   // Determine starting episode
   let startVideo = null;
