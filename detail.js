@@ -119,8 +119,32 @@ function renderDetail() {
   if (currentJikan?.episodes) meta.push(`${currentJikan.episodes} eps`);
   if (currentJikan?.score)    meta.push(`★ ${currentJikan.score}`);
   const lang = g.videos[0]?.language;
-  if (lang === 'dubbed') meta.push('<span class="lang-badge-dubbed" aria-label="Dubbed">Dubbed</span>');
-  else if (lang === 'subbed') meta.push('<span class="lang-badge-subbed" aria-label="Subbed">Subbed</span>');
+
+  // Find paired dubbed/subbed version
+  function findLanguagePair(group, allGroups) {
+    const base = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
+    const isSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
+    // Look for opposite version
+    return allGroups.find(g2 => {
+      if (g2.slug === group.slug) return false;
+      const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
+      if (base2 !== base) return false;
+      const isSubbed2 = /\(subbed\)/i.test(g2.title) || g2.videos[0]?.language === 'subbed';
+      return isSubbed !== isSubbed2; // opposite language
+    });
+  }
+
+  const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
+  const currentAllGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
+  const pairedGroup = findLanguagePair(g, currentAllGroups);
+  const isCurrentSubbed = /\(subbed\)/i.test(g.title) || lang === 'subbed';
+
+  const langToggleHtml = pairedGroup ? `
+    <div class="lang-toggle" id="langToggle">
+      <button class="lang-toggle-btn${!isCurrentSubbed ? ' active' : ''}" data-target="${escapeHtml(g.slug)}" type="button">DUB</button>
+      <button class="lang-toggle-btn${isCurrentSubbed ? ' active' : ''}" data-target="${escapeHtml(pairedGroup.slug)}" type="button">SUB</button>
+    </div>
+  ` : '';
 
   detailMain.innerHTML = `
     <div class="detail-hero">
@@ -131,6 +155,7 @@ function renderDetail() {
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
         <h1 class="detail-title">${escapeHtml(g.title.replace(/:\s*(Season\s*1|Part\s*1|Cour\s*1)$/i, '').trim())}</h1>
+        ${langToggleHtml}
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis
           ? `<p class="detail-synopsis">${escapeHtml(currentJikan.synopsis.replace(/\s*\[Written by MAL Rewrite\]/gi, '').replace(/\s*\[Source:.*?\]/gi, '').trim())}</p>`
@@ -210,6 +235,20 @@ function wireDetailEvents() {
       focusBtn.classList.toggle('active', focusMode);
     });
   }
+
+  // Language toggle — switch between dubbed/subbed
+  document.getElementById('langToggle')?.querySelectorAll('.lang-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      // Find which episode index we're currently on to land on same episode
+      const epIdx = currentVideo && currentGroup
+        ? currentGroup.videos.findIndex(v => v.title === currentVideo.title)
+        : 0;
+      const targetSlug = btn.dataset.target;
+      const url = `detail.html?show=${encodeURIComponent(targetSlug)}${epIdx > 0 ? `&ep=${epIdx}` : ''}`;
+      window.location.href = url;
+    });
+  });
 
   // Download all episodes — Akari Admin only
   const downloadAllBtn = document.getElementById('downloadAllBtn');
