@@ -370,9 +370,10 @@ function renderSidebar(group, allGroups) {
   let seasonPillsHtml = '';
   if (allGroups) {
     const baseTitle    = getSeriesBase(group.title);
+    const isCurrentSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
     const seriesGroups = allGroups
       .filter(g => getSeriesBase(g.title) === baseTitle)
-      .filter(g => !/\(subbed\)/i.test(g.title)) // hide subbed — accessible via DUB/SUB toggle
+      .filter(g => !/\(subbed\)/i.test(g.title)) // work from dubbed list, then find subbed pair if needed
       .sort((a, b) => {
         const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
         const na = n(a.title), nb = n(b.title);
@@ -387,11 +388,18 @@ function renderSidebar(group, allGroups) {
         return m ? `S${m[1].replace(/one/i,'1').replace(/two/i,'2').replace(/three/i,'3')}` : 'S1';
       };
       seasonPillsHtml = `<div class="season-pills">${seriesGroups.map(g => {
-        const isCurrent = g.slug === group.slug;
+        // If currently on subbed, find the subbed version of this season
+        let targetGroup = g;
+        if (isCurrentSubbed) {
+          const subbedVariant = allGroups.find(g2 => {
+            const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').trim();
+            return base2 === g.title && /\(subbed\)/i.test(g2.title);
+          });
+          if (subbedVariant) targetGroup = subbedVariant;
+        }
+        const isCurrent = targetGroup.slug === group.slug;
         const label     = getLabel(g.title);
-        const href      = isCurrent
-          ? '#'
-          : `player.html?show=${encodeURIComponent(g.slug)}&ep=0`;
+        const href      = isCurrent ? '#' : `player.html?show=${encodeURIComponent(targetGroup.slug)}&ep=0`;
         return `<a class="season-pill ${isCurrent ? 'active' : ''}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
       }).join('')}</div>`;
     }
@@ -532,8 +540,9 @@ function renderShowInfo(group, jikan) {
     langToggle.querySelectorAll('.lang-toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const targetSlug = btn.dataset.target;
-        if (!targetSlug) return; // already on this version
+        if (!targetSlug) return;
         const epIdx = currentVideo ? group.videos.findIndex(v => v.title === currentVideo.title) : 0;
+        // Full page reload so layout, series pills, and all state refresh correctly
         window.location.href = `player.html?show=${encodeURIComponent(targetSlug)}&ep=${Math.max(0, epIdx)}`;
       });
     });
