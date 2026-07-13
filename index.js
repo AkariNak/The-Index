@@ -345,6 +345,8 @@ async function loadWatchTotals() {
 
 function renderGenreRows(groups) {
   if (!collectionGrid) return;
+  // Hide Subbed variants from browse — accessible via language toggle on detail/player
+  const visibleGroups = groups.filter(g => !/\(subbed\)/i.test(g.title));
   hideSkeleton();
 
   const query = (search?.value || '').trim().toLowerCase();
@@ -361,13 +363,13 @@ function renderGenreRows(groups) {
     return;
   }
 
-  const totalShows = groups.length;
-  const totalEps   = AppState.videos.length;
+  const totalShows = visibleGroups.length;
+  const totalEps   = AppState.videos.filter(v => !/\(subbed\)/i.test(v.collection)).length;
   if (count) count.innerHTML = `${totalShows} ${totalShows === 1 ? 'SHOW' : 'SHOWS'} <a href="external.html" style="color:inherit;text-decoration:none">·</a> ${totalEps} ${totalEps === 1 ? 'EPISODE' : 'EPISODES'}`;
 
   let html = '';
 
-  const recentGroups = [...groups].sort((a, b) => {
+  const recentGroups = [...visibleGroups].sort((a, b) => {
     const aDate = Math.max(...a.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     const bDate = Math.max(...b.videos.map(v => new Date(v.createdAt || v.dateAdded || 0).getTime()));
     return bDate - aDate;
@@ -376,15 +378,15 @@ function renderGenreRows(groups) {
   html += genreRowHtml('Recently Added', recentGroups);
 
   for (const row of GENRE_ROWS) {
-    const rowGroups = groups.filter(g => groupMatchesGenre(g, row.tags)).slice(0, 12);
+    const rowGroups = visibleGroups.filter(g => groupMatchesGenre(g, row.tags)).slice(0, 12);
     if (rowGroups.length >= 3) html += genreRowHtml(row.label, rowGroups);
   }
 
-  const sortedByWatched = [...groups].sort((a, b) => {
+  const sortedByWatched = [...visibleGroups].sort((a, b) => {
     const aW = _watchTotals[a.title] || 0;
     const bW = _watchTotals[b.title] || 0;
     if (bW !== aW) return bW - aW;
-    return a.title.localeCompare(b.title); // alpha fallback
+    return a.title.localeCompare(b.title);
   });
 
   html += `
