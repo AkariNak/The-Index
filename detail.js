@@ -240,11 +240,8 @@ function wireDetailEvents() {
   document.getElementById('langToggle')?.querySelectorAll('.lang-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetSlug = btn.dataset.target;
-      if (!targetSlug) return; // already on this version
-      const epIdx = currentGroup?.videos.length > 0
-        ? Math.max(0, currentGroup.videos.findIndex(v => v.title === currentVideo?.title))
-        : 0;
-      window.location.href = `detail.html?show=${encodeURIComponent(targetSlug)}${epIdx > 0 ? `&ep=${epIdx}` : ''}`;
+      if (!targetSlug) return;
+      window.location.href = `detail.html?show=${encodeURIComponent(targetSlug)}`;
     });
   });
 
