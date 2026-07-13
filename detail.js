@@ -140,9 +140,9 @@ function renderDetail() {
   const isCurrentSubbed = /\(subbed\)/i.test(g.title) || lang === 'subbed';
 
   const langToggleHtml = pairedGroup ? `
-    <div class="lang-toggle" id="langToggle">
-      <button class="lang-toggle-btn${!isCurrentSubbed ? ' active' : ''}" data-target="${escapeHtml(g.slug)}" type="button">DUB</button>
-      <button class="lang-toggle-btn${isCurrentSubbed ? ' active' : ''}" data-target="${escapeHtml(pairedGroup.slug)}" type="button">SUB</button>
+    <div class="lang-toggle" id="langToggle" style="width:fit-content">
+      <button class="lang-toggle-btn${!isCurrentSubbed ? ' active' : ''}" data-target="${!isCurrentSubbed ? '' : escapeHtml(pairedGroup.slug)}" type="button">DUB</button>
+      <button class="lang-toggle-btn${isCurrentSubbed ? ' active' : ''}" data-target="${isCurrentSubbed ? '' : escapeHtml(pairedGroup.slug)}" type="button">SUB</button>
     </div>
   ` : '';
 
@@ -239,14 +239,12 @@ function wireDetailEvents() {
   // Language toggle — switch between dubbed/subbed
   document.getElementById('langToggle')?.querySelectorAll('.lang-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.classList.contains('active')) return;
-      // Find which episode index we're currently on to land on same episode
-      const epIdx = currentVideo && currentGroup
-        ? currentGroup.videos.findIndex(v => v.title === currentVideo.title)
-        : 0;
       const targetSlug = btn.dataset.target;
-      const url = `detail.html?show=${encodeURIComponent(targetSlug)}${epIdx > 0 ? `&ep=${epIdx}` : ''}`;
-      window.location.href = url;
+      if (!targetSlug) return; // already on this version
+      const epIdx = currentGroup?.videos.length > 0
+        ? Math.max(0, currentGroup.videos.findIndex(v => v.title === currentVideo?.title))
+        : 0;
+      window.location.href = `detail.html?show=${encodeURIComponent(targetSlug)}${epIdx > 0 ? `&ep=${epIdx}` : ''}`;
     });
   });
 
@@ -699,6 +697,7 @@ function renderRecommendations(allGroups) {
   const allSeriesGroups = applySeasonOrder(
     allGroups
       .filter(g => getBaseTitle(g.title) === baseTitle)
+      .filter(g => !/\(subbed\)/i.test(g.title)) // hide subbed — accessible via DUB/SUB toggle
       .sort((a, b) => {
         const na = extractSeriesNum(a.title);
         const nb = extractSeriesNum(b.title);
