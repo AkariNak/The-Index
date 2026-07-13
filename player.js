@@ -372,6 +372,7 @@ function renderSidebar(group, allGroups) {
     const baseTitle    = getSeriesBase(group.title);
     const seriesGroups = allGroups
       .filter(g => getSeriesBase(g.title) === baseTitle)
+      .filter(g => !/\(subbed\)/i.test(g.title)) // hide subbed — accessible via DUB/SUB toggle
       .sort((a, b) => {
         const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
         const na = n(a.title), nb = n(b.title);
@@ -446,6 +447,7 @@ function renderSeriesOnPlayer(allGroups) {
   const baseTitle    = getSeriesBase(currentGroup.title);
   const seriesGroups = allGroups
     .filter(g => getSeriesBase(g.title) === baseTitle)
+    .filter(g => !/\(subbed\)/i.test(g.title))
     .sort((a, b) => {
       const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
       const na = getNum(a.title), nb = getNum(b.title);
@@ -524,15 +526,15 @@ function renderShowInfo(group, jikan) {
       showTitleEl?.parentNode?.insertBefore(langToggle, showTitleEl.nextSibling);
     }
     langToggle.innerHTML = `
-      <button class="lang-toggle-btn${!isSubbed ? ' active' : ''}" data-slug="${escapeHtml(group.slug)}" data-target="${!isSubbed ? '' : escapeHtml(group.slug)}" type="button">DUB</button>
+      <button class="lang-toggle-btn${!isSubbed ? ' active' : ''}" data-target="${!isSubbed ? '' : escapeHtml(paired.slug)}" type="button">DUB</button>
       <button class="lang-toggle-btn${isSubbed ? ' active' : ''}" data-target="${isSubbed ? '' : escapeHtml(paired.slug)}" type="button">SUB</button>
     `;
     langToggle.querySelectorAll('.lang-toggle-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        if (btn.classList.contains('active')) return;
-        const targetSlug = btn.dataset.target || (isSubbed ? group.slug : paired.slug);
+        const targetSlug = btn.dataset.target;
+        if (!targetSlug) return; // already on this version
         const epIdx = currentVideo ? group.videos.findIndex(v => v.title === currentVideo.title) : 0;
-        window.location.href = `player.html?show=${encodeURIComponent(targetSlug)}&ep=${epIdx}`;
+        window.location.href = `player.html?show=${encodeURIComponent(targetSlug)}&ep=${Math.max(0, epIdx)}`;
       });
     });
   } else if (langToggle) {
