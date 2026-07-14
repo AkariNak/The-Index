@@ -1,5 +1,5 @@
 // ============================================================
-// Aurum — index.js
+// Onyx — index.js
 // ============================================================
 
 // ---------- Theme ----------
@@ -825,12 +825,20 @@ function wireTabs() {
   });
 }
 
-// ---------- Hero slideshow ----------
+// ============================================================
+// HERO SLIDESHOW
+// ------------------------------------------------------------
+// One rule: the hero is rendered ONCE, from whichever source is
+// already known. Trending wins. The admin order is only a
+// fallback for when trending matches nothing in the library.
+// Nothing renders the admin order first and then swaps.
+// ============================================================
 let heroIndex   = 0;
 let heroTimer   = null;
 let heroFeature = [];
 let _lastTrendingTitles = null;
 let _sliding    = false;
+let _heroNavWired = false;
 const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 let _bannerOverrides = {};
@@ -855,6 +863,7 @@ async function loadBannerOverridesFromSupabase() {
 
 function renderHeroSlideInto(el, idx) {
   const g         = heroFeature[idx];
+  if (!g) return;
   const overrides = loadBannerOverrides();
   const bannerUrl = overrides[g.slug] || g.firstCover;
   const desc      = g.videos[0]?.description || '';
@@ -943,30 +952,159 @@ function goToSlide(idx) {
   requestAnimationFrame(step);
 }
 
-function startHeroTimer() { stopHeroTimer(); heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL); }
-function stopHeroTimer()  { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
+function startHeroTimer() {
+  stopHeroTimer();
+  if (heroFeature.length < 2) return;
+  heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL);
+}
+function stopHeroTimer() { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
 
-// ---------- Trending hero injection ----------
+// ---------- Trending cache ----------
 const TRENDING_CACHE_KEY = 'onyx-trending-hero-v4';
 
 function getTrendingCacheSlot() {
   const now = new Date();
   const h = now.getHours();
-  // Returns a string like "2024-06-27-18" representing the current 6-hour slot
+  // A string like "2026-6-27-18" representing the current 6-hour slot
   const slot = h < 6 ? 0 : h < 12 ? 6 : h < 18 ? 12 : 18;
   return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${slot}`;
 }
 
-async function fetchTrendingAndInjectHero() {
+// Returns cached trending titles if the cache is still in-slot, else null.
+function readTrendingCache() {
   try {
-    const cached = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
-    if (cached.slot === getTrendingCacheSlot() && cached.titles?.length) {
-      console.log('[Trending] Using cached titles:', cached.titles.slice(0, 5));
-      console.log('[Trending] Last fetched:', new Date(cached.fetchedAt || 0).toLocaleString());
-      injectTrendingIntoHero(cached.titles);
-      return;
-    }
-  } catch {}
+    const c = JSON.parse(localStorage.getItem(TRENDING_CACHE_KEY) || '{}');
+    if (c.slot === getTrendingCacheSlot() && c.titles?.length) return c.titles;
+  } catch { /* ignore */ }
+  return null;
+}
+
+// ---------- Hero feature computation ----------
+function heroBaseTitle(t) {
+  return String(t).toLowerCase()
+    .replace(/\s*season\s*\d+/i, '')
+    .replace(/\s*part\s*\d+/i, '')
+    .replace(/\s*s\d+$/i, '')
+    .replace(/[:\-]/g, '')
+    .trim();
+}
+
+// Library groups eligible for the hero: not void, has a cover, not a (Subbed) twin.
+function heroEligibleGroups() {
+  return groupVideos(AppState.videos.filter(v => !v.void))
+    .filter(g => g.firstCover && !/\(subbed\)/i.test(g.title));
+}
+
+// Match trending titles against the library, keeping the highest season per show.
+function computeTrendingFeature(trendingTitles) {
+  if (!trendingTitles?.length) return [];
+  const matched = heroEligibleGroups().filter(g => {
+    const gt = heroBaseTitle(g.title);
+    return trendingTitles.some(t => {
+      const lt = heroBaseTitle(t);
+      return gt === lt || gt.includes(lt) || lt.includes(gt);
+    });
+  });
+  const seen = new Map();
+  for (const g of matched) {
+    const base = heroBaseTitle(g.title);
+    const cur  = seen.get(base);
+    if (!cur) { seen.set(base, g); continue; }
+    const curSeason  = Number((cur.title.match(/season\s*(\d+)/i) || [])[1] || 1);
+    const thisSeason = Number((g.title.match(/season\s*(\d+)/i) || [])[1] || 1);
+    if (thisSeason > curSeason) seen.set(base, g);
+  }
+  return [...seen.values()].slice(0, 6);
+}
+
+function computeAdminFeature() {
+  return applyHeroOrder(heroEligibleGroups()).slice(0, 6);
+}
+
+function countLibraryMatches(trendingTitles) {
+  return computeTrendingFeature(trendingTitles).length;
+}
+
+// The single place the hero is painted. Skips a full repaint when the
+// feature list is identical, so the slideshow doesn't jump back to slide 1.
+function renderHeroFrom(feature) {
+  const section = document.getElementById('heroSlideshow');
+  const dotsEl  = document.getElementById('heroDots');
+  if (!section || !dotsEl) return;
+
+  if (!feature.length) { section.hidden = true; stopHeroTimer(); return; }
+
+  const unchanged = heroFeature.length === feature.length &&
+    heroFeature.every((g, i) => g.slug === feature[i].slug);
+
+  heroFeature = feature;
+  section.hidden = false;
+
+  if (unchanged) { startHeroTimer(); return; }
+
+  stopHeroTimer();
+  heroIndex = 0;
+  dotsEl.innerHTML = feature.map((_, i) =>
+    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
+  ).join('');
+  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
+    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
+  });
+  renderHeroSlide(0);
+  startHeroTimer();
+}
+
+// Called once at boot. Paints from the trending cache if it's warm.
+// If it's cold, the hero stays hidden until fetchTrendingAndInjectHero resolves.
+function buildHero() {
+  const section = document.getElementById('heroSlideshow');
+  if (!section) return;
+
+  if (!_heroNavWired) {
+    document.getElementById('heroPrev')?.addEventListener('click', () => {
+      if (!heroFeature.length) return;
+      stopHeroTimer();
+      goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length);
+      startHeroTimer();
+    });
+    document.getElementById('heroNext')?.addEventListener('click', () => {
+      if (!heroFeature.length) return;
+      stopHeroTimer();
+      goToSlide((heroIndex + 1) % heroFeature.length);
+      startHeroTimer();
+    });
+    _heroNavWired = true;
+  }
+
+  const cached = readTrendingCache();
+  if (cached) {
+    _lastTrendingTitles = cached;
+    const feature = computeTrendingFeature(cached);
+    if (feature.length) { renderHeroFrom(feature); return; }
+  }
+  // Cold cache: show nothing rather than flashing the admin order.
+  section.hidden = true;
+}
+
+// Trending is the source of truth. Admin order is the fallback.
+function injectTrendingIntoHero(trendingTitles) {
+  if (trendingTitles?.length) _lastTrendingTitles = trendingTitles;
+  const trending = computeTrendingFeature(_lastTrendingTitles);
+  renderHeroFrom(trending.length ? trending : computeAdminFeature());
+}
+
+function rebuildHero() {
+  const trending = computeTrendingFeature(_lastTrendingTitles);
+  renderHeroFrom(trending.length ? trending : computeAdminFeature());
+}
+
+async function fetchTrendingAndInjectHero() {
+  const cached = readTrendingCache();
+  if (cached) {
+    console.log('[Trending] Using cached titles:', cached.slice(0, 5));
+    injectTrendingIntoHero(cached);
+    return;
+  }
 
   let allTitles = [];
 
@@ -1016,125 +1154,10 @@ async function fetchTrendingAndInjectHero() {
     }));
   }
 
+  // Handles the empty case too — falls back to the admin order.
   injectTrendingIntoHero(allTitles);
-  if (!allTitles.length) startHeroTimer();
 }
 
-function countLibraryMatches(trendingTitles) {
-  const groups = groupVideos(AppState.videos.filter(v => !v.void));
-  function baseTitle(t) {
-    return t.toLowerCase().replace(/\s*season\s*\d+/i,'').replace(/\s*part\s*\d+/i,'').replace(/\s*s\d+$/i,'').replace(/[:\-]/g,'').trim();
-  }
-  const seenBase = new Map();
-  for (const g of groups) {
-    const gt = baseTitle(g.title);
-    if (!g.firstCover) continue;
-    if (trendingTitles.some(t => { const lt = baseTitle(t); return gt===lt||gt.includes(lt)||lt.includes(gt); })) {
-      const existingSeason = Number((seenBase.get(gt)?.title.match(/season\s*(\d+)/i)||[])[1]||0);
-      const thisSeason = Number((g.title.match(/season\s*(\d+)/i)||[])[1]||0);
-      if (!seenBase.has(gt) || thisSeason > existingSeason) seenBase.set(gt, g);
-    }
-  }
-  return seenBase.size;
-}
-
-function injectTrendingIntoHero(trendingTitles) {
-  if (!trendingTitles?.length) { console.log('[Trending] No titles to inject'); return; }
-  _lastTrendingTitles = trendingTitles;
-  const groups = groupVideos(AppState.videos.filter(v => !v.void));
-  console.log('[Trending] Library groups:', groups.map(g => g.title).slice(0, 10));
-  console.log('[Trending] heroFeature before:', heroFeature?.map(g => g.title));
-
-  function baseTitle(title) {
-    return title.toLowerCase()
-      .replace(/\s*season\s*\d+/i, '')
-      .replace(/\s*part\s*\d+/i, '')
-      .replace(/\s*s\d+$/i, '')
-      .replace(/[:\-]/g, '')
-      .trim();
-  }
-
-  function matchesTrending(title) {
-    const gt = baseTitle(title);
-    return trendingTitles.some(t => {
-      const lt = baseTitle(t);
-      return gt === lt || gt.includes(lt) || lt.includes(gt);
-    });
-  }
-
-  const matched = groups.filter(g => matchesTrending(g.title) && g.firstCover);
-  console.log('[Trending] Matched library shows:', matched.map(g => g.title));
-
-  // Deduplicate — keep only the highest season per base title
-  const seenBase = new Map();
-  for (const g of matched) {
-    const base = baseTitle(g.title);
-    const existing = seenBase.get(base);
-    if (!existing) { seenBase.set(base, g); continue; }
-    // Prefer higher season number
-    const existingSeason = Number((existing.title.match(/season\s*(\d+)/i) || [])[1] || 1);
-    const thisSeason     = Number((g.title.match(/season\s*(\d+)/i) || [])[1] || 1);
-    if (thisSeason > existingSeason) seenBase.set(base, g);
-  }
-  const trending = [...seenBase.values()];
-  console.log('[Trending] Deduped matches:', trending.map(g => g.title));
-
-  if (!trending.length) { console.log('[Trending] No matches in library'); startHeroTimer(); return; }
-
-  // Trending only — no admin fallback
-  heroFeature = trending.slice(0, 6);
-  console.log('[Trending] heroFeature after:', heroFeature.map(g => g.title));
-
-  if (!heroFeature.length) return;
-
-  stopHeroTimer();
-  heroIndex = 0;
-  const dotsEl = document.getElementById('heroDots');
-  if (dotsEl) {
-    dotsEl.innerHTML = heroFeature.map((_, i) =>
-      `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
-    ).join('');
-    dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-      dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
-    });
-  }
-  document.getElementById('heroSlideshow').hidden = false;
-  renderHeroSlide(0);
-  startHeroTimer();
-}
-
-function buildHero(groups) {
-  const section  = document.getElementById('heroSlideshow');
-  const dotsEl   = document.getElementById('heroDots');
-  if (!section || !dotsEl) return;
-  heroFeature = applyHeroOrder(groups.filter(g => !g.videos.some(v => v.void))).filter(g => g.firstCover).slice(0, 6);
-  if (!heroFeature.length) { section.hidden = true; return; }
-  section.hidden = false;
-  heroIndex = 0;
-  dotsEl.innerHTML = heroFeature.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
-  ).join('');
-  dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
-  });
-  document.getElementById('heroPrev')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length, -1); startHeroTimer(); });
-  document.getElementById('heroNext')?.addEventListener('click', () => { stopHeroTimer(); goToSlide((heroIndex + 1) % heroFeature.length, 1); startHeroTimer(); });
-  renderHeroSlide(0);
-  // If trending already cached, inject immediately
-  if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles);
-  // Don't start timer here — fetchTrendingAndInjectHero will start it after updating heroFeature
-}
-
-function rebuildHero() {
-  const groups = groupVideos(AppState.videos.filter(v => !v.void));
-  const fresh  = applyHeroOrder(groups).filter(g => g.firstCover).slice(0, 6);
-  heroFeature  = fresh;
-  if (!heroFeature.length) { const s = document.getElementById('heroSlideshow'); if (s) s.hidden = true; return; }
-  heroIndex = Math.min(heroIndex, heroFeature.length - 1);
-  renderHeroSlide(heroIndex);
-  // Re-inject trending on top of whatever admin order set
-  if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles);
-}
 // ---------- Nav auth ----------
 function wireNavAuth() {
   const signInBtn   = document.getElementById('signInNavBtn');
@@ -1237,29 +1260,38 @@ function wireAll() {
   sessionStorage.removeItem('fromAbyss');
   showSkeleton();
   await coreInit();
+
   getCoverOverrides().then(overrides => {
     Object.entries(overrides).forEach(([s, url]) => {
       AppState.baseVideos.filter(v => slug(v.collection) === s).forEach(v => v.coverUrl = url);
     });
     syncVideos(); render(); rebuildHero();
   });
-  getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles); });
+  getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
+
   await loadBannerOverridesFromSupabase();
   await loadHeroOrderFromSupabase();
+
   hideSkeleton();
   buildFilters();
   buildLangFilters();
   buildGenreFilters();
   render();
-  buildHero(groupVideos(AppState.videos.filter(v => !v.void)));
+
+  // Paints immediately from the trending cache. Stays hidden if the cache is cold.
+  buildHero();
+
   wireAll();
   wireNavAuth();
   renderContinueWatching();
   loadRatings(groupVideos(AppState.videos));
-  loadWatchTotals().then(() => { render(); if (_lastTrendingTitles?.length) injectTrendingIntoHero(_lastTrendingTitles); });
+  loadWatchTotals().then(() => { render(); rebuildHero(); });
 
-  // Run Jikan tag loading first, then inject trending so groupVideos has all shows
+  // Hero settles FIRST. The Jikan tag loop sleeps 600ms per show, so if it
+  // ran first a cold-cache hero could sit wrong for many seconds.
   (async () => {
+    await fetchTrendingAndInjectHero();
+
     const groups = groupVideos(AppState.videos);
     const seenBase = new Set();
     for (const g of groups) {
@@ -1270,6 +1302,5 @@ function wireAll() {
       try { await fetchJikanDetails(g.title); await new Promise(r => setTimeout(r, 600)); } catch { /* silent */ }
     }
     render();
-    await fetchTrendingAndInjectHero();
   })();
 })();
