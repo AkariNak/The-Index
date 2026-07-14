@@ -1,5 +1,5 @@
 // ============================================================
-// Aurum — detail.js
+// Onyx — detail.js
 // ============================================================
 
 // ---------- Theme ----------
@@ -43,6 +43,24 @@ let episodeFilter = '';
 let activeSeason  = null;
 let focusMode     = false;
 let isAkariAdmin  = false;
+
+// ============================================================
+// LANGUAGE HELPERS
+// A show's dub and sub live in two separate collections that differ
+// only by a "(Subbed)" suffix. Everything that reasons about seasons
+// has to see through that suffix, or the dub and sub versions of the
+// same season look like unrelated shows.
+// ============================================================
+
+// "SNAFU: Season 2 (Subbed)" -> "SNAFU: Season 2"
+function stripLangSuffix(title) {
+  return String(title).replace(/\s*\((subbed|dubbed)\)\s*$/i, '').trim();
+}
+
+function isSubbedGroup(group) {
+  if (!group) return false;
+  return /\(subbed\)/i.test(group.title) || group.videos?.[0]?.language === 'subbed';
+}
 
 // ---------- URL ----------
 function getShowSlug() {
@@ -120,24 +138,21 @@ function renderDetail() {
   if (currentJikan?.score)    meta.push(`★ ${currentJikan.score}`);
   const lang = g.videos[0]?.language;
 
-  // Find paired dubbed/subbed version
+  // Find the opposite-language version of THIS season.
   function findLanguagePair(group, allGroups) {
-    const base = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
-    const isSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
-    // Look for opposite version
+    const key      = stripLangSuffix(group.title);
+    const isSubbed = isSubbedGroup(group);
     return allGroups.find(g2 => {
       if (g2.slug === group.slug) return false;
-      const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
-      if (base2 !== base) return false;
-      const isSubbed2 = /\(subbed\)/i.test(g2.title) || g2.videos[0]?.language === 'subbed';
-      return isSubbed !== isSubbed2; // opposite language
+      if (stripLangSuffix(g2.title) !== key) return false;
+      return isSubbedGroup(g2) !== isSubbed;
     });
   }
 
   const fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   const currentAllGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
   const pairedGroup = findLanguagePair(g, currentAllGroups);
-  const isCurrentSubbed = /\(subbed\)/i.test(g.title) || lang === 'subbed';
+  const isCurrentSubbed = isSubbedGroup(g);
 
   const langToggleHtml = pairedGroup ? `
     <div class="lang-toggle" id="langToggle" style="width:fit-content">
@@ -145,6 +160,9 @@ function renderDetail() {
       <button class="lang-toggle-btn${isCurrentSubbed ? ' active' : ''}" data-target="${isCurrentSubbed ? '' : escapeHtml(pairedGroup.slug)}" type="button">SUB</button>
     </div>
   ` : '';
+
+  // Strip the season suffix AND the language suffix from the headline title.
+  const headline = stripLangSuffix(g.title).replace(/:\s*(Season\s*1|Part\s*1|Cour\s*1)$/i, '').trim();
 
   detailMain.innerHTML = `
     <div class="detail-hero">
@@ -154,7 +172,7 @@ function renderDetail() {
       </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-        <h1 class="detail-title">${escapeHtml(g.title.replace(/:\s*(Season\s*1|Part\s*1|Cour\s*1)$/i, '').trim())}</h1>
+        <h1 class="detail-title">${escapeHtml(headline)}</h1>
         ${langToggleHtml}
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis
@@ -616,45 +634,87 @@ function posterCardHtml(g) {
   `;
 }
 
+// Base identity of a show, ignoring season AND language.
+// "SNAFU: Season 2 (Subbed)" and "SNAFU: Season 3" both -> "my teen romantic comedy snafu"
 function getBaseTitle(title) {
-  return title
+  return stripLangSuffix(title)
     .replace(/\s+(season|part|cour|arc)\s+\w+.*$/i, '')
     .replace(/\s+S\d+.*$/i, '')
     .replace(/\s+\d+(st|nd|rd|th)\s+(season|part|cour).*$/i, '')
     .replace(/\s+(nonstop|repeat|reloaded|refrain|revolution|returns?|reborn|revival|re-?main)$/i, '')
     .replace(/:\s*.+$/, '')
+    .replace(/:\s*$/, '')
     .trim()
     .toLowerCase();
 }
 
 function extractSeriesNum(title) {
-  const m = title.match(/(?:season|part|cour|s)\s*(\d+)/i) ||
-            title.match(/(\d+)(?:st|nd|rd|th)?\s*(?:season|part|cour)/i) ||
-            title.match(/\bS(\d+)\b/i);
+  const t = stripLangSuffix(title);
+  const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i) ||
+            t.match(/(\d+)(?:st|nd|rd|th)?\s*(?:season|part|cour)/i) ||
+            t.match(/\bS(\d+)\b/i);
   if (m) return parseInt(m[1], 10);
-  if (/nonstop/i.test(title)) return 3;
-  if (/repeat/i.test(title)) return 2;
-  if (/movie|film|ova|special/i.test(title)) return 999;
+  if (/nonstop/i.test(t)) return 3;
+  if (/repeat/i.test(t)) return 2;
+  if (/movie|film|ova|special/i.test(t)) return 999;
   return 1;
 }
 
 function extractSeriesLabel(title) {
-  const seasonMatch = title.match(/(?:season|part|cour)\s*\w+/i);
+  const t = stripLangSuffix(title);
+  const seasonMatch = t.match(/(?:season|part|cour)\s*\w+/i);
   if (seasonMatch) return seasonMatch[0].replace(/^\w/, c => c.toUpperCase());
-  const subtitleMatch = title.match(/\s+(Nonstop|Repeat|Reloaded|Refrain|Revolution|Returns?|Reborn|Revival)$/i);
+  const subtitleMatch = t.match(/\s+(Nonstop|Repeat|Reloaded|Refrain|Revolution|Returns?|Reborn|Revival)$/i);
   if (subtitleMatch) return subtitleMatch[1];
-  const colonMatch = title.match(/:\s*(.+)$/);
+  const colonMatch = t.match(/:\s*(.+)$/);
   if (colonMatch) return colonMatch[1].trim();
-  const typeMatch = title.match(/\b(Movie|OVA|Special|Film|Final Season|Final Part)\b.*/i);
+  const typeMatch = t.match(/\b(Movie|OVA|Special|Film|Final Season|Final Part)\b.*/i);
   if (typeMatch) return typeMatch[0];
   return 'Season 1';
+}
+
+// ============================================================
+// Build the season-sibling list for the "More from This Series" cards.
+//
+// The old version filtered out every "(Subbed)" collection outright. On a
+// subbed page that removed the very seasons it was supposed to be listing,
+// so the grid rendered empty and the season cards disappeared.
+//
+// Instead: collapse dub/sub pairs down to one card per season, and pick
+// whichever version matches the language you're currently watching. If a
+// season only exists in one language (Shoshimin is sub-only), fall back to
+// whatever does exist rather than dropping the season.
+// ============================================================
+function buildSeriesGroups(allGroups, baseTitle, currentIsSubbed) {
+  const siblings = allGroups.filter(g => getBaseTitle(g.title) === baseTitle);
+
+  const bySeason = new Map();   // season key -> chosen group
+  for (const g of siblings) {
+    const key      = stripLangSuffix(g.title);
+    const existing = bySeason.get(key);
+    if (!existing) { bySeason.set(key, g); continue; }
+    // Prefer the version matching the page's current language.
+    const gMatches   = isSubbedGroup(g) === currentIsSubbed;
+    const exMatches  = isSubbedGroup(existing) === currentIsSubbed;
+    if (gMatches && !exMatches) bySeason.set(key, g);
+  }
+
+  return [...bySeason.values()].sort((a, b) => {
+    const na = extractSeriesNum(a.title);
+    const nb = extractSeriesNum(b.title);
+    if (na !== nb) return na - nb;
+    const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+    const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
+    return da - db;
+  });
 }
 
 function renderRecommendations(allGroups) {
   if (!currentGroup) return;
 
-  const baseTitle   = getBaseTitle(currentGroup.title);
-  const currentSlug = currentGroup.slug;
+  const baseTitle       = getBaseTitle(currentGroup.title);
+  const currentSlug     = currentGroup.slug;
+  const currentIsSubbed = isSubbedGroup(currentGroup);
 
   const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   const otherGroups = allGroups.filter(g =>
@@ -664,7 +724,10 @@ function renderRecommendations(allGroups) {
   );
 
   const seriesCardsHtml = (groups) => groups.map(g => {
-    const isCurrent = g.slug === currentSlug;
+    // The current season is highlighted even if you're viewing the other
+    // language of it, since it's the same season either way.
+    const isCurrent = g.slug === currentSlug ||
+                      stripLangSuffix(g.title) === stripLangSuffix(currentGroup.title);
     const label     = extractSeriesLabel(g.title);
     const epCount   = g.videos.length;
     const progress  = getLastWatched(g.title);
@@ -692,17 +755,7 @@ function renderRecommendations(allGroups) {
   }).join('');
 
   const allSeriesGroups = applySeasonOrder(
-    allGroups
-      .filter(g => getBaseTitle(g.title) === baseTitle)
-      .filter(g => !/\(subbed\)/i.test(g.title)) // hide subbed — accessible via DUB/SUB toggle
-      .sort((a, b) => {
-        const na = extractSeriesNum(a.title);
-        const nb = extractSeriesNum(b.title);
-        if (na !== nb) return na - nb;
-        const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-        const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-        return da - db;
-      }),
+    buildSeriesGroups(allGroups, baseTitle, currentIsSubbed),
     baseTitle
   );
 
@@ -724,7 +777,9 @@ function renderRecommendations(allGroups) {
 
   if (recsGrid && recommendationsSection) {
     const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
-    const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, otherGroups, tags);
+    // Don't recommend the subbed twin of something as a separate show.
+    const recPool = otherGroups.filter(g => !isSubbedGroup(g));
+    const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, recPool, tags);
     if (recs.length) {
       recommendationsSection.hidden = false;
       recsGrid.innerHTML = recs.map(posterCardHtml).join('');
@@ -1010,13 +1065,14 @@ async function autoSaveMetadata(details) {
     });
   }
 
-  document.title = currentGroup ? `${currentGroup.title} — Onyx` : 'Onyx';
+  document.title = currentGroup ? `${stripLangSuffix(currentGroup.title)} — Onyx` : 'Onyx';
   renderDetail();
   renderRecommendations(allGroups);
   wireAdmin();
   wireNavAuth();
 
-  fetchJikanDetails(currentGroup?.title || '').then(async details => {
+  // Jikan doesn't know about "(Subbed)" collections — look up the clean title.
+  fetchJikanDetails(stripLangSuffix(currentGroup?.title || '')).then(async details => {
     const freshGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
     if (!details) { renderRecommendations(freshGroups); return; }
     currentJikan = details;
@@ -1031,7 +1087,7 @@ async function autoSaveMetadata(details) {
       if (seenBase.has(base)) continue;
       seenBase.add(base);
       try {
-        await fetchJikanDetails(g.title);
+        await fetchJikanDetails(stripLangSuffix(g.title));
         await new Promise(r => setTimeout(r, 600));
       } catch { /* silent */ }
     }
