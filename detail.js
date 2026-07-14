@@ -62,6 +62,38 @@ function isSubbedGroup(group) {
   return /\(subbed\)/i.test(group.title) || group.videos?.[0]?.language === 'subbed';
 }
 
+// ============================================================
+// JIKAN LOOKUP CASCADE
+// fetchJikanDetails() searches MAL by name. A collection like
+// "My Teen Romantic Comedy SNAFU: Season 2" matches nothing there —
+// the colon and the season suffix break the search — so seasons past
+// the first came back with no synopsis, no score, no year, no ep count.
+// Try progressively looser names until one resolves.
+// ============================================================
+function jikanQueryCandidates(title) {
+  const t = stripLangSuffix(title);
+  const out = [t];
+
+  const noColon = t.replace(/:/g, ' ').replace(/\s+/g, ' ').trim();
+  if (noColon && !out.includes(noColon)) out.push(noColon);
+
+  const bare = t.replace(/\s*:?\s*(season|part|cour)\s*\d+.*$/i, '').trim();
+  if (bare && !out.includes(bare)) out.push(bare);
+
+  return out;
+}
+
+async function resolveJikan(title) {
+  for (const q of jikanQueryCandidates(title)) {
+    try {
+      const details = await fetchJikanDetails(q);
+      if (details) return details;
+    } catch { /* try the next candidate */ }
+    await new Promise(r => setTimeout(r, 400));   // Jikan rate limit
+  }
+  return null;
+}
+
 // ---------- URL ----------
 function getShowSlug() {
   return new URLSearchParams(window.location.search).get('show');
@@ -731,6 +763,8 @@ function renderRecommendations(allGroups) {
     const label     = extractSeriesLabel(g.title);
     const epCount   = g.videos.length;
     const progress  = getLastWatched(g.title);
+    // Show which language this card will actually take you to.
+    const cardLang  = isSubbedGroup(g) ? 'SUB' : 'DUB';
 
     let progressHtml = '';
     if (progress?.lastEpisodeTitle) {
@@ -746,7 +780,7 @@ function renderRecommendations(allGroups) {
         <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
         <div class="series-card-info">
           <div class="series-card-label">${escapeHtml(label)}</div>
-          <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'}</div>
+          <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'} · ${cardLang}</div>
           ${progressHtml}
         </div>
         ${isCurrent ? '<div class="series-card-now">Watching</div>' : ''}
@@ -1071,8 +1105,8 @@ async function autoSaveMetadata(details) {
   wireAdmin();
   wireNavAuth();
 
-  // Jikan doesn't know about "(Subbed)" collections — look up the clean title.
-  fetchJikanDetails(stripLangSuffix(currentGroup?.title || '')).then(async details => {
+  // Cascading lookup — "Show: Season 2" won't resolve on MAL, "Show Season 2" will.
+  resolveJikan(currentGroup?.title || '').then(async details => {
     const freshGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
     if (!details) { renderRecommendations(freshGroups); return; }
     currentJikan = details;
@@ -1087,7 +1121,7 @@ async function autoSaveMetadata(details) {
       if (seenBase.has(base)) continue;
       seenBase.add(base);
       try {
-        await fetchJikanDetails(stripLangSuffix(g.title));
+        await resolveJikan(g.title);
         await new Promise(r => setTimeout(r, 600));
       } catch { /* silent */ }
     }
