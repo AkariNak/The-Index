@@ -839,6 +839,7 @@ let heroFeature = [];
 let _lastTrendingTitles = null;
 let _sliding    = false;
 let _heroNavWired = false;
+let _trendingResolved = false;   // true once the trending fetch has reported in
 const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 let _bannerOverrides = {};
@@ -926,27 +927,46 @@ function renderHeroSlide(idx) {
 }
 
 function goToSlide(idx) {
-  if (_sliding || idx === heroIndex) return;
+  if (_sliding || idx === heroIndex || !heroFeature.length) return;
   const slidesEl = document.getElementById('heroSlides');
   if (!slidesEl) return;
   const fromSlide = slidesEl.querySelector('.hero-slide');
   heroIndex = idx;
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
   if (!fromSlide) { renderHeroSlide(idx); return; }
+
+  // Lock the container height and absolutely position BOTH slides for the
+  // duration of the fade. Otherwise the outgoing slide is in normal flow,
+  // the incoming one is absolute, and removing the outgoing one reflows the
+  // box — which reads as the slide "growing" out of the middle.
+  slidesEl.style.position = 'relative';
+  slidesEl.style.height   = slidesEl.offsetHeight + 'px';
+
+  fromSlide.style.position = 'absolute';
+  fromSlide.style.inset    = '0';
+
   const incoming = document.createElement('div');
-  incoming.style.cssText = 'position:absolute;inset:0;opacity:0;';
   slidesEl.appendChild(incoming);
   renderHeroSlideInto(incoming, idx);
+  // Set these AFTER renderHeroSlideInto — it assigns className, which would
+  // otherwise clobber positioning set beforehand.
+  incoming.style.position = 'absolute';
+  incoming.style.inset    = '0';
+  incoming.style.opacity  = '0';
+
   _sliding = true;
   const DURATION = 600;
   const start    = performance.now();
   function step(now) {
     const p = Math.min((now - start) / DURATION, 1);
-    incoming.style.opacity  = p;
-    fromSlide.style.opacity = 1 - p;
+    incoming.style.opacity  = String(p);
+    fromSlide.style.opacity = String(1 - p);
     if (p < 1) { requestAnimationFrame(step); return; }
     fromSlide.remove();
-    incoming.style.cssText = '';
+    incoming.style.position = '';
+    incoming.style.inset    = '';
+    incoming.style.opacity  = '';
+    slidesEl.style.height   = '';
     _sliding = false;
   }
   requestAnimationFrame(step);
@@ -1086,16 +1106,23 @@ function buildHero() {
   section.hidden = true;
 }
 
-// Trending is the source of truth. Admin order is the fallback.
+// Trending is the source of truth. Admin order is the fallback — but ONLY
+// once trending has actually reported in. Before that, render nothing.
 function injectTrendingIntoHero(trendingTitles) {
   if (trendingTitles?.length) _lastTrendingTitles = trendingTitles;
+  _trendingResolved = true;
   const trending = computeTrendingFeature(_lastTrendingTitles);
   renderHeroFrom(trending.length ? trending : computeAdminFeature());
 }
 
+// Called from async callbacks (cover overrides, watch totals) that can resolve
+// BEFORE the trending fetch does. If it falls through to the admin order in
+// that window, the old slideshow flashes — which is the bug. So it bails.
 function rebuildHero() {
   const trending = computeTrendingFeature(_lastTrendingTitles);
-  renderHeroFrom(trending.length ? trending : computeAdminFeature());
+  if (trending.length) { renderHeroFrom(trending); return; }
+  if (!_trendingResolved) return;
+  renderHeroFrom(computeAdminFeature());
 }
 
 async function fetchTrendingAndInjectHero() {
