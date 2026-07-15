@@ -1080,6 +1080,21 @@ async function autoSaveMetadata(details) {
   // Apply abyss theme only if actually from abyss
   if (fromAbyss) {
     document.documentElement.classList.add('abyss-theme');
+
+    // Swap the browser tab icon to the red abyss version.
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
+      link.href = 'favicon-256-abyss.png';
+    });
+
+    // Recolor the SVG logo's blue underline to red. (The wordmark text is
+    // replaced with "ABYSS" separately and isn't touched here.)
+    if (!document.getElementById('abyssLogoStyle')) {
+      const st = document.createElement('style');
+      st.id = 'abyssLogoStyle';
+      st.textContent = '.abyss-theme .topnav-brand svg line{stroke:#e23636 !important;}';
+      document.head.appendChild(st);
+    }
+
     const s1 = document.createElement('div'); s1.className = 'abyss-scanline';
     const s2 = document.createElement('div'); s2.className = 'abyss-scanline2';
     document.body.prepend(s2); document.body.prepend(s1);
