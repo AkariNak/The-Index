@@ -613,6 +613,9 @@ async function renderComments(container, collectionName, episodeTitle) {
     getCurrentUser().then(u => u ? getCurrentProfile() : null)
   ]);
 
+  // Admin can delete any comment; regular users only their own.
+  const isAdmin = user?.email === 'lukehare1007@gmail.com';
+
   const avatar = (url, name) => url
     ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}">`
     : `<div class="comment-avatar-placeholder">${escapeHtml(name.charAt(0).toUpperCase())}</div>`;
@@ -625,7 +628,7 @@ async function renderComments(container, collectionName, episodeTitle) {
             <div class="comment-header">
               <a class="comment-username comment-profile-link" href="user.html?u=${encodeURIComponent(c.username)}">${escapeHtml(c.username)}</a>
               <span class="comment-date">${formatDate(c.created_at)}</span>
-              ${user && c.user_id === user.id ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button">Delete</button>` : ''}
+              ${(user && (isAdmin || c.user_id === user.id)) ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button"${isAdmin && c.user_id !== user.id ? ' title="Delete as admin"' : ''}>Delete</button>` : ''}
             </div>
             <p class="comment-content">${escapeHtml(c.content)}</p>
           </div>
