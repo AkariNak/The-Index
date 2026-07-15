@@ -592,6 +592,19 @@ function renderRecommendations(allGroups) {
 }
 
 // ---------- Comments ----------
+(function ensureCommentLinkStyle(){
+  if (document.getElementById('onyxCommentLinkStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'onyxCommentLinkStyle';
+  s.textContent = `
+    .comment-profile-link { text-decoration:none; color:inherit; cursor:pointer; }
+    .comment-username.comment-profile-link:hover { color: var(--accent, #3B82F6); text-decoration: underline; }
+    .comment-avatar.comment-profile-link { display:inline-block; }
+    .comment-avatar.comment-profile-link:hover { opacity:0.85; }
+  `;
+  document.head.appendChild(s);
+})();
+
 async function renderComments(container, collectionName, episodeTitle) {
   container.innerHTML = `<div class="comments-loading">Loading comments…</div>`;
   const [comments, user, profile] = await Promise.all([
@@ -607,10 +620,10 @@ async function renderComments(container, collectionName, episodeTitle) {
   const commentsHtml = comments.length
     ? comments.map(c => `
         <div class="comment">
-          <div class="comment-avatar">${avatar(c.avatar_url, c.username)}</div>
+          <a class="comment-avatar comment-profile-link" href="user.html?u=${encodeURIComponent(c.username)}">${avatar(c.avatar_url, c.username)}</a>
           <div class="comment-body">
             <div class="comment-header">
-              <span class="comment-username">${escapeHtml(c.username)}</span>
+              <a class="comment-username comment-profile-link" href="user.html?u=${encodeURIComponent(c.username)}">${escapeHtml(c.username)}</a>
               <span class="comment-date">${formatDate(c.created_at)}</span>
               ${user && c.user_id === user.id ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button">Delete</button>` : ''}
             </div>
