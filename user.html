@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile — Onyx</title>
+<link rel="icon" type="image/png" href="favicon-256.png">
+<link rel="apple-touch-icon" href="favicon-256.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip-link" href="#accountMain">Skip to main content</a>
+
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html" aria-label="Onyx home">
+  <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+    <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+    <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">STREAMING</text>
+  </svg>
+</a>
+  <div class="topnav-right">
+    <button id="globalSearchBtn" class="global-search-btn" type="button" aria-label="Search">⌕</button>
+    <a href="https://ko-fi.com/onyxstreaming" target="_blank" rel="noopener" class="kofi-btn">☕ <span>Support</span></a>
+    <a id="accountLink" href="account.html" class="btn btn-outline btn-small" hidden>Account</a>
+    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small" style="display:none">Sign In</button>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<div id="globalSearchOverlay" class="global-search-overlay" hidden>
+  <div class="global-search-box">
+    <div class="global-search-input-wrap">
+      <span class="global-search-icon">⌕</span>
+      <input id="globalSearchInput" type="search" placeholder="Search shows…" autocomplete="off" autofocus>
+      <button id="globalSearchClose" type="button">✕</button>
+    </div>
+    <div id="globalSearchResults" class="global-search-results"></div>
+  </div>
+</div>
+
+<div class="page">
+  <header class="detail-masthead">
+    <a href="index.html" class="back-link">← Back to Onyx</a>
+  </header>
+
+  <main id="accountMain" class="account-main">
+    <div class="detail-loading">Loading…</div>
+  </main>
+
+  <footer class="site-foot">
+    <span id="year"></span>
+    <span>Onyx</span>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="core.js"></script>
+<script src="profile.js"></script>
+<script src="feedback.js"></script>
+<script src="font-switcher.js"></script>
+</body>
+</html>
