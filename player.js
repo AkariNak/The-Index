@@ -1,5 +1,5 @@
 // ============================================================
-// Aurum — player.js
+// Onyx — player.js
 // ============================================================
 
 // ---------- Theme ----------
@@ -212,6 +212,11 @@ async function logEpisodeWatched(collection, episodeTitle, episodeNumber) {
 
 function loadVideo(video, overrideTs) {
   if (!video) return;
+  // Flush the outgoing episode's position BEFORE currentVideo is reassigned.
+  // Without this, clicking a new episode dropped the previous episode's
+  // progress: the new video sits at time 0, and the next save writes 0 over
+  // the real spot. Home page and detail then point at the wrong episode.
+  saveCurrentTimestamp();
   stopTimestampSaving();
 
   const url = video.downloadUrl;
@@ -230,6 +235,14 @@ function loadVideo(video, overrideTs) {
     if (saved && saved.lastEpisodeTitle === video.title && typeof saved.timestamp === 'number' && saved.timestamp > 5) {
       startTs = saved.timestamp;
     }
+  }
+
+  // Record the episode being opened as the last-watched one immediately, so
+  // Continue Watching (home) and the detail page point here, not the old ep.
+  if (currentGroup && video) {
+    const _epNum   = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
+    const _resumeAt = (typeof overrideTs === 'number' && overrideTs > 5) ? Math.floor(overrideTs) : 0;
+    markEpisodeWatched(currentGroup.title, video.title, _resumeAt, _epNum);
   }
 
   currentVideo = video;
@@ -693,6 +706,29 @@ function wireFog() {
   input?.addEventListener('input',  e => { applyFog(e.target.value); localStorage.setItem(FOG_KEY, e.target.value); });
   offBtn?.addEventListener('click', () => { applyFog('off'); localStorage.setItem(FOG_KEY, 'off'); });
 }
+
+// ---------- Active-episode highlight (grid view) ----------
+// The grid pill for the current episode needs to stand out at rest, not only
+// on hover. Injected here so it lives with the player and doesn't depend on
+// styles.css being edited separately.
+(function ensureActivePillStyle() {
+  if (document.getElementById('onyxActivePillStyle')) return;
+  const style = document.createElement('style');
+  style.id = 'onyxActivePillStyle';
+  style.textContent = `
+    .ep-grid .ep-pill.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: 700;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+    .ep-grid .ep-pill.active:hover { background: var(--accent); color: #000; }
+    .ep-grid .ep-pill.watched:not(.active) { opacity: 0.55; }
+    .season-pill.active { background: var(--accent); color: #000; }
+  `;
+  document.head.appendChild(style);
+})();
 
 // ---------- Bootstrap ----------
 (async function init() {
