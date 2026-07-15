@@ -100,7 +100,22 @@ function getShowSlug() {
 }
 
 // ---------- Render ----------
+function ensureLangBadgeStyle() {
+  if (document.getElementById('onyxLangBadgeStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'onyxLangBadgeStyle';
+  s.textContent = `
+    .lang-badge {
+      display:inline-block; margin-left:10px; padding:2px 8px;
+      font-family:var(--mono,monospace); font-size:11px; font-weight:700;
+      letter-spacing:.12em; vertical-align:middle;
+      color:#000; background:var(--accent,#3B82F6); border-radius:4px;
+    }`;
+  document.head.appendChild(s);
+}
+
 function renderDetail() {
+  ensureLangBadgeStyle();
   if (!currentGroup) {
     const _fv = sessionStorage.getItem('fromAbyss') === '1';
     detailMain.innerHTML = `
@@ -204,7 +219,7 @@ function renderDetail() {
       </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-        <h1 class="detail-title">${escapeHtml(headline)}</h1>
+        <h1 class="detail-title">${escapeHtml(headline)}<span class="lang-badge">${isCurrentSubbed ? 'SUB' : 'DUB'}</span></h1>
         ${langToggleHtml}
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis
