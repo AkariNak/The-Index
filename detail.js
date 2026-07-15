@@ -213,7 +213,7 @@ function renderDetail() {
       </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-        <h1 class="detail-title">${escapeHtml(headline)}<span class="lang-badge">${isCurrentSubbed ? 'SUB' : 'DUB'}</span></h1>
+        <h1 class="detail-title">${escapeHtml(headline)}<span class="lang-badge">${isCurrentSubbed ? '(Subbed)' : '(Dubbed)'}</span></h1>
         ${langToggleHtml}
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis
