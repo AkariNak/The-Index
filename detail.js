@@ -104,13 +104,7 @@ function ensureLangBadgeStyle() {
   if (document.getElementById('onyxLangBadgeStyle')) return;
   const s = document.createElement('style');
   s.id = 'onyxLangBadgeStyle';
-  s.textContent = `
-    .lang-badge {
-      display:inline-block; margin-left:10px; padding:2px 8px;
-      font-family:var(--mono,monospace); font-size:11px; font-weight:700;
-      letter-spacing:.12em; vertical-align:middle;
-      color:#000; background:var(--accent,#3B82F6); border-radius:4px;
-    }`;
+  s.textContent = `.lang-badge{display:inline-block;margin-left:10px;padding:1px 7px;font-family:var(--mono,monospace);font-size:9px;font-weight:600;letter-spacing:.18em;vertical-align:middle;position:relative;top:-2px;color:var(--ink-mute,#8a93a8);background:transparent;border:1px solid var(--line,#2a3050);border-radius:var(--radius-sm,4px);text-transform:uppercase;}`;
   document.head.appendChild(s);
 }
 
