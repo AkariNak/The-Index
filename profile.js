@@ -130,7 +130,77 @@ function renderNotFound(msg) {
     </div>`;
 }
 
+function ensureProfileGridStyle() {
+  if (document.getElementById('onyxProfileGridStyle')) return;
+  const s = document.createElement('style');
+  s.id = 'onyxProfileGridStyle';
+  s.textContent = `
+    #accountMain .watchlist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 18px;
+    }
+    @media (max-width: 640px) {
+      #accountMain .watchlist-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+      }
+    }
+    #accountMain .watchlist-card-wrap { position: relative; }
+    #accountMain .poster-card {
+      background: var(--paper-2, #161923);
+      border: 1px solid var(--line, #2a3050);
+      border-radius: var(--radius, 10px);
+      overflow: hidden;
+    }
+    #accountMain .poster-clickable { display: block; text-decoration: none; color: inherit; }
+    #accountMain .poster-cover {
+      position: relative;
+      aspect-ratio: 2 / 3;
+      background: var(--paper-3, #1c2030);
+    }
+    #accountMain .poster-cover img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    #accountMain .poster-cover .cover-placeholder {
+      width: 100%; height: 100%; display: grid; place-items: center;
+      font-size: 34px; font-weight: 700; color: var(--ink-mute, #8a93a8);
+    }
+    #accountMain .poster-overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      background: rgba(0,0,0,0.35); opacity: 0; transition: opacity .15s;
+    }
+    #accountMain .poster-clickable:hover .poster-overlay { opacity: 1; }
+    #accountMain .poster-overlay.poster-locked { opacity: 1; background: rgba(0,0,0,0.5); }
+    #accountMain .poster-play-icon { font-size: 26px; color: #fff; }
+    #accountMain .poster-nolink { cursor: default; }
+    #accountMain .poster-info { padding: 10px 10px 12px; }
+    #accountMain .poster-cat {
+      font-family: var(--mono, monospace); font-size: 9px; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--accent, #3B82F6); margin-bottom: 4px;
+    }
+    #accountMain .poster-title {
+      font-size: 13px; font-weight: 600; line-height: 1.25; margin: 0;
+      color: var(--ink, #e8ecf4);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    #accountMain .ratings-list { display: flex; flex-direction: column; gap: 10px; }
+    #accountMain .rating-row {
+      display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 14px;
+      padding: 8px 10px; border: 1px solid var(--line, #2a3050);
+      border-radius: var(--radius-sm, 6px); background: var(--paper-2, #161923);
+    }
+    #accountMain .rating-row-cover { width: 48px; aspect-ratio: 2/3; border-radius: 4px; overflow: hidden; background: var(--paper-3,#1c2030); }
+    #accountMain .rating-row-cover img { width: 100%; height: 100%; object-fit: cover; }
+    #accountMain .rating-row-title { font-weight: 600; color: var(--ink,#e8ecf4); text-decoration: none; }
+    #accountMain .rating-row-title.rating-row-nolink { cursor: default; }
+    #accountMain .rating-row-stars { font-family: var(--mono,monospace); font-size: 12px; color: var(--accent,#3B82F6); white-space: nowrap; }
+  `;
+  document.head.appendChild(s);
+}
+
 function renderProfile() {
+  ensureProfileGridStyle();
   const stats = computeStats();
   const avatarHtml = targetProfile?.avatar_url
     ? `<img class="profile-avatar" src="${escapeHtml(targetProfile.avatar_url)}" alt="Avatar">`
