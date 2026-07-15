@@ -100,16 +100,7 @@ function getShowSlug() {
 }
 
 // ---------- Render ----------
-function ensureLangBadgeStyle() {
-  if (document.getElementById('onyxLangBadgeStyle')) return;
-  const s = document.createElement('style');
-  s.id = 'onyxLangBadgeStyle';
-  s.textContent = `.lang-badge{display:inline-block;margin-left:10px;padding:1px 7px;font-family:var(--mono,monospace);font-size:9px;font-weight:600;letter-spacing:.18em;vertical-align:middle;position:relative;top:-2px;color:var(--ink-mute,#8a93a8);background:transparent;border:1px solid var(--line,#2a3050);border-radius:var(--radius-sm,4px);text-transform:uppercase;}`;
-  document.head.appendChild(s);
-}
-
 function renderDetail() {
-  ensureLangBadgeStyle();
   if (!currentGroup) {
     const _fv = sessionStorage.getItem('fromAbyss') === '1';
     detailMain.innerHTML = `
@@ -213,7 +204,7 @@ function renderDetail() {
       </div>
       <div class="detail-info">
         <div class="detail-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-        <h1 class="detail-title">${escapeHtml(headline)}<span class="lang-badge">${isCurrentSubbed ? '(Subbed)' : '(Dubbed)'}</span></h1>
+        <h1 class="detail-title">${escapeHtml(headline)}${isCurrentSubbed ? ' (Subbed)' : ''}</h1>
         ${langToggleHtml}
         ${meta.length ? `<div class="detail-meta">${meta.map(m => `<span>${m.startsWith('<span') ? m : escapeHtml(m)}</span>`).join('<span class="dot">·</span>')}</div>` : ''}
         ${currentJikan?.synopsis
