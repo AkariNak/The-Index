@@ -1,851 +1,481 @@
 // ============================================================
-// Onyx — player.js
+// Onyx — profile.js
+// Public, read-only view of another user's profile.
+// Mirrors account.js but strips: email, username edit, avatar edit,
+// sign-out, and the remove buttons. Reads a target user by ?u=<username>
+// or ?id=<user_id>.
 // ============================================================
 
 // ---------- Theme ----------
 (function() {
   document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
-  if (sessionStorage.getItem('fromAbyss') === '1') document.documentElement.classList.add('abyss-theme');
+  const btn = document.getElementById('themeToggle');
+  if (btn) {
+    btn.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+    btn.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', nowLight);
+      localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+      btn.textContent = nowLight ? '☀' : '☾';
+    });
+  }
 })();
 
-// ---------- DOM refs ----------
-const playerVideoEl  = document.getElementById('playerVideo');
-const playerTitleEl  = document.getElementById('playerTitle');
-const playerDescEl   = document.getElementById('playerDesc');
-const playerEpMetaEl = document.getElementById('playerEpMeta');
-const episodeSidebar = document.getElementById('episodeSidebar');
-const showTitleEl    = document.getElementById('showTitle');
-const showMetaEl     = document.getElementById('showMeta');
-const showSynopsisEl = document.getElementById('showSynopsis');
-const tagListEl      = document.getElementById('tagList');
-const recsGrid       = document.getElementById('recsGrid');
-const recsSection    = document.getElementById('recsSection');
-const backLink       = document.getElementById('backLink');
-const yearEl         = document.getElementById('year');
+const accountMain = document.getElementById('accountMain');
 
-if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
+const STATUS_LABELS = {
+  watching:      'Watching',
+  completed:     'Completed',
+  plan_to_watch: 'Plan to Watch',
+  on_hold:       'On Hold',
+  dropped:       'Dropped'
+};
 
-// ---------- State ----------
-let currentGroup = null;
-let currentVideo = null;
-let currentJikan = null;
-let _tsInterval  = null;
+const ACHIEVEMENT_DISPLAY = [
+  { key: 'first_watch',   label: 'First Watch',    desc: 'Watch your first episode',        icon: '▶' },
+  { key: 'binge_mode',    label: 'Binge Mode',     desc: 'Watch 15 episodes in one day',    icon: '×15' },
+  { key: 'completionist', label: 'Completionist',  desc: 'Complete 5 shows',                icon: '✓' },
+  { key: 'century',       label: 'Century',        desc: 'Watch 100 episodes total',        icon: '100' },
+  { key: 'loyal_fan',     label: 'Loyal Fan',      desc: 'Rate 10 shows',                   icon: '★' },
+  { key: 'explorer',      label: 'Explorer',       desc: 'Add 5 shows to your list',        icon: '◈' },
+  { key: 'night_owl',     label: 'Night Owl',      desc: 'Watch between 1am and 5am',       icon: '◑' },
+  { key: 'speed_runner',  label: 'Speed Runner',   desc: 'Complete a show in under 3 days', icon: '⚡' },
+  { key: 'critic',        label: 'Critic',         desc: 'Rate every show you complete',    icon: '✎' },
+];
 
-// ---------- URL ----------
-function getParams() {
+let activeTab        = 'watching';
+let targetUserId     = null;
+let targetProfile    = null;
+let watchList        = [];
+let userRatings      = [];
+let userAchievements = [];
+let _abyssUnlocked   = false;      // may this viewer click through to abyss shows?
+window._allGroups    = [];
+
+// ---------- Target from URL ----------
+function getTargetParams() {
   const p = new URLSearchParams(window.location.search);
-  return { show: p.get('show'), ep: p.get('ep'), t: p.get('t') };
+  return { username: p.get('u'), id: p.get('id') };
 }
 
-// ---------- Timestamp ----------
-function saveCurrentTimestamp() {
-  if (!playerVideoEl || !currentVideo || !currentGroup) return;
-  if (playerVideoEl.currentTime < 5) return;
-  saveTimestamp(currentGroup.title, currentVideo.title, Math.floor(playerVideoEl.currentTime));
-}
-
-function startTimestampSaving() {
-  stopTimestampSaving();
-  _tsInterval = setInterval(saveCurrentTimestamp, 4000);
-}
-
-function stopTimestampSaving() {
-  if (_tsInterval) { clearInterval(_tsInterval); _tsInterval = null; }
-}
-
-// ---------- Load video ----------
-// ---------- Episode description helpers ----------
-const EP_DESC_CACHE_KEY = 'onyx-ep-desc';
-
-function stripMalCredit(text) {
-  if (!text) return '';
-  return text.replace(/\s*\[Written by MAL Rewrite\]/gi, '').replace(/\s*\[Source:.*?\]/gi, '').trim();
-}
-
-function loadEpDescCache() {
-  try { return JSON.parse(localStorage.getItem(EP_DESC_CACHE_KEY) || '{}'); } catch { return {}; }
-}
-
-function saveEpDescCache(cache) {
-  try { localStorage.setItem(EP_DESC_CACHE_KEY, JSON.stringify(cache)); } catch {}
-}
-
-async function fetchEpisodeDescription(collectionTitle, episodeNumber) {
-  if (!episodeNumber) return null;
-  const epNum = parseInt(String(episodeNumber).replace(/[^0-9]/g, ''), 10);
-  if (!epNum) return null;
-  const cacheKey = `${slug(collectionTitle)}-${epNum}`;
-  const cache = loadEpDescCache();
-  if (cache[cacheKey]) return cache[cacheKey];
+// ---------- Abyss-visited check ----------
+// A viewer may click abyss shows only if they've been past the gate. We treat
+// two things as proof: fromAbyss set this session, OR the viewer has any abyss
+// show in their OWN watch history (which required going through the gate).
+async function computeAbyssUnlocked() {
+  if (sessionStorage.getItem('fromAbyss') === '1') return true;
+  if (localStorage.getItem('onyx-abyss-visited') === '1') return true;
   try {
-    const searchRes = await jikanRequest(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(collectionTitle)}&limit=1`);
-    const malId = searchRes?.data?.[0]?.mal_id;
-    if (!malId) return null;
-    await new Promise(r => setTimeout(r, 500));
-    const epRes = await jikanRequest(`https://api.jikan.moe/v4/anime/${malId}/episodes/${epNum}`);
-    const synopsis = epRes?.data?.synopsis;
-    if (!synopsis) return null;
-    const cleaned = stripMalCredit(synopsis);
-    cache[cacheKey] = cleaned;
-    saveEpDescCache(cache);
-    return cleaned;
-  } catch (e) {
-    console.warn('[EpDesc] Failed:', e);
-    return null;
-  }
+    const viewer = await getCurrentUser();
+    if (!viewer) return false;
+    // Any of the viewer's own watch rows pointing at an abyss (void) show.
+    const { data } = await getSupabase()
+      .from('watch_status')
+      .select('collection')
+      .eq('user_id', viewer.id);
+    if (!data?.length) return false;
+    const abyssTitles = new Set(
+      window._allGroups.filter(g => g.videos?.some(v => v.void)).map(g => slug(g.title))
+    );
+    return data.some(r => abyssTitles.has(slug(r.collection)));
+  } catch { return false; }
 }
 
-// ---------- Watch Analytics ----------
-const ANALYTICS_SESSION_KEY = 'onyx-session-id';
-
-function getSessionId() {
-  let id = localStorage.getItem(ANALYTICS_SESSION_KEY);
-  if (!id) {
-    id = 'guest-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    localStorage.setItem(ANALYTICS_SESSION_KEY, id);
-  }
-  return id;
+// ---------- Stats ----------
+function computeStats() {
+  const completed   = watchList.filter(w => w.status === 'completed').length;
+  const watching    = watchList.filter(w => w.status === 'watching').length;
+  const planToWatch = watchList.filter(w => w.status === 'plan_to_watch').length;
+  const rated       = userRatings.length;
+  const avgRating   = rated
+    ? (userRatings.reduce((s, r) => s + Number(r.rating), 0) / rated).toFixed(1)
+    : '—';
+  return { completed, watching, planToWatch, rated, avgRating };
 }
 
-let _analyticsTimer = null;
-let _analyticsCollection = null;
-let _analyticsAccum = 0;
-let _analyticsLastTick = null;
-
-async function flushAnalytics() {
-  if (!_analyticsCollection || _analyticsAccum < 1) return;
-  const seconds = Math.floor(_analyticsAccum);
-  _analyticsAccum = 0;
-  const sessionId = getSessionId();
-  const today = new Date().toISOString().slice(0, 10);
-  console.log('[Analytics] flushing', seconds, 'seconds for', _analyticsCollection, 'on', today);
-  try {
-    const sb = getSupabase();
-    const user = await getCurrentUser();
-    const userId = user?.id || null;
-    const isGuest = !userId;
-    let username = null;
-    if (userId) {
-      try {
-        const { data: profile } = await sb.from('user_profiles').select('username').eq('id', userId).maybeSingle();
-        username = profile?.username || null;
-      } catch {}
-    }
-    const { data: existing, error: fetchErr } = await sb
-      .from('watch_analytics')
-      .select('id, watch_seconds')
-      .eq('session_id', sessionId)
-      .eq('collection', _analyticsCollection)
-      .eq('watch_date', today)
-      .maybeSingle();
-    if (fetchErr) { console.warn('[Analytics] fetch error:', fetchErr.message); return; }
-    if (existing) {
-      const { error: updateErr } = await sb.from('watch_analytics')
-        .update({ watch_seconds: existing.watch_seconds + seconds, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      if (updateErr) console.warn('[Analytics] update error:', updateErr.message);
-      else console.log('[Analytics] updated row, total:', existing.watch_seconds + seconds);
-    } else {
-      const { error: insertErr } = await sb.from('watch_analytics').insert({
-        session_id: sessionId, user_id: userId, username,
-        collection: _analyticsCollection, watch_seconds: seconds,
-        is_guest: isGuest, watch_date: today
-      });
-      if (insertErr) console.warn('[Analytics] insert error:', insertErr.message);
-      else console.log('[Analytics] inserted new row for', today);
-    }
-  } catch (e) {
-    console.warn('[Analytics] flush failed:', e.message);
-  }
+function starsDisplay(rating) {
+  const full  = Math.floor(rating);
+  const half  = (rating % 1) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
 }
 
-function startAnalytics(collection) {
-  stopAnalytics();
-  _analyticsCollection = collection;
-  _analyticsAccum = 0;
-  _analyticsLastTick = null;
-  _analyticsTimer = setInterval(() => {
-    if (!playerVideoEl || playerVideoEl.paused || playerVideoEl.ended) {
-      _analyticsLastTick = null;
-      return;
-    }
-    const now = Date.now();
-    if (_analyticsLastTick) _analyticsAccum += (now - _analyticsLastTick) / 1000;
-    _analyticsLastTick = now;
-    if (_analyticsAccum >= 30) flushAnalytics();
-  }, 1000);
+function findGroup(collection) {
+  const slugged = slug(collection);
+  return window._allGroups.find(g => slug(g.title) === slugged);
 }
 
-function stopAnalytics() {
-  if (_analyticsTimer) { clearInterval(_analyticsTimer); _analyticsTimer = null; }
-  flushAnalytics();
-  _analyticsLastTick = null;
+function isAbyssCollection(collection) {
+  const group = findGroup(collection);
+  return !!group?.videos?.some(v => v.void);
 }
 
-async function logEpisodeWatched(collection, episodeTitle, episodeNumber) {
-  try {
-    const sb = getSupabase();
-    const user = await getCurrentUser();
-    const sessionId = getSessionId();
-    // Avoid duplicate logs for same session+episode
-    const { data: existing } = await sb
-      .from('episodes_watched')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('collection', collection)
-      .eq('episode_title', episodeTitle)
-      .maybeSingle();
-    if (existing) return; // already logged
-    await sb.from('episodes_watched').insert({
-      session_id: sessionId,
-      user_id: user?.id || null,
-      collection,
-      episode_title: episodeTitle,
-      episode_number: episodeNumber || null,
-      is_guest: !user
-    });
-    console.log('[Analytics] episode logged:', episodeTitle);
-  } catch (e) {
-    console.warn('[Analytics] episode log failed:', e.message);
-  }
+// Returns { href, clickable }. Abyss shows are only clickable if unlocked.
+function detailLink(collection) {
+  const abyss = isAbyssCollection(collection);
+  if (abyss && !_abyssUnlocked) return { href: null, clickable: false, abyss: true };
+  const page = abyss ? 'home.html' : 'detail.html';
+  return { href: `${page}?show=${encodeURIComponent(slug(collection))}`, clickable: true, abyss };
 }
 
-function loadVideo(video, overrideTs) {
-  if (!video) return;
-  // Flush the outgoing episode's position BEFORE currentVideo is reassigned.
-  // Without this, clicking a new episode dropped the previous episode's
-  // progress: the new video sits at time 0, and the next save writes 0 over
-  // the real spot. Home page and detail then point at the wrong episode.
-  saveCurrentTimestamp();
-  stopTimestampSaving();
-
-  const url = video.downloadUrl;
-  if (!url || url === '#') {
-    if (playerVideoEl) { playerVideoEl.removeAttribute('src'); playerVideoEl.load(); }
-    if (playerTitleEl) playerTitleEl.textContent = `${video.title} — no video URL`;
-    return;
-  }
-
-  // Use override timestamp if provided, otherwise fall back to saved progress
-  let startTs = 0;
-  if (typeof overrideTs === 'number' && overrideTs > 5) {
-    startTs = overrideTs;
-  } else {
-    const saved = getLastWatched(currentGroup?.title);
-    if (saved && saved.lastEpisodeTitle === video.title && typeof saved.timestamp === 'number' && saved.timestamp > 5) {
-      startTs = saved.timestamp;
-    }
-  }
-
-  // Record the episode being opened as the last-watched one immediately, so
-  // Continue Watching (home) and the detail page point here, not the old ep.
-  if (currentGroup && video) {
-    const _epNum   = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
-    const _resumeAt = (typeof overrideTs === 'number' && overrideTs > 5) ? Math.floor(overrideTs) : 0;
-    markEpisodeWatched(currentGroup.title, video.title, _resumeAt, _epNum);
-  }
-
-  currentVideo = video;
-
-  // Refresh episode pills so active state reflects currentVideo
-  if (currentGroup) {
-    const allGroups = groupVideos(AppState.videos);
-    renderSeriesOnPlayer(allGroups);
-  }
-
-  // Enable download only for Akari Admin
-  getCurrentUser().then(async user => {
-    if (user && user.email === 'lukehare1007@gmail.com') {
-        playerVideoEl.removeAttribute('controlsList');
-        playerVideoEl.oncontextmenu = null;
-    } else {
-        playerVideoEl.setAttribute('controlsList', 'nodownload noremoteplayback');
-        playerVideoEl.oncontextmenu = () => false;
-    }
-  });
-
-  playerVideoEl.src = url;
-  playerVideoEl.load();
-  if (currentGroup) startAnalytics(currentGroup.title);
-
-  playerVideoEl.addEventListener('loadedmetadata', () => {
-    if (startTs > 0 && startTs < playerVideoEl.duration - 5) {
-      playerVideoEl.currentTime = startTs;
-    }
-    playerVideoEl.play().catch(() => {});
-    startTimestampSaving();
-  }, { once: true });
-
-  // Mark watched only when near end (within 10 mins) — not on load
-  if (currentGroup) {
-    const epNum = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
-    let _markedWatched = false;
-
-    playerVideoEl.addEventListener('timeupdate', function onTimeUpdate() {
-      if (_markedWatched) return;
-      const duration = playerVideoEl.duration;
-      if (!duration || duration < 1) return;
-      const remaining = duration - playerVideoEl.currentTime;
-      if (remaining <= 600) { // within 10 mins of end
-        _markedWatched = true;
-        markEpisodeWatched(currentGroup.title, video.title, playerVideoEl.currentTime, epNum);
-        renderSeriesOnPlayer(groupVideos(AppState.videos));
-        // Re-apply active state after re-render since currentVideo may differ by reference
-        const activeIdx = currentGroup.videos.findIndex(v => v.title === video.title);
-        document.querySelectorAll('.ep-pill').forEach(btn => {
-          const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : -1;
-          btn.classList.toggle('active', idx === activeIdx);
-        });
-        playerVideoEl.removeEventListener('timeupdate', onTimeUpdate);
-        logEpisodeWatched(currentGroup.title, video.title, epNum);
-      }
-    });
-
-    getCurrentUser().then(async user => {
-      if (!user) return;
-      const status = await getWatchStatus(currentGroup.title);
-      if (!status) setWatchStatus(currentGroup.title, 'watching');
-      const progress = AppState.progress || {};
-      const totalWatched = Object.keys(progress).length;
-      checkAchievements({ episodeWatched: true, totalWatched });
-    });
-  }
-
-  // Update UI
-  if (playerTitleEl) playerTitleEl.textContent = video.title;
-
-  // Update active episode pill without full re-render
-  if (currentGroup) {
-    const newIdx = currentGroup.videos.indexOf(video);
-    document.querySelectorAll('.ep-pill, .sidebar-ep').forEach(btn => {
-      const btnIdx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : null;
-      const isActive = btnIdx !== null ? btnIdx === newIdx : btn.dataset.title === video.title;
-      btn.classList.toggle('active', isActive);
-      if (isActive && !btn.classList.contains('watched')) btn.classList.remove('watched');
-    });
-  }
-  if (playerDescEl) {
-    const fallback = stripMalCredit(video.description || '');
-    playerDescEl.textContent = fallback;
-    playerDescEl.hidden = !fallback;
-    if (currentGroup) {
-      fetchEpisodeDescription(currentGroup.title, video.episode).then(desc => {
-        if (desc && playerDescEl) { playerDescEl.textContent = desc; playerDescEl.hidden = false; }
-      });
-    }
-  }
-  if (playerEpMetaEl) {
-    const parts = [];
-    if (video.episode) parts.push(`EP ${video.episode}`);
-    if (video.fileType && video.fileType !== '—') parts.push(video.fileType);
-    if (video.fileSize && video.fileSize !== '—') parts.push(video.fileSize);
-    playerEpMetaEl.textContent = parts.join(' · ');
-  }
-
-  // Update URL
-  if (currentGroup) {
-    const epIdx = currentGroup.videos.indexOf(video);
-    history.replaceState(null, '', `player.html?show=${encodeURIComponent(currentGroup.slug)}&ep=${epIdx}`);
-  }
-
-  highlightSidebarEp(video);
-
-  // Load comments
-  const commentsContainer = document.getElementById('commentsContainer');
-  if (commentsContainer && currentGroup) {
-    renderComments(commentsContainer, currentGroup.title, video.title);
-  }
+// ---------- Render ----------
+function renderNotFound(msg) {
+  accountMain.innerHTML = `
+    <div class="account-gate">
+      <h2>Profile not found</h2>
+      <p>${escapeHtml(msg || "This user doesn't exist or has no public profile.")}</p>
+      <div class="account-gate-actions">
+        <a class="btn btn-solid" href="index.html">Back to Onyx</a>
+      </div>
+    </div>`;
 }
 
-// ---------- Sidebar ----------
-function highlightSidebarEp(video) {
-  if (!episodeSidebar) return;
-  episodeSidebar.querySelectorAll('.sidebar-ep, .ep-pill').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.title === video.title);
-  });
-  episodeSidebar.querySelector('.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-
-function cleanEpNum(ep, index) {
-  if (!ep) return String(index + 1);
-  const str = String(ep);
-  // "1.01" → "1", "1.25" → "25", "01" → "1"
-  if (str.includes('.')) return String(parseInt(str.split('.')[1], 10));
-  return String(parseInt(str, 10) || index + 1);
-}
-
-function renderSidebar(group, allGroups) {
-  if (!episodeSidebar || !group) return;
-  const useGrid  = group.videos.length > 12;
-  const progress = getLastWatched(group.title);
-
-  // Season pills — only if there are related seasons
-  let seasonPillsHtml = '';
-  if (allGroups) {
-    const baseTitle    = getSeriesBase(group.title);
-    const isCurrentSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
-    const seriesGroups = allGroups
-      .filter(g => getSeriesBase(g.title) === baseTitle)
-      .filter(g => !/\(subbed\)/i.test(g.title)) // work from dubbed list, then find subbed pair if needed
-      .sort((a, b) => {
-        const n = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
-        const na = n(a.title), nb = n(b.title);
-        if (na !== nb) return na - nb;
-        const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-        const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-        return da - db;
-      });
-    if (seriesGroups.length > 1) {
-      const getLabel = t => {
-        const m = t.match(/(?:season|part|cour)\s*(\w+)/i);
-        return m ? `S${m[1].replace(/one/i,'1').replace(/two/i,'2').replace(/three/i,'3')}` : 'S1';
-      };
-      seasonPillsHtml = `<div class="season-pills">${seriesGroups.map(g => {
-        // If currently on subbed, find the subbed version of this season
-        let targetGroup = g;
-        if (isCurrentSubbed) {
-          const subbedVariant = allGroups.find(g2 => {
-            const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').trim();
-            return base2 === g.title && /\(subbed\)/i.test(g2.title);
-          });
-          if (subbedVariant) targetGroup = subbedVariant;
-        }
-        const isCurrent = targetGroup.slug === group.slug;
-        const label     = getLabel(g.title);
-        const href      = isCurrent ? '#' : `player.html?show=${encodeURIComponent(targetGroup.slug)}&ep=0`;
-        return `<a class="season-pill ${isCurrent ? 'active' : ''}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
-      }).join('')}</div>`;
-    }
-  }
-
-  if (useGrid) {
-    const lastWatchedTitle = progress?.lastEpisodeTitle;
-    const lastWatchedIdx = lastWatchedTitle
-      ? group.videos.findIndex(v => v.title === lastWatchedTitle)
-      : -1;
-
-    episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
-      const ep       = cleanEpNum(video.episode, i);
-      const isActive = currentVideo && video.title === currentVideo.title;
-      const watched  = i <= lastWatchedIdx && lastWatchedIdx >= 0;
-      return `<button class="ep-pill${isActive ? ' active' : ''}${watched && !isActive ? ' watched' : ''}" data-idx="${i}" type="button" title="${escapeHtml(video.title)}">${escapeHtml(ep)}</button>`;
-    }).join('')}</div>`;
-  } else {
-    episodeSidebar.innerHTML = seasonPillsHtml + group.videos.map((video, i) => {
-      const isActive = currentVideo && video.title === currentVideo.title;
-      const ep       = cleanEpNum(video.episode, i);
-      return `<button class="sidebar-ep${isActive ? ' active' : ''}" data-title="${escapeHtml(video.title)}" type="button">
-        <span class="sidebar-ep-num">EP ${escapeHtml(ep)}</span>
-        <span class="sidebar-ep-title">${escapeHtml(video.title)}</span>
-      </button>`;
-    }).join('');
-  }
-
-  episodeSidebar.querySelectorAll('.sidebar-ep, .ep-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : null;
-      const video = idx !== null ? group.videos[idx] : group.videos.find(v => v.title === btn.dataset.title);
-      if (video) loadVideo(video);
-    });
-  });
-}
-
-// ---------- Series (seasons) ----------
-function getSeriesBase(title) {
-  return title
-    .replace(/\s+(season|part|cour)\s*\w+.*$/i, '')
-    .replace(/\s+S\d+.*$/i, '')
-    .replace(/\s+\d+(st|nd|rd|th)?\s*(season|part|cour).*$/i, '')
-    .replace(/:\s*.+$/, '')
-    .trim().toLowerCase();
-}
-
-function renderSeriesOnPlayer(allGroups) {
-  const container = document.getElementById('playerSeriesContainer');
-  const grid      = document.getElementById('playerSeriesGrid');
-  if (!container || !grid || !currentGroup) return;
-
-  const baseTitle    = getSeriesBase(currentGroup.title);
-  const seriesGroups = allGroups
-    .filter(g => getSeriesBase(g.title) === baseTitle)
-    .filter(g => !/\(subbed\)/i.test(g.title))
-    .sort((a, b) => {
-      const getNum = t => { const m = t.match(/(?:season|part|cour|s)\s*(\d+)/i); return m ? parseInt(m[1], 10) : 999; };
-      const na = getNum(a.title), nb = getNum(b.title);
-      if (na !== nb) return na - nb;
-      const da = Math.max(...a.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-      const db = Math.max(...b.videos.map(v => new Date(v.dateAdded || 0).getTime()));
-      return da - db;
-    });
-
-  if (seriesGroups.length <= 1) { container.hidden = true; return; }
-  container.hidden = false;
-
-  const getLabel = title => {
-    const m = title.match(/(?:season|part|cour)\s*\w+/i) ||
-              title.match(/\b(Movie|OVA|Special|Final Season|Final Part)\b.*/i);
-    if (m) return (m[1] || m[0]).replace(/^\w/, c => c.toUpperCase());
-    const colon = title.match(/:\s*(.+)$/);
-    if (colon) return colon[1].trim();
-    return 'Season 1';
-  };
-
-  grid.innerHTML = seriesGroups.map(g => {
-    const isCurrent = g.slug === currentGroup.slug;
-    const label     = getLabel(g.title);
-    const epCount   = g.videos.length;
-    return `
-      <a class="series-card ${isCurrent ? 'series-card-active' : ''}" href="detail.html?show=${encodeURIComponent(g.slug)}">
-        <div class="series-card-bg" style="background-image:url('${escapeHtml(g.firstCover || '')}')"></div>
-        <div class="series-card-info">
-          <div class="series-card-label">${escapeHtml(label)}</div>
-          <div class="series-card-eps">${epCount} ${epCount === 1 ? 'ep' : 'eps'}</div>
-        </div>
-        ${isCurrent ? '<div class="series-card-now">Watching</div>' : ''}
-      </a>
-    `;
-  }).join('');
-}
-
-// ---------- Show info ----------
-function renderShowInfo(group, jikan) {
-  if (backLink) backLink.href = `detail.html?show=${encodeURIComponent(group.slug)}`;
-  if (showTitleEl) {
-    const cleanName = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
-    const isSub = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
-    showTitleEl.textContent = cleanName + (isSub ? ' (Subbed)' : '');
-  }
-  if (showMetaEl) {
-    const parts = [];
-    if (jikan?.year)     parts.push(String(jikan.year));
-    if (jikan?.type)     parts.push(jikan.type);
-    if (jikan?.episodes) parts.push(`${jikan.episodes} eps`);
-    if (jikan?.score)    parts.push(`★ ${jikan.score}`);
-    showMetaEl.textContent = parts.join(' · ');
-    showMetaEl.hidden = !parts.length;
-  }
-  if (showSynopsisEl) { showSynopsisEl.textContent = stripMalCredit(jikan?.synopsis || ''); showSynopsisEl.hidden = !jikan?.synopsis; }
-  if (tagListEl) {
-    const tags = getTagsForCollection(group.title, jikan?.tags || []);
-    tagListEl.innerHTML = tags.length ? tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('') : '';
-    tagListEl.hidden = !tags.length;
-  }
-
-  // Language toggle
-  const allGroups = groupVideos(AppState.videos);
-  const base = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
-  const isSubbed = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
-  const paired = allGroups.find(g2 => {
-    if (g2.slug === group.slug) return false;
-    const base2 = g2.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
-    if (base2 !== base) return false;
-    const isSubbed2 = /\(subbed\)/i.test(g2.title) || g2.videos[0]?.language === 'subbed';
-    return isSubbed !== isSubbed2;
-  });
-  let langToggle = document.getElementById('playerLangToggle');
-  if (paired) {
-    if (!langToggle) {
-      langToggle = document.createElement('div');
-      langToggle.id = 'playerLangToggle';
-      langToggle.className = 'lang-toggle';
-      showTitleEl?.parentNode?.insertBefore(langToggle, showTitleEl.nextSibling);
-    }
-    langToggle.innerHTML = `
-      <button class="lang-toggle-btn${!isSubbed ? ' active' : ''}" data-target="${!isSubbed ? '' : escapeHtml(paired.slug)}" type="button">DUB</button>
-      <button class="lang-toggle-btn${isSubbed ? ' active' : ''}" data-target="${isSubbed ? '' : escapeHtml(paired.slug)}" type="button">SUB</button>
-    `;
-    langToggle.querySelectorAll('.lang-toggle-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetSlug = btn.dataset.target;
-        if (!targetSlug) return;
-        const epIdx = currentVideo ? group.videos.findIndex(v => v.title === currentVideo.title) : 0;
-        // Full page reload so layout, series pills, and all state refresh correctly
-        window.location.href = `player.html?show=${encodeURIComponent(targetSlug)}&ep=${Math.max(0, epIdx)}`;
-      });
-    });
-  } else if (langToggle) {
-    langToggle.remove();
-  }
-}
-
-// ---------- Recommendations ----------
-function renderRecommendations(allGroups) {
-  if (!recsGrid || !recsSection || !currentGroup) return;
-  const tags = getTagsForCollection(currentGroup.title, currentJikan?.tags || []);
-  const recs  = getRecommendationsForCollection(currentGroup.title, currentGroup.category, allGroups, tags);
-  if (!recs.length) { recsSection.hidden = true; return; }
-  recsSection.hidden = false;
-  recsGrid.innerHTML = recs.map(g => `
-    <article class="poster-card">
-      <a class="poster-clickable" href="detail.html?show=${encodeURIComponent(g.slug)}">
-        <div class="poster-cover">
-          ${g.firstCover ? `<img src="${escapeHtml(g.firstCover)}" alt="" loading="lazy">` : `<div class="cover-placeholder">${escapeHtml(g.title.charAt(0).toUpperCase())}</div>`}
-          <div class="poster-overlay"><span class="poster-play-icon">▶</span></div>
-        </div>
-        <div class="poster-info">
-          <div class="poster-cat">${escapeHtml((g.category || 'Other').toUpperCase())}</div>
-          <h3 class="poster-title">${escapeHtml(g.title)}</h3>
-        </div>
-      </a>
-    </article>
-  `).join('');
-}
-
-// ---------- Comments ----------
-(function ensureCommentLinkStyle(){
-  if (document.getElementById('onyxCommentLinkStyle')) return;
+function ensureProfileGridStyle() {
+  if (document.getElementById('onyxProfileGridStyle')) return;
   const s = document.createElement('style');
-  s.id = 'onyxCommentLinkStyle';
+  s.id = 'onyxProfileGridStyle';
   s.textContent = `
-    .comment-profile-link { text-decoration:none; color:inherit; cursor:pointer; }
-    .comment-username.comment-profile-link:hover { color: var(--accent, #3B82F6); text-decoration: underline; }
-    .comment-avatar.comment-profile-link { display:inline-block; }
-    .comment-avatar.comment-profile-link:hover { opacity:0.85; }
+    #accountMain .watchlist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 18px;
+    }
+    @media (max-width: 640px) {
+      #accountMain .watchlist-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 12px;
+      }
+    }
+    #accountMain .watchlist-card-wrap { position: relative; }
+    #accountMain .poster-card {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      overflow: visible;
+    }
+    #accountMain .poster-clickable { display: block; text-decoration: none; color: inherit; }
+    #accountMain .poster-cover {
+      position: relative;
+      aspect-ratio: 2 / 3;
+      background: var(--paper-3, #1c2030);
+      border-radius: var(--radius, 10px);
+      overflow: hidden;
+    }
+    #accountMain .poster-cover img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    #accountMain .poster-cover .cover-placeholder {
+      width: 100%; height: 100%; display: grid; place-items: center;
+      font-size: 34px; font-weight: 700; color: var(--ink-mute, #8a93a8);
+    }
+    #accountMain .poster-overlay {
+      position: absolute; inset: 0; display: grid; place-items: center;
+      background: rgba(0,0,0,0.35); opacity: 0; transition: opacity .15s;
+    }
+    #accountMain .poster-clickable:hover .poster-overlay { opacity: 1; }
+    #accountMain .poster-overlay.poster-locked { opacity: 1; background: rgba(0,0,0,0.5); }
+    #accountMain .poster-play-icon { font-size: 26px; color: #fff; }
+    #accountMain .poster-nolink { cursor: default; }
+    #accountMain .poster-info { padding: 10px 2px 4px; }
+    #accountMain .poster-cat {
+      font-family: var(--mono, monospace); font-size: 9px; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--accent, #3B82F6); margin-bottom: 4px;
+    }
+    #accountMain .poster-title {
+      font-size: 13px; font-weight: 600; line-height: 1.25; margin: 0;
+      color: var(--ink, #e8ecf4);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    #accountMain .ratings-list { display: flex; flex-direction: column; gap: 10px; }
+    #accountMain .rating-row {
+      display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 14px;
+      padding: 8px 10px; border: 1px solid var(--line, #2a3050);
+      border-radius: var(--radius-sm, 6px); background: var(--paper-2, #161923);
+    }
+    #accountMain .rating-row-cover { width: 48px; aspect-ratio: 2/3; border-radius: 4px; overflow: hidden; background: var(--paper-3,#1c2030); }
+    #accountMain .rating-row-cover img { width: 100%; height: 100%; object-fit: cover; }
+    #accountMain .rating-row-title { font-weight: 600; color: var(--ink,#e8ecf4); text-decoration: none; }
+    #accountMain .rating-row-title.rating-row-nolink { cursor: default; }
+    #accountMain .rating-row-stars { font-family: var(--mono,monospace); font-size: 12px; color: var(--accent,#3B82F6); white-space: nowrap; }
+
+    /* Profile header + identity */
+    #accountMain .profile-card { margin-bottom: 24px; }
+    #accountMain .profile-top { display: flex; align-items: center; gap: 18px; margin-bottom: 20px; }
+    #accountMain .profile-avatar,
+    #accountMain .profile-avatar-placeholder {
+      width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+      display: grid; place-items: center; font-size: 32px; font-weight: 700;
+      background: var(--paper-3,#1c2030); color: var(--ink-mute,#8a93a8);
+      border: 2px solid var(--line,#2a3050);
+    }
+    #accountMain .profile-username {
+      font-size: 22px; font-weight: 800; color: var(--ink,#e8ecf4); letter-spacing: .01em;
+    }
+    #accountMain .profile-email { font-size: 13px; color: var(--ink-mute,#8a93a8); margin-top: 3px; }
+
+    /* Stat tiles */
+    #accountMain .profile-stats {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    }
+    @media (max-width: 640px) { #accountMain .profile-stats { grid-template-columns: repeat(2, 1fr); } }
+    #accountMain .profile-stat {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 14px 8px; background: var(--paper-2,#161923);
+      border: 1px solid var(--line,#2a3050); border-radius: var(--radius,10px);
+    }
+    #accountMain .profile-stat-value { font-size: 22px; font-weight: 800; color: var(--ink,#e8ecf4); line-height: 1; }
+    #accountMain .profile-stat-label {
+      font-family: var(--mono,monospace); font-size: 9px; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--ink-mute,#8a93a8);
+    }
+
+    /* Tabs */
+    #accountMain .account-body { display: grid; grid-template-columns: 200px 1fr; gap: 24px; margin-top: 8px; }
+    @media (max-width: 720px) { #accountMain .account-body { grid-template-columns: 1fr; } }
+    #accountMain .account-sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
+    @media (max-width: 720px) {
+      #accountMain .account-sidebar-nav { flex-direction: row; flex-wrap: wrap; }
+    }
+    #accountMain .account-nav-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 9px 13px; background: transparent;
+      border: 1px solid var(--line,#2a3050); border-radius: var(--radius-sm,6px);
+      color: var(--ink-soft,#aab2c5); font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: left; transition: background .12s, color .12s, border-color .12s;
+    }
+    #accountMain .account-nav-item:hover { color: var(--ink,#e8ecf4); border-color: var(--ink-soft,#aab2c5); }
+    #accountMain .account-nav-item.active {
+      background: var(--accent,#3B82F6); color: #000; border-color: var(--accent,#3B82F6);
+    }
+    #accountMain .account-nav-count {
+      font-family: var(--mono,monospace); font-size: 11px; opacity: .8;
+      background: rgba(0,0,0,.18); padding: 1px 7px; border-radius: 10px;
+    }
+    #accountMain .account-nav-item.active .account-nav-count { background: rgba(0,0,0,.25); }
+    #accountMain .account-content-title {
+      font-size: 15px; font-weight: 700; color: var(--ink,#e8ecf4);
+      margin-bottom: 16px; letter-spacing: .02em;
+    }
+    #accountMain .watchlist-empty { color: var(--ink-mute,#8a93a8); font-size: 14px; padding: 20px 0; }
   `;
   document.head.appendChild(s);
-})();
+}
 
-async function renderComments(container, collectionName, episodeTitle) {
-  container.innerHTML = `<div class="comments-loading">Loading comments…</div>`;
-  const [comments, user, profile] = await Promise.all([
-    getComments(collectionName, episodeTitle),
-    getCurrentUser(),
-    getCurrentUser().then(u => u ? getCurrentProfile() : null)
-  ]);
+function renderProfile() {
+  ensureProfileGridStyle();
+  const stats = computeStats();
+  const avatarHtml = targetProfile?.avatar_url
+    ? `<img class="profile-avatar" src="${escapeHtml(targetProfile.avatar_url)}" alt="Avatar">`
+    : `<div class="profile-avatar-placeholder">${escapeHtml((targetProfile?.username || '?').charAt(0).toUpperCase())}</div>`;
 
-  // Admin can delete any comment; regular users only their own.
-  const isAdmin = user?.email === 'lukehare1007@gmail.com';
+  const joined = targetProfile?.created_at
+    ? new Date(targetProfile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : '';
 
-  const avatar = (url, name) => url
-    ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}">`
-    : `<div class="comment-avatar-placeholder">${escapeHtml(name.charAt(0).toUpperCase())}</div>`;
-
-  const commentsHtml = comments.length
-    ? comments.map(c => `
-        <div class="comment">
-          <a class="comment-avatar comment-profile-link" href="user.html?u=${encodeURIComponent(c.username)}">${avatar(c.avatar_url, c.username)}</a>
-          <div class="comment-body">
-            <div class="comment-header">
-              <a class="comment-username comment-profile-link" href="user.html?u=${encodeURIComponent(c.username)}">${escapeHtml(c.username)}</a>
-              <span class="comment-date">${formatDate(c.created_at)}</span>
-              ${(user && (isAdmin || c.user_id === user.id)) ? `<button class="comment-delete btn btn-small" data-id="${escapeHtml(c.id)}" type="button"${isAdmin && c.user_id !== user.id ? ' title="Delete as admin"' : ''}>Delete</button>` : ''}
-            </div>
-            <p class="comment-content">${escapeHtml(c.content)}</p>
-          </div>
-        </div>`).join('')
-    : `<div class="comments-empty">No comments yet. Be the first!</div>`;
-
-  const inputHtml = user
-    ? `<div class="comment-input-wrap">
-        <div class="comment-avatar">${avatar(profile?.avatar_url || null, profile?.username || '?')}</div>
-        <div class="comment-input-inner">
-          <textarea id="commentInput" placeholder="Write a comment…" rows="2" maxlength="1000"></textarea>
-          <button class="btn btn-solid btn-small" id="commentSubmit" type="button">Post</button>
+  accountMain.innerHTML = `
+    <div class="profile-banner"><div class="profile-banner-accent"></div></div>
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar-wrap">
+          ${avatarHtml}
         </div>
-      </div>`
-    : `<div class="comment-signin-prompt"><button class="btn btn-outline btn-small" id="commentSignInBtn" type="button">Sign in to comment</button></div>`;
+        <div class="profile-identity">
+          <div class="profile-username">${escapeHtml(targetProfile?.username || 'User')}</div>
+          ${joined ? `<div class="profile-email">Joined ${escapeHtml(joined)}</div>` : ''}
+        </div>
+      </div>
 
-  container.innerHTML = `
-    <div class="comments-section">
-      <h4 class="comments-heading">Comments <span class="episodes-count">${comments.length}</span></h4>
-      ${inputHtml}
-      <div class="comments-list">${commentsHtml}</div>
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-value">${stats.completed}</span><span class="profile-stat-label">Completed</span></div>
+        <div class="profile-stat"><span class="profile-stat-value">${stats.watching}</span><span class="profile-stat-label">Watching</span></div>
+        <div class="profile-stat"><span class="profile-stat-value">${stats.planToWatch}</span><span class="profile-stat-label">Plan to Watch</span></div>
+        <div class="profile-stat"><span class="profile-stat-value">${stats.rated}</span><span class="profile-stat-label">Rated</span></div>
+        <div class="profile-stat"><span class="profile-stat-value">${stats.avgRating}</span><span class="profile-stat-label">Avg Rating</span></div>
+      </div>
+    </div>
+
+    <div class="account-body">
+      <nav class="account-sidebar-nav">
+        ${Object.entries(STATUS_LABELS).map(([key, label]) => {
+          const c = watchList.filter(w => w.status === key).length;
+          return `<button class="account-nav-item ${key === activeTab ? 'active' : ''}" data-tab="${key}" type="button">
+            ${label}<span class="account-nav-count">${c}</span>
+          </button>`;
+        }).join('')}
+        <button class="account-nav-item ${activeTab === 'ratings' ? 'active' : ''}" data-tab="ratings" type="button">
+          Ratings<span class="account-nav-count">${userRatings.length}</span>
+        </button>
+        <button class="account-nav-item ${activeTab === 'achievements' ? 'active' : ''}" data-tab="achievements" type="button">
+          Achievements<span class="account-nav-count">${userAchievements.length}</span>
+        </button>
+      </nav>
+
+      <div class="account-content">
+        <div class="account-content-title" id="contentTitle">${activeTab === 'ratings' ? 'Ratings' : STATUS_LABELS[activeTab] || activeTab}</div>
+        <div id="accountContentBody"></div>
+      </div>
     </div>
   `;
 
-  document.getElementById('commentSubmit')?.addEventListener('click', async () => {
-    const input = document.getElementById('commentInput');
-    const text  = input?.value?.trim();
-    if (!text) return;
-    const btn = document.getElementById('commentSubmit');
-    btn.disabled = true;
-    try { await postComment(collectionName, episodeTitle, text); renderComments(container, collectionName, episodeTitle); }
-    catch (err) { alert(`Could not post: ${err.message}`); btn.disabled = false; }
-  });
-
-  container.querySelectorAll('.comment-delete').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('Delete this comment?')) return;
-      try { await deleteComment(btn.dataset.id); renderComments(container, collectionName, episodeTitle); }
-      catch (err) { alert(`Could not delete: ${err.message}`); }
-    });
-  });
-
-  document.getElementById('commentSignInBtn')?.addEventListener('click', () => { window.location.href = 'account.html'; });
+  renderContentBody();
+  wireProfileEvents();
 }
 
-// ---------- Auto-advance ----------
-function wireAutoAdvance(group) {
-  if (!playerVideoEl || !group) return;
-  playerVideoEl.addEventListener('pause', stopTimestampSaving);
-  playerVideoEl.addEventListener('ended', async () => {
-    stopTimestampSaving();
-    if (!currentVideo) return;
-    const idx  = group.videos.indexOf(currentVideo);
-    const next = group.videos[idx + 1];
-    const isLast = !next;
+function renderContentBody() {
+  const body  = document.getElementById('accountContentBody');
+  const title = document.getElementById('contentTitle');
+  if (!body) return;
+  if (title) title.textContent = activeTab === 'ratings' ? 'Ratings' : (STATUS_LABELS[activeTab] || activeTab);
 
-    // Auto-complete if this was the last episode
-    if (isLast) {
-      const user = await getCurrentUser();
-      if (user) {
-        const status = await getWatchStatus(group.title);
-        if (status === 'watching') {
-          await setWatchStatus(group.title, 'completed');
-        }
-      }
+  if (activeTab === 'ratings') { renderRatingsTab(body); return; }
+  if (activeTab === 'achievements') { renderAchievementsTab(body); return; }
+
+  const entries = watchList.filter(w => w.status === activeTab);
+  if (!entries.length) { body.innerHTML = `<div class="watchlist-empty">Nothing here yet.</div>`; return; }
+
+  body.innerHTML = `<div class="watchlist-grid">${entries.map(entry => {
+    const group = findGroup(entry.collection);
+    const cover = group?.firstCover;
+    const { href, clickable, abyss } = detailLink(entry.collection);
+    const coverInner = `
+      <div class="poster-cover">
+        ${cover ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(entry.collection)}" loading="lazy">` : `<div class="cover-placeholder">${escapeHtml(entry.collection.charAt(0).toUpperCase())}</div>`}
+        ${clickable ? '<div class="poster-overlay"><span class="poster-play-icon">▶</span></div>' : (abyss ? '<div class="poster-overlay poster-locked"><span class="poster-play-icon">🔒</span></div>' : '')}
+      </div>
+      <div class="poster-info">
+        <div class="poster-cat">${escapeHtml(STATUS_LABELS[entry.status] || entry.status)}</div>
+        <h3 class="poster-title">${escapeHtml(entry.collection)}</h3>
+      </div>`;
+    const card = clickable
+      ? `<a class="poster-clickable" href="${escapeHtml(href)}">${coverInner}</a>`
+      : `<div class="poster-clickable poster-nolink" title="${abyss ? 'Restricted — visit the Abyss to view' : ''}">${coverInner}</div>`;
+    return `<div class="watchlist-card-wrap"><article class="poster-card">${card}</article></div>`;
+  }).join('')}</div>`;
+}
+
+function renderAchievementsTab(body) {
+  const unlocked = new Set(userAchievements.map(a => a.achievement_key));
+  body.innerHTML = `
+    <div class="achievements-grid">
+      ${ACHIEVEMENT_DISPLAY.map(a => {
+        const isUnlocked = unlocked.has(a.key);
+        const unlockedAt = userAchievements.find(u => u.achievement_key === a.key)?.unlocked_at;
+        const date = unlockedAt ? new Date(unlockedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        return `
+          <div class="achievement-card ${isUnlocked ? 'unlocked' : 'locked'}">
+            <div class="achievement-card-icon">${a.icon}</div>
+            <div class="achievement-card-info">
+              <div class="achievement-card-name">${escapeHtml(a.label)}</div>
+              <div class="achievement-card-desc">${escapeHtml(a.desc)}</div>
+              ${isUnlocked && date ? `<div class="achievement-card-date">${date}</div>` : ''}
+            </div>
+            ${isUnlocked ? '<div class="achievement-card-check">✓</div>' : '<div class="achievement-card-lock">🔒</div>'}
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderRatingsTab(body) {
+  if (!userRatings.length) { body.innerHTML = `<div class="watchlist-empty">No ratings yet.</div>`; return; }
+  const sorted = [...userRatings].sort((a, b) => b.rating - a.rating);
+  body.innerHTML = `<div class="ratings-list">${sorted.map(r => {
+    const group = findGroup(r.collection);
+    const cover = group?.firstCover;
+    const { href, clickable } = detailLink(r.collection);
+    const titleEl = clickable
+      ? `<a class="rating-row-title" href="${escapeHtml(href)}">${escapeHtml(r.collection)}</a>`
+      : `<span class="rating-row-title rating-row-nolink">${escapeHtml(r.collection)}</span>`;
+    return `
+      <div class="rating-row">
+        <div class="rating-row-cover">
+          ${cover ? `<img src="${escapeHtml(cover)}" alt="">` : `<div class="cover-placeholder" style="height:100%;font-size:18px">${escapeHtml(r.collection.charAt(0))}</div>`}
+        </div>
+        ${titleEl}
+        <div class="rating-row-stars" title="${r.rating} / 5">${starsDisplay(Number(r.rating))} ${Number(r.rating).toFixed(1)}</div>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+function wireProfileEvents() {
+  accountMain.addEventListener('click', e => {
+    const target = e.target.closest('.account-nav-item');
+    if (target?.dataset.tab) {
+      activeTab = target.dataset.tab;
+      document.querySelectorAll('.account-nav-item').forEach(b => b.classList.toggle('active', b === target));
+      renderContentBody();
     }
-
-    if (next) loadVideo(next);
   });
 }
 
-// ---------- Fog ----------
-const FOG_KEY = 'aurum-fog-color';
-function applyFog(color) {
-  const page   = document.querySelector('.player-page');
-  const swatch = document.getElementById('fogSwatch');
-  if (!page || !swatch) return;
-  if (!color || color === 'off') {
-    page.style.removeProperty('--fog-color');
-    swatch.classList.remove('active');
-    swatch.style.removeProperty('--fog-swatch-color');
-    swatch.style.setProperty('--fog-swatch-show', 'none');
+// ---------- Nav auth (viewer's own state) ----------
+function wireNavAuth() {
+  const signInBtn   = document.getElementById('signInNavBtn');
+  const accountLink = document.getElementById('accountLink');
+  getCurrentUser().then(user => {
+    if (user) {
+      if (signInBtn) signInBtn.style.display = 'none';
+      if (accountLink) accountLink.hidden = false;
+    } else {
+      if (signInBtn) { signInBtn.style.display = ''; signInBtn.onclick = () => window.location.href = 'account.html'; }
+      if (accountLink) accountLink.hidden = true;
+    }
+  });
+}
+
+// ---------- Boot ----------
+async function bootProfile() {
+  await coreInit();
+  initGlobalSearch();
+  wireNavAuth();
+
+  const yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
+
+  const { username, id } = getTargetParams();
+  if (!username && !id) { renderNotFound('No user specified.'); return; }
+
+  // Resolve the target profile row.
+  try {
+    let q = getSupabase().from('user_profiles').select('id, username, avatar_url, created_at');
+    q = id ? q.eq('id', id) : q.ilike('username', username);
+    const { data: profile } = await q.maybeSingle();
+    if (!profile) { renderNotFound(); return; }
+    targetProfile = profile;
+    targetUserId  = profile.id;
+    document.title = `${profile.username} — Onyx`;
+  } catch (e) {
+    renderNotFound('Could not load this profile.');
     return;
   }
-  page.style.setProperty('--fog-color', color);
-  swatch.classList.add('active');
-  swatch.style.setProperty('--fog-swatch-color', color);
-  swatch.style.setProperty('--fog-swatch-show', 'block');
-}
-function wireFog() {
-  const input  = document.getElementById('fogInput');
-  const offBtn = document.getElementById('fogOffButton');
-  const saved  = localStorage.getItem(FOG_KEY);
-  if (saved && saved !== 'off') { if (input) input.value = saved; applyFog(saved); }
-  input?.addEventListener('input',  e => { applyFog(e.target.value); localStorage.setItem(FOG_KEY, e.target.value); });
-  offBtn?.addEventListener('click', () => { applyFog('off'); localStorage.setItem(FOG_KEY, 'off'); });
-}
 
-// ---------- Active-episode highlight (grid view) ----------
-// The grid pill for the current episode needs to stand out at rest, not only
-// on hover. Injected here so it lives with the player and doesn't depend on
-// styles.css being edited separately.
-(function ensureActivePillStyle() {
-  if (document.getElementById('onyxActivePillStyle')) return;
-  const style = document.createElement('style');
-  style.id = 'onyxActivePillStyle';
-  style.textContent = `
-    .ep-grid .ep-pill.active {
-      background: var(--accent);
-      color: #000;
-      font-weight: 700;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px var(--accent);
+  // Load all videos (incl. void) for covers/links, then the target's public data.
+  try {
+    let allVids = [], from = 0; const pageSize = 1000;
+    while (true) {
+      const { data, error } = await getSupabase().from('videos').select('*').range(from, from + pageSize - 1);
+      if (error || !data?.length) break;
+      allVids = allVids.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
     }
-    .ep-grid .ep-pill.active:hover { background: var(--accent); color: #000; }
-    .ep-grid .ep-pill.watched:not(.active) { opacity: 0.55; }
-    .season-pill.active { background: var(--accent); color: #000; }
-  `;
-  document.head.appendChild(style);
-})();
-
-// ---------- Bootstrap ----------
-(async function init() {
-  await coreInit();
-  if (typeof loadAllProgressFromSupabase === 'function') await loadAllProgressFromSupabase();
-  initGlobalSearch();
-  const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
-  if (_fromAbyss) {
-    // Red tab icon + red logo underline, matching the detail page's abyss look.
-    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
-      link.href = 'favicon-256-abyss.png';
-    });
-    if (!document.getElementById('abyssLogoStyle')) {
-      const st = document.createElement('style');
-      st.id = 'abyssLogoStyle';
-      st.textContent = '.abyss-theme .topnav-brand svg line{stroke:#e23636 !important;}';
-      document.head.appendChild(st);
-    }
-    document.querySelectorAll('a[href="index.html"]').forEach(a => {
-      a.href = 'home.html';
-      if (a.getAttribute('aria-label') === 'Onyx home') {
-        a.setAttribute('aria-label', 'Abyss home');
-        a.textContent = 'ABYSS';
-      }
-    });
-  }
-  const { show: showSlug, ep: epParam, t: tParam } = getParams();
-  if (!showSlug) { if (playerTitleEl) playerTitleEl.textContent = 'No show specified.'; return; }
-
-  let allGroups = groupVideos(AppState.videos);
-  currentGroup = allGroups.find(g => g.slug === showSlug);
-  // If not found, try loading void shows
-  if (!currentGroup) {
-    try {
-      const sb = getSupabase();
-      let voidData = []; let vFrom = 0;
-      while(true){
-        const {data} = await sb.from('videos').select('*').eq('void',true).range(vFrom,vFrom+999);
-        if(!data||!data.length) break;
-        voidData = voidData.concat(data);
-        if(data.length<1000) break;
-        vFrom+=1000;
-      }
-      if(voidData.length){
-        voidData.forEach(v=>{
-          AppState.baseVideos.push({
-            id:v.id,title:v.title||'Untitled',description:v.description||'',
-            collection:v.collection||'Unsorted',episode:v.episode||'',
-            category:v.category||'Other',fileType:v.file_type||'MP4',
-            fileSize:'—',dateAdded:v.date_added||'',downloadUrl:v.download_url||'#',
-            coverUrl:v.cover_url||'',temporary:false,season:1,type:'Episode',
-            sources:null,createdAt:v.created_at||null,language:v.language||null,void:true
-          });
-        });
-        syncVideos();
-        allGroups = groupVideos(AppState.videos);
-        currentGroup = allGroups.find(g => g.slug === showSlug);
-      }
-    } catch(e){ console.warn('Void load error:',e); }
-  }
-  if (!currentGroup || !currentGroup.videos.length) { if (playerTitleEl) playerTitleEl.textContent = 'Show not found.'; return; }
-
-  document.title = `${currentGroup.title} — Onyx`;
-
-  // Determine starting episode
-  let startVideo = null;
-  const epIdx    = parseInt(epParam, 10);
-  if (!Number.isNaN(epIdx) && currentGroup.videos[epIdx]) {
-    startVideo = currentGroup.videos[epIdx];
-  } else {
-    const progress = getLastWatched(currentGroup.title);
-    if (progress) startVideo = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
-    if (!startVideo) startVideo = currentGroup.videos[0];
+    window._allGroups = groupVideos(allVids.map(normalizeVideo));
+  } catch {
+    window._allGroups = groupVideos(AppState.videos);
   }
 
-  // If a t param was passed (from resume button), use it as override
-  const resumeTs = tParam ? parseInt(tParam, 10) : 0;
+  _abyssUnlocked = await computeAbyssUnlocked();
 
-  playerVideoEl.addEventListener('seeked',  saveCurrentTimestamp);
-  playerVideoEl.addEventListener('pause',   saveCurrentTimestamp);
-  window.addEventListener('beforeunload',   saveCurrentTimestamp);
-  window.addEventListener('pagehide',       saveCurrentTimestamp);
-  window.addEventListener('beforeunload',   stopAnalytics);
-  window.addEventListener('pagehide',       stopAnalytics);
+  const sb = getSupabase();
+  const [wl, ratings, achievements] = await Promise.all([
+    sb.from('watch_status').select('collection, status').eq('user_id', targetUserId).then(({ data }) => data || []),
+    sb.from('ratings').select('collection, rating').eq('user_id', targetUserId).then(({ data }) => data || []),
+    sb.from('user_achievements').select('achievement_key, unlocked_at').eq('user_id', targetUserId).then(({ data }) => data || [])
+  ]);
+  watchList        = wl;
+  userRatings      = ratings;
+  userAchievements = achievements;
 
-  renderShowInfo(currentGroup, null);
-  renderSidebar(currentGroup, allGroups);
-  wireAutoAdvance(currentGroup);
-  wireFog();
-  renderSeriesOnPlayer(allGroups);
-  loadVideo(startVideo, resumeTs > 5 ? resumeTs : undefined);
+  renderProfile();
+}
 
-  fetchJikanDetails(currentGroup.title).then(details => {
-    if (!details) return;
-    currentJikan = details;
-    renderShowInfo(currentGroup, currentJikan);
-    renderRecommendations(allGroups);
-    renderSeriesOnPlayer(allGroups);
-  });
-})();
+bootProfile();
