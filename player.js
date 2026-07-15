@@ -757,6 +757,16 @@ function wireFog() {
   initGlobalSearch();
   const _fromAbyss = sessionStorage.getItem('fromAbyss') === '1';
   if (_fromAbyss) {
+    // Red tab icon + red logo underline, matching the detail page's abyss look.
+    document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach(link => {
+      link.href = 'favicon-256-abyss.png';
+    });
+    if (!document.getElementById('abyssLogoStyle')) {
+      const st = document.createElement('style');
+      st.id = 'abyssLogoStyle';
+      st.textContent = '.abyss-theme .topnav-brand svg line{stroke:#e23636 !important;}';
+      document.head.appendChild(st);
+    }
     document.querySelectorAll('a[href="index.html"]').forEach(a => {
       a.href = 'home.html';
       if (a.getAttribute('aria-label') === 'Onyx home') {
