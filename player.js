@@ -513,13 +513,7 @@ function renderShowInfo(group, jikan) {
   if (showTitleEl) {
     const cleanName = group.title.replace(/\s*\(Subbed\)/i, '').replace(/\s*\(Dubbed\)/i, '').trim();
     const isSub = /\(subbed\)/i.test(group.title) || group.videos[0]?.language === 'subbed';
-    if (!document.getElementById('onyxLangBadgeStyle')) {
-      const s = document.createElement('style');
-      s.id = 'onyxLangBadgeStyle';
-      s.textContent = '.lang-badge{display:inline-block;margin-left:10px;padding:1px 7px;font-family:var(--mono,monospace);font-size:9px;font-weight:600;letter-spacing:.18em;vertical-align:middle;position:relative;top:-2px;color:var(--ink-mute,#8a93a8);background:transparent;border:1px solid var(--line,#2a3050);border-radius:var(--radius-sm,4px);text-transform:uppercase;}';
-      document.head.appendChild(s);
-    }
-    showTitleEl.innerHTML = `${escapeHtml(cleanName)}<span class="lang-badge">${isSub ? 'SUB' : 'DUB'}</span>`;
+    showTitleEl.textContent = cleanName + (isSub ? ' (Subbed)' : '');
   }
   if (showMetaEl) {
     const parts = [];
