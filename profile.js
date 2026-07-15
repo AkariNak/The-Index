@@ -337,7 +337,7 @@ async function bootProfile() {
   const [wl, ratings, achievements] = await Promise.all([
     sb.from('watch_status').select('collection, status').eq('user_id', targetUserId).then(({ data }) => data || []),
     sb.from('ratings').select('collection, rating').eq('user_id', targetUserId).then(({ data }) => data || []),
-    sb.from('achievements').select('achievement_key, unlocked_at').eq('user_id', targetUserId).then(({ data }) => data || [])
+    sb.from('user_achievements').select('achievement_key, unlocked_at').eq('user_id', targetUserId).then(({ data }) => data || [])
   ]);
   watchList        = wl;
   userRatings      = ratings;
