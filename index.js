@@ -976,6 +976,14 @@ function goToSlide(idx) {
 
   if (!fromSlide) { renderHeroSlide(idx); return; }
 
+  // Re-pin the height every transition. If the lock was ever lost (resize, or
+  // a prior full render clearing it), the incoming absolute slide would leave
+  // the container with no height and it would collapse/grow mid-fade. Locking
+  // here — while the outgoing slide is still in place giving a real height —
+  // guarantees the box stays put.
+  if (!slidesEl.style.height || slidesEl.offsetHeight === 0) lockHeroHeight();
+  else { slidesEl.style.position = 'relative'; }
+
   const incoming = document.createElement('div');
   slidesEl.appendChild(incoming);
   renderHeroSlideInto(incoming, idx);
@@ -1103,10 +1111,19 @@ function computeTrendingFeature(trendingTitles) {
     const thisSeason = Number((g.title.match(/season\s*(\d+)/i) || [])[1] || 1);
     if (thisSeason > curSeason) seen.set(base, g);
   }
-  return [...seen.values()].slice(0, 6);
+  // Deterministic order across devices. The clock picks a slide by index, so
+  // every device must build the SAME ordered list or "slide 3" means different
+  // shows on different devices (which is why they fell out of sync). Sorting by
+  // slug is stable and identical everywhere, so devices with the same show set
+  // land on the same show.
+  return [...seen.values()]
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+    .slice(0, 6);
 }
 
 function computeAdminFeature() {
+  // Admin order is itself deterministic (explicit ranks), so keep it as-is —
+  // it's the same on every device already.
   return applyHeroOrder(heroEligibleGroups()).slice(0, 6);
 }
 
