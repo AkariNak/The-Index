@@ -834,18 +834,45 @@ function wireFog() {
   window.addEventListener('beforeunload',   stopAnalytics);
   window.addEventListener('pagehide',       stopAnalytics);
 
-  renderShowInfo(currentGroup, null);
+  // Prefer stored meta from Supabase (works even when Jikan is down). The
+  // meta column isn't carried onto video objects, so read it directly.
+  let _pMeta = null;
+  try {
+    const _base = currentGroup.title.replace(/\s*\((subbed|dubbed)\)\s*$/i, '').trim();
+    const { data } = await getSupabase()
+      .from('videos').select('meta')
+      .in('collection', [_base, `${_base} (Subbed)`])
+      .not('meta', 'is', null).limit(1).maybeSingle();
+    _pMeta = data?.meta || null;
+  } catch { _pMeta = null; }
+
+  if (_pMeta) {
+    currentJikan = {
+      synopsis: _pMeta.description || '',
+      year: _pMeta.year, type: _pMeta.type,
+      episodes: _pMeta.episodes, score: _pMeta.score, tags: [],
+    };
+  }
+
+  renderShowInfo(currentGroup, currentJikan);
   renderSidebar(currentGroup, allGroups);
   wireAutoAdvance(currentGroup);
   wireFog();
   renderSeriesOnPlayer(allGroups);
   loadVideo(startVideo, resumeTs > 5 ? resumeTs : undefined);
 
+  // Jikan only when meta is missing, or in the background for tags. Its failure
+  // never blanks the already-rendered info.
   fetchJikanDetails(currentGroup.title).then(details => {
     if (!details) return;
-    currentJikan = details;
+    // If we already have stored meta text, keep it and only borrow Jikan's tags.
+    currentJikan = _pMeta
+      ? { synopsis: _pMeta.description || details.synopsis, year: _pMeta.year ?? details.year,
+          type: _pMeta.type || details.type, episodes: _pMeta.episodes ?? details.episodes,
+          score: _pMeta.score ?? details.score, tags: details.tags || [] }
+      : details;
     renderShowInfo(currentGroup, currentJikan);
     renderRecommendations(allGroups);
     renderSeriesOnPlayer(allGroups);
-  });
+  }).catch(() => {});
 })();
