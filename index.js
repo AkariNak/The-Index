@@ -65,6 +65,72 @@ function starsHtml(rating, count) {
 }
 
 // ---------- Genre definitions ----------
+// ============================================================
+// JIKAN LOOKUP HELPERS (home)
+// New shows fail to match MAL when their collection name carries a colon,
+// a season word, or a (Subbed) suffix. Try progressively looser names, with
+// a small alias map for titles whose display name differs from MAL's.
+// ============================================================
+const JIKAN_ALIASES = {
+  'steins;gate 0': 'Steins;Gate 0',
+  'the testament of sister new devil burst': 'Shinmai Maou no Testament Burst',
+  'high school prodigies have it easy even in another world!': 'High School Prodigies Have It Easy Even in Another World',
+  'harem in the labyrinth of another world': 'Isekai Meikyuu de Harem wo',
+  'tsurezure children': 'Tsurezure Children',
+  'uncle from another world': 'Isekai Ojisan',
+};
+
+function stripLangSuffixHome(t) {
+  return String(t).replace(/\s*\((subbed|dubbed)\)\s*$/i, '').trim();
+}
+
+function jikanCandidates(title) {
+  const t = stripLangSuffixHome(title);
+  const out = [];
+  const alias = JIKAN_ALIASES[t.toLowerCase()];
+  if (alias) out.push(alias);
+  out.push(t);
+  const noColon = t.replace(/:/g, ' ').replace(/\s+/g, ' ').trim();
+  if (noColon && !out.includes(noColon)) out.push(noColon);
+  const bare = t.replace(/\s*:?\s*(season|part|cour)\s*\d+.*$/i, '').trim();
+  if (bare && !out.includes(bare)) out.push(bare);
+  return out;
+}
+
+async function resolveJikanHome(title) {
+  for (const cand of jikanCandidates(title)) {
+    try {
+      let d = (typeof fetchJikanDetailsExact === 'function') ? await fetchJikanDetailsExact(cand) : null;
+      if (!d) d = await fetchJikanDetails(cand);
+      if (d) {
+        // The fetch may have cached under the alias/looser name's slug. Mirror it
+        // under the display title's slug too, since cards look it up by that.
+        try {
+          const key = slug(stripLangSuffixHome(title));
+          if (AppState.jikanCache && !AppState.jikanCache[key]) AppState.jikanCache[key] = d;
+          const key2 = slug(title);
+          if (AppState.jikanCache && !AppState.jikanCache[key2]) AppState.jikanCache[key2] = d;
+        } catch { /* cache mirror is best-effort */ }
+        return d;
+      }
+    } catch { /* try next */ }
+    await new Promise(r => setTimeout(r, 350));
+  }
+  return null;
+}
+
+// True when a collection is subbed AND has no dubbed twin — i.e. sub-only.
+// Such shows must stay visible on the grid, labeled "(Subbed)".
+function isSubOnly(group, allGroups) {
+  if (!/\(subbed\)/i.test(group.title)) return false;
+  const base = stripLangSuffixHome(group.title).toLowerCase();
+  return !allGroups.some(g =>
+    g.slug !== group.slug &&
+    !/\(subbed\)/i.test(g.title) &&
+    stripLangSuffixHome(g.title).toLowerCase() === base
+  );
+}
+
 const GENRE_FILTERS = [
   'Action', 'Adventure', 'Action & Adventure', 'Romance', 'Drama',
   'Comedy', 'Fantasy', 'Sci-Fi', 'Horror', 'Mystery',
@@ -346,7 +412,9 @@ async function loadWatchTotals() {
 function renderGenreRows(groups) {
   if (!collectionGrid) return;
   // Hide Subbed variants from browse — accessible via language toggle on detail/player
-  const visibleGroups = groups.filter(g => !/\(subbed\)/i.test(g.title));
+  // Hide subbed variants only when a dubbed twin exists. Sub-only shows stay
+  // visible (with their "(Subbed)" label) so they don't vanish from browse.
+  const visibleGroups = groups.filter(g => !/\(subbed\)/i.test(g.title) || isSubOnly(g, groups));
   hideSkeleton();
 
   const query = (search?.value || '').trim().toLowerCase();
@@ -1410,7 +1478,7 @@ function wireAll() {
       if (seenBase.has(base)) continue;
       seenBase.add(base);
       if (AppState.jikanCache[slug(g.title)]) continue;
-      try { await fetchJikanDetails(g.title); await new Promise(r => setTimeout(r, 600)); } catch { /* silent */ }
+      try { await resolveJikanHome(g.title); await new Promise(r => setTimeout(r, 600)); } catch { /* silent */ }
     }
     render();
   })();
