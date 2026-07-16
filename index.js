@@ -839,7 +839,13 @@ let heroFeature = [];
 let _lastTrendingTitles = null;
 let _sliding    = false;
 let _heroNavWired = false;
+// When the user clicks an arrow/dot we switch to manual mode: the slideshow
+// stops following the wall clock and just advances one slide per tick from
+// wherever they are. This flag lives only in memory, so a page refresh clears
+// it and the hero snaps back to clock sync. That's the intended behavior.
+let _heroManual = false;
 let _trendingResolved = false;   // true once the trending fetch has reported in
+let _heroResizeTimer = null;
 const HERO_INTERVAL       = 6000;
 const BANNER_OVERRIDE_KEY = 'aurum-banner-overrides';
 let _bannerOverrides = {};
@@ -916,40 +922,64 @@ function renderHeroSlideInto(el, idx) {
   }
 }
 
+function heroSlidesEl() { return document.getElementById('heroSlides'); }
+
+// Freeze the container at its natural height. Once locked, every slide can be
+// absolutely positioned forever and the box will never reflow again.
+function lockHeroHeight() {
+  const el = heroSlidesEl();
+  if (!el) return;
+  const h = el.offsetHeight;
+  if (h > 0) {
+    el.style.position = 'relative';
+    el.style.height   = h + 'px';
+  }
+}
+
+// Full repaint of the hero. The slide is rendered in normal flow FIRST so the
+// container can measure its natural height, then the height is frozen and the
+// slide is floated. After this, slides only ever cross-fade.
 function renderHeroSlide(idx) {
-  const slidesEl = document.getElementById('heroSlides');
+  const slidesEl = heroSlidesEl();
   if (!slidesEl) return;
-  slidesEl.innerHTML = '';
+
+  // Release any previous lock so we re-measure honestly (matters on resize).
+  slidesEl.style.height   = '';
+  slidesEl.style.position = '';
+  slidesEl.innerHTML      = '';
+
   const slide = document.createElement('div');
-  renderHeroSlideInto(slide, idx);
   slidesEl.appendChild(slide);
+  renderHeroSlideInto(slide, idx);   // in flow -> container takes its height
+
+  lockHeroHeight();                  // freeze it
+
+  slide.style.position = 'absolute'; // float it; container keeps the frozen height
+  slide.style.inset    = '0';
+
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
 }
 
+// Pure opacity cross-fade. Both slides are absolute, the container height is
+// already locked, so removing the outgoing slide cannot resize anything.
+// (The old version put the incoming slide back into normal flow and released
+// the height at the end of the fade — which dropped the container to zero for
+// a frame and made the hero appear to grow out of the middle.)
 function goToSlide(idx) {
   if (_sliding || idx === heroIndex || !heroFeature.length) return;
-  const slidesEl = document.getElementById('heroSlides');
+  const slidesEl = heroSlidesEl();
   if (!slidesEl) return;
+
   const fromSlide = slidesEl.querySelector('.hero-slide');
   heroIndex = idx;
   document.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+
   if (!fromSlide) { renderHeroSlide(idx); return; }
-
-  // Lock the container height and absolutely position BOTH slides for the
-  // duration of the fade. Otherwise the outgoing slide is in normal flow,
-  // the incoming one is absolute, and removing the outgoing one reflows the
-  // box — which reads as the slide "growing" out of the middle.
-  slidesEl.style.position = 'relative';
-  slidesEl.style.height   = slidesEl.offsetHeight + 'px';
-
-  fromSlide.style.position = 'absolute';
-  fromSlide.style.inset    = '0';
 
   const incoming = document.createElement('div');
   slidesEl.appendChild(incoming);
   renderHeroSlideInto(incoming, idx);
-  // Set these AFTER renderHeroSlideInto — it assigns className, which would
-  // otherwise clobber positioning set beforehand.
+  // Set AFTER renderHeroSlideInto — it assigns className and would clobber these.
   incoming.style.position = 'absolute';
   incoming.style.inset    = '0';
   incoming.style.opacity  = '0';
@@ -963,21 +993,60 @@ function goToSlide(idx) {
     fromSlide.style.opacity = String(1 - p);
     if (p < 1) { requestAnimationFrame(step); return; }
     fromSlide.remove();
-    incoming.style.position = '';
-    incoming.style.inset    = '';
-    incoming.style.opacity  = '';
-    slidesEl.style.height   = '';
+    incoming.style.opacity = '';   // stays absolute — never returns to flow
     _sliding = false;
   }
   requestAnimationFrame(step);
 }
 
+// The locked height is only valid for the current viewport, so re-measure
+// after a resize settles.
+window.addEventListener('resize', () => {
+  if (!heroFeature.length) return;
+  clearTimeout(_heroResizeTimer);
+  _heroResizeTimer = setTimeout(() => renderHeroSlide(heroIndex), 200);
+});
+
+// The slide index every device should be showing right now, derived from the
+// wall clock. Because it reads the shared clock instead of a per-device timer,
+// all devices in the same slide-set land on the same slide at the same moment,
+// with no server involved.
+function clockSlideIndex() {
+  if (heroFeature.length < 2) return 0;
+  return Math.floor(Date.now() / HERO_INTERVAL) % heroFeature.length;
+}
+
 function startHeroTimer() {
   stopHeroTimer();
   if (heroFeature.length < 2) return;
-  heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL);
+
+  if (!_heroManual) {
+    // Clock-synced mode. Snap to the correct slide immediately (covers loading
+    // mid-cycle), then re-check every second and advance only when the clock
+    // rolls to a new slot. Checking every second keeps devices tight even if
+    // one loaded a few seconds off.
+    const target = clockSlideIndex();
+    if (target !== heroIndex) goToSlide(target);
+    heroTimer = setInterval(() => {
+      if (_heroManual) return;                 // a click may have flipped us mid-run
+      const t = clockSlideIndex();
+      if (t !== heroIndex) goToSlide(t);
+    }, 1000);
+  } else {
+    // Manual mode: plain fixed-interval advance from wherever the user is.
+    heroTimer = setInterval(() => goToSlide((heroIndex + 1) % heroFeature.length), HERO_INTERVAL);
+  }
 }
 function stopHeroTimer() { if (heroTimer) { clearInterval(heroTimer); heroTimer = null; } }
+
+// Called by arrow/dot clicks. Switches to manual mode and restarts the timer
+// so it advances on a fresh fixed interval instead of fighting the clock.
+function heroManualGo(idx) {
+  _heroManual = true;
+  stopHeroTimer();
+  goToSlide(idx);
+  startHeroTimer();
+}
 
 // ---------- Trending cache ----------
 const TRENDING_CACHE_KEY = 'onyx-trending-hero-v4';
@@ -1063,14 +1132,16 @@ function renderHeroFrom(feature) {
   if (unchanged) { startHeroTimer(); return; }
 
   stopHeroTimer();
-  heroIndex = 0;
+  // Start on the clock's current slide, not always slide 0, so a device that
+  // loads mid-cycle is already in sync before the first tick.
+  heroIndex = _heroManual ? 0 : clockSlideIndex();
   dotsEl.innerHTML = feature.map((_, i) =>
-    `<button class="hero-dot ${i === 0 ? 'active' : ''}" data-i="${i}" type="button"></button>`
+    `<button class="hero-dot ${i === heroIndex ? 'active' : ''}" data-i="${i}" type="button"></button>`
   ).join('');
   dotsEl.querySelectorAll('.hero-dot').forEach(dot => {
-    dot.addEventListener('click', () => { stopHeroTimer(); goToSlide(Number(dot.dataset.i)); startHeroTimer(); });
+    dot.addEventListener('click', () => heroManualGo(Number(dot.dataset.i)));
   });
-  renderHeroSlide(0);
+  renderHeroSlide(heroIndex);
   startHeroTimer();
 }
 
@@ -1083,15 +1154,11 @@ function buildHero() {
   if (!_heroNavWired) {
     document.getElementById('heroPrev')?.addEventListener('click', () => {
       if (!heroFeature.length) return;
-      stopHeroTimer();
-      goToSlide((heroIndex - 1 + heroFeature.length) % heroFeature.length);
-      startHeroTimer();
+      heroManualGo((heroIndex - 1 + heroFeature.length) % heroFeature.length);
     });
     document.getElementById('heroNext')?.addEventListener('click', () => {
       if (!heroFeature.length) return;
-      stopHeroTimer();
-      goToSlide((heroIndex + 1) % heroFeature.length);
-      startHeroTimer();
+      heroManualGo((heroIndex + 1) % heroFeature.length);
     });
     _heroNavWired = true;
   }
