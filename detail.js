@@ -38,6 +38,45 @@ if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
 
 // ---------- State ----------
 let currentGroup  = null;
+// ============================================================
+// STORED META (Supabase 'meta' jsonb column)
+// The site historically pulled description/score/year from Jikan live. Jikan
+// is unreliable (frequent 504s), so we now prefer meta stored in Supabase and
+// fall back to Jikan only when a show has none. normalizeVideo doesn't carry
+// the meta column onto video objects, so we read it directly here.
+// Shape: { description, score, year, type, episodes }
+// ============================================================
+async function fetchStoredMeta(collectionName) {
+  if (!collectionName) return null;
+  const base = stripLangSuffix(collectionName);
+  try {
+    const { data } = await getSupabase()
+      .from('videos')
+      .select('meta')
+      .in('collection', [base, `${base} (Subbed)`])
+      .not('meta', 'is', null)
+      .limit(1)
+      .maybeSingle();
+    return data?.meta || null;
+  } catch { return null; }
+}
+
+// Convert a stored-meta object into the same shape the render code expects
+// from currentJikan (synopsis/year/type/episodes/score), preserving any tags
+// Jikan may have supplied separately.
+function metaToJikan(meta, existing) {
+  if (!meta) return existing || null;
+  return {
+    ...(existing || {}),
+    synopsis: meta.description || existing?.synopsis || '',
+    year:     meta.year     ?? existing?.year,
+    type:     meta.type     || existing?.type,
+    episodes: meta.episodes ?? existing?.episodes,
+    score:    meta.score    ?? existing?.score,
+    tags:     existing?.tags || [],
+  };
+}
+
 let currentJikan  = null;
 let episodeFilter = '';
 let activeSeason  = null;
@@ -1115,11 +1154,30 @@ async function autoSaveMetadata(details) {
   }
 
   document.title = currentGroup ? `${stripLangSuffix(currentGroup.title)} — Onyx` : 'Onyx';
+
+  // Prefer stored meta (Supabase). This shows description/score/year instantly
+  // and works even when Jikan is down. Seed BEFORE the first render.
+  const _storedMeta = await fetchStoredMeta(currentGroup?.title);
+  if (_storedMeta) currentJikan = metaToJikan(_storedMeta, currentJikan);
+
   renderDetail();
   renderRecommendations(allGroups);
   wireAdmin();
   wireNavAuth();
 
+  // Jikan is now only needed for shows WITHOUT stored meta (mainly tags, and
+  // any show we haven't hand-filled). Skip the network entirely if meta covers it.
+  if (_storedMeta && _storedMeta.description) {
+    // Still try Jikan quietly in the background just for tags/recs, but don't
+    // let its failure or slowness affect the already-rendered page.
+    resolveJikan(currentGroup?.title || '').then(details => {
+      if (details) {
+        currentJikan = metaToJikan(_storedMeta, details); // keep meta's text, add jikan tags
+        renderDetail();
+        renderRecommendations(groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void)));
+      }
+    }).catch(() => {});
+  } else
   // Cascading lookup — "Show: Season 2" won't resolve on MAL, "Show Season 2" will.
   resolveJikan(currentGroup?.title || '').then(async details => {
     const freshGroups = groupVideos(AppState.videos.filter(v => fromAbyss ? v.void : !v.void));
