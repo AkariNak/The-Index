@@ -97,14 +97,24 @@ function jikanCandidates(title) {
   return out;
 }
 
+// Wrap a promise so it rejects instead of hanging forever if Jikan stalls
+// (rate-limited requests can hang with no response). Without this, one hung
+// lookup freezes the whole per-show loop and no shows get their data.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('jikan-timeout')), ms))
+  ]);
+}
+
 async function resolveJikanHome(title) {
   for (const cand of jikanCandidates(title)) {
     try {
-      let d = (typeof fetchJikanDetailsExact === 'function') ? await fetchJikanDetailsExact(cand) : null;
-      if (!d) d = await fetchJikanDetails(cand);
+      let d = (typeof fetchJikanDetailsExact === 'function')
+        ? await withTimeout(Promise.resolve(fetchJikanDetailsExact(cand)), 8000)
+        : null;
+      if (!d) d = await withTimeout(Promise.resolve(fetchJikanDetails(cand)), 8000);
       if (d) {
-        // The fetch may have cached under the alias/looser name's slug. Mirror it
-        // under the display title's slug too, since cards look it up by that.
         try {
           const key = slug(stripLangSuffixHome(title));
           if (AppState.jikanCache && !AppState.jikanCache[key]) AppState.jikanCache[key] = d;
@@ -113,7 +123,7 @@ async function resolveJikanHome(title) {
         } catch { /* cache mirror is best-effort */ }
         return d;
       }
-    } catch { /* try next */ }
+    } catch { /* timeout or error — try next candidate */ }
     await new Promise(r => setTimeout(r, 350));
   }
   return null;
@@ -129,6 +139,36 @@ function isSubOnly(group, allGroups) {
     !/\(subbed\)/i.test(g.title) &&
     stripLangSuffixHome(g.title).toLowerCase() === base
   );
+}
+
+// Load every stored meta row once and seed jikanCache, so home cards show
+// description/score/year immediately and without touching Jikan. Called at boot.
+async function seedMetaIntoCache() {
+  try {
+    const { data } = await getSupabase()
+      .from('videos')
+      .select('collection, meta')
+      .not('meta', 'is', null);
+    if (!data?.length) return;
+    if (!AppState.jikanCache) AppState.jikanCache = {};
+    const seen = new Set();
+    for (const row of data) {
+      const base = String(row.collection).replace(/\s*\((subbed|dubbed)\)\s*$/i, '').trim();
+      const key = slug(base);
+      if (seen.has(key) || !row.meta) continue;
+      seen.add(key);
+      const m = row.meta;
+      // Store in the same shape cards read from jikanCache.
+      AppState.jikanCache[key] = {
+        synopsis: m.description || '',
+        year: m.year, type: m.type, episodes: m.episodes, score: m.score,
+        image: AppState.jikanCache[key]?.image,
+        tags: AppState.jikanCache[key]?.tags || [],
+      };
+      // Also key under the (Subbed) slug so sub-only cards resolve.
+      AppState.jikanCache[slug(`${base} (Subbed)`)] = AppState.jikanCache[key];
+    }
+  } catch { /* best effort */ }
 }
 
 const GENRE_FILTERS = [
@@ -1439,6 +1479,10 @@ function wireAll() {
   sessionStorage.removeItem('fromAbyss');
   showSkeleton();
   await coreInit();
+
+  // Load stored meta from Supabase first so cards show description/score/year
+  // instantly and without depending on Jikan (which is frequently down).
+  await seedMetaIntoCache();
 
   getCoverOverrides().then(overrides => {
     Object.entries(overrides).forEach(([s, url]) => {
