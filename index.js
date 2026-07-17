@@ -527,10 +527,23 @@ function genreRowHtml(label, groups) {
   `;
 }
 
+// Cache the grouped+ordered catalog. groupVideos() over the whole library is
+// the expensive part; recomputing it on every keystroke is what blocked typing.
+// Invalidate whenever the underlying video count changes (adds/edits/deletes).
+let _groupsCache = null;
+let _groupsCacheLen = -1;
+function getAllGroupsCached() {
+  if (_groupsCache && _groupsCacheLen === AppState.videos.length) return _groupsCache;
+  _groupsCache = applyHeroOrder(groupVideos(AppState.videos));
+  _groupsCacheLen = AppState.videos.length;
+  return _groupsCache;
+}
+function invalidateGroupsCache() { _groupsCache = null; _groupsCacheLen = -1; }
+
 function render() {
   if (!collectionGrid) return;
   hideSkeleton();
-  const allGroups = applyHeroOrder(groupVideos(AppState.videos));
+  const allGroups = getAllGroupsCached();
   renderGenreRows(allGroups);
   if (archiveList) {
     archiveList.innerHTML = AppState.videos.map(v => `
@@ -543,6 +556,7 @@ function render() {
 
 function refreshArchive() {
   syncVideos();
+  invalidateGroupsCache();
   buildFilters();
   buildLangFilters();
   buildGenreFilters();
@@ -642,7 +656,7 @@ async function epFixerRun() {
       if (status) status.textContent = `Updating ${done} / ${_epFixerQueue.length}…`;
     } catch { /* silent */ }
   }
-  syncVideos(); render(); _epFixerQueue = [];
+  syncVideos(); invalidateGroupsCache(); render(); _epFixerQueue = [];
   if (runBtn)  { runBtn.hidden = true; runBtn.disabled = false; }
   if (status)  status.textContent = `Done — updated ${done} episode names.`;
 }
@@ -902,7 +916,7 @@ async function bulkAutoSaveMetadata() {
           video.coverUrl = saved.coverUrl; video.description = saved.description;
         } catch (err) { console.warn('Cover save failed:', video.title, err); }
       }
-      syncVideos(); render(); rebuildHero();
+      syncVideos(); invalidateGroupsCache(); render(); rebuildHero();
     } catch (err) { console.warn('Jikan failed:', group.title, err); }
   }
   if (formStatus) formStatus.textContent = 'Sync complete.';
@@ -1423,19 +1437,34 @@ function wireMainSearchDropdown() {
       a.addEventListener('mouseleave', () => a.style.background = '');
     });
   }
+  let _ddDebounce = null;
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
     if (!q || q.length < 2) { dropdown.style.display = 'none'; return; }
-    const groups = groupVideos(AppState.videos.filter(v => !v.void));
-    const matches = groups.filter(g => g.title.toLowerCase().includes(q)).slice(0, 10);
-    showDropdown(matches);
+    if (_ddDebounce) clearTimeout(_ddDebounce);
+    _ddDebounce = setTimeout(() => {
+      // Filter the already-grouped catalog instead of re-grouping per keystroke.
+      const matches = getAllGroupsCached()
+        .filter(g => !g.videos?.[0]?.void && g.title.toLowerCase().includes(q))
+        .slice(0, 10);
+      showDropdown(matches);
+    }, 120);
   });
   document.addEventListener('click', e => { if (!wrap?.contains(e.target)) dropdown.style.display = 'none'; });
   searchInput.addEventListener('keydown', e => { if (e.key === 'Escape') { dropdown.style.display = 'none'; searchInput.blur(); } });
 }
 
 function wireAll() {
-  if (search) search.addEventListener('input', render);
+  // Search runs on every keystroke and render() re-groups + re-renders the whole
+  // catalog, which blocks the input from painting (letters land all at once).
+  // Debounce so the heavy work waits until typing pauses, and yield to the
+  // browser first so the character shows immediately.
+  let _searchDebounce = null;
+  function debouncedRender() {
+    if (_searchDebounce) clearTimeout(_searchDebounce);
+    _searchDebounce = setTimeout(() => { render(); }, 180);
+  }
+  if (search) search.addEventListener('input', debouncedRender);
   wireMainSearchDropdown();
   collectionGrid?.addEventListener('dragover', e => e.preventDefault());
   collectionGrid?.addEventListener('drop', e => e.preventDefault());
@@ -1446,7 +1475,7 @@ function wireAll() {
   if (mobileSearchBtn && mobileSearchBar) {
     mobileSearchBtn.addEventListener('click', () => { mobileSearchBar.hidden = false; mobileSearchInput?.focus(); });
     mobileSearchClose?.addEventListener('click', () => { mobileSearchBar.hidden = true; if (mobileSearchInput) { mobileSearchInput.value = ''; render(); } });
-    mobileSearchInput?.addEventListener('input', () => { if (search) search.value = mobileSearchInput.value; render(); });
+    mobileSearchInput?.addEventListener('input', () => { if (search) search.value = mobileSearchInput.value; debouncedRender(); });
   }
   updateAdminUi();
   if (adminLoginButton) {
@@ -1488,7 +1517,7 @@ function wireAll() {
     Object.entries(overrides).forEach(([s, url]) => {
       AppState.baseVideos.filter(v => slug(v.collection) === s).forEach(v => v.coverUrl = url);
     });
-    syncVideos(); render(); rebuildHero();
+    syncVideos(); invalidateGroupsCache(); render(); rebuildHero();
   });
   getGenreOverrides().then(overrides => { _genreOverrides = overrides; render(); });
 
