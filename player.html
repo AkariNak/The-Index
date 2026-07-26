@@ -283,6 +283,25 @@
       border-color: var(--accent, #3B82F6);
       background: rgba(59,130,246,0.1);
     }
+
+    /* Seek indicator shown while arrow-key seeking is being batched */
+    .seek-indicator {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.78);
+      color: #fff;
+      font-family: var(--mono, monospace);
+      font-size: 15px;
+      letter-spacing: 0.06em;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm, 4px);
+      pointer-events: none;
+      display: none;
+      z-index: 11;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -332,6 +351,7 @@
         <div class="video-container">
           <video id="playerVideo" controls controlsList="nodownload noremoteplayback" disablePictureInPicture onkeydown="if(event.key==='ArrowLeft'||event.key==='ArrowRight'){event.preventDefault();}"></video>
           <div class="video-timestamp-tip" id="timestampTip"></div>
+          <div class="seek-indicator" id="seekIndicator"></div>
         </div>
       </div>
       <div class="video-controls-bar">
@@ -457,6 +477,78 @@
     video.addEventListener('pause', showControls);
     video.addEventListener('seeked', showControls);
   })();
+
+  // ============================================================
+  // Debounced seeking
+  // ------------------------------------------------------------
+  // Setting currentTime on every arrow press starts a fresh range
+  // request and aborts the in-flight one. Held keys meant a dozen
+  // aborted requests, an empty buffer, and a stall. Instead we
+  // accumulate the offset, show it on screen right away so it still
+  // feels instant, and only touch currentTime once the presses stop.
+  // ============================================================
+  const SEEK_STEP      = 5;    // seconds moved per press
+  const SEEK_COMMIT_MS = 220;  // idle time before the real seek fires
+
+  let _pendingSeek = null;
+  let _seekTimer   = null;
+  let _seekHideTimer = null;
+
+  function _fmtSeek(t) {
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = Math.floor(t % 60);
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function _showSeekIndicator(target, delta) {
+    const el = document.getElementById('seekIndicator');
+    if (!el) return;
+    const sign = delta >= 0 ? '»' : '«';
+    el.textContent = `${sign} ${_fmtSeek(target)}`;
+    el.style.display = 'block';
+    clearTimeout(_seekHideTimer);
+  }
+
+  function _hideSeekIndicator() {
+    const el = document.getElementById('seekIndicator');
+    if (!el) return;
+    clearTimeout(_seekHideTimer);
+    _seekHideTimer = setTimeout(() => { el.style.display = 'none'; }, 400);
+  }
+
+  function requestSeek(delta) {
+    if (!playerVideoEl) return;
+    const dur  = playerVideoEl.duration || 0;
+    const base = _pendingSeek === null ? playerVideoEl.currentTime : _pendingSeek;
+    const raw  = base + delta;
+    _pendingSeek = Math.max(0, dur ? Math.min(raw, dur - 0.25) : raw);
+
+    _showSeekIndicator(_pendingSeek, delta);
+
+    clearTimeout(_seekTimer);
+    _seekTimer = setTimeout(commitSeek, SEEK_COMMIT_MS);
+  }
+
+  function commitSeek() {
+    if (_pendingSeek === null || !playerVideoEl) return;
+    const target = _pendingSeek;
+    _pendingSeek = null;
+    _hideSeekIndicator();
+
+    // If a seek is already in flight, queue ours rather than stacking
+    // another abort on top of it.
+    if (playerVideoEl.seeking) {
+      playerVideoEl.addEventListener('seeked', () => {
+        playerVideoEl.currentTime = target;
+      }, { once: true });
+    } else {
+      playerVideoEl.currentTime = target;
+    }
+  }
+
   document.addEventListener('keydown', e => {
     if (!playerVideoEl) return;
     if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
@@ -471,20 +563,14 @@
         playerVideoEl.paused ? playerVideoEl.play() : playerVideoEl.pause();
         break;
       case 'l':
-        e.preventDefault();
-        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
-        break;
-      case 'j':
-        e.preventDefault();
-        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
-        break;
       case 'ArrowRight':
         e.preventDefault();
-        playerVideoEl.currentTime = Math.min(playerVideoEl.duration || 0, playerVideoEl.currentTime + 5);
+        requestSeek(SEEK_STEP);
         break;
+      case 'j':
       case 'ArrowLeft':
         e.preventDefault();
-        playerVideoEl.currentTime = Math.max(0, playerVideoEl.currentTime - 5);
+        requestSeek(-SEEK_STEP);
         break;
     }
   });
