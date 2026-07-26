@@ -31,6 +31,13 @@ let currentVideo = null;
 let currentJikan = null;
 let _tsInterval  = null;
 
+// Holds the near-end "mark watched" handler for the episode currently loaded.
+// loadVideo used to attach a fresh timeupdate listener every call and only
+// detach it once the 10-minute threshold was crossed, so hopping between
+// episodes without finishing any left every previous handler running four
+// times a second. Tracked here so it can be detached on the next load.
+let _markWatchedHandler = null;
+
 // ---------- URL ----------
 function getParams() {
   const p = new URLSearchParams(window.location.search);
@@ -219,6 +226,12 @@ function loadVideo(video, overrideTs) {
   saveCurrentTimestamp();
   stopTimestampSaving();
 
+  // Detach the previous episode's near-end handler so they don't accumulate.
+  if (_markWatchedHandler && playerVideoEl) {
+    playerVideoEl.removeEventListener('timeupdate', _markWatchedHandler);
+    _markWatchedHandler = null;
+  }
+
   const url = video.downloadUrl;
   if (!url || url === '#') {
     if (playerVideoEl) { playerVideoEl.removeAttribute('src'); playerVideoEl.load(); }
@@ -281,7 +294,7 @@ function loadVideo(video, overrideTs) {
     const epNum = parseFloat(String(video.episode || '0').replace(/[^0-9.]/g, '')) || 0;
     let _markedWatched = false;
 
-    playerVideoEl.addEventListener('timeupdate', function onTimeUpdate() {
+    _markWatchedHandler = function onTimeUpdate() {
       if (_markedWatched) return;
       const duration = playerVideoEl.duration;
       if (!duration || duration < 1) return;
@@ -296,10 +309,12 @@ function loadVideo(video, overrideTs) {
           const idx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx) : -1;
           btn.classList.toggle('active', idx === activeIdx);
         });
-        playerVideoEl.removeEventListener('timeupdate', onTimeUpdate);
+        playerVideoEl.removeEventListener('timeupdate', _markWatchedHandler);
+        _markWatchedHandler = null;
         logEpisodeWatched(currentGroup.title, video.title, epNum);
       }
-    });
+    };
+    playerVideoEl.addEventListener('timeupdate', _markWatchedHandler);
 
     getCurrentUser().then(async user => {
       if (!user) return;
@@ -827,7 +842,13 @@ function wireFog() {
   // If a t param was passed (from resume button), use it as override
   const resumeTs = tParam ? parseInt(tParam, 10) : 0;
 
-  playerVideoEl.addEventListener('seeked',  saveCurrentTimestamp);
+  // Debounced so a burst of arrow-key seeks writes once at the end instead of
+  // firing a Supabase save per seek.
+  let _seekSaveTimer = null;
+  playerVideoEl.addEventListener('seeked', () => {
+    clearTimeout(_seekSaveTimer);
+    _seekSaveTimer = setTimeout(saveCurrentTimestamp, 500);
+  });
   playerVideoEl.addEventListener('pause',   saveCurrentTimestamp);
   window.addEventListener('beforeunload',   saveCurrentTimestamp);
   window.addEventListener('pagehide',       saveCurrentTimestamp);
