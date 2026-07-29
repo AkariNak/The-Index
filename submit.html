@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit — Onyx Originals</title>
+  <link rel="icon" type="image/png" href="favicon-256.png">
+  <link rel="apple-touch-icon" href="favicon-256.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .submit-page { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    .submit-head { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+    .submit-kicker {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    }
+    .submit-head h1 {
+      font-family: var(--display); font-size: clamp(20px, 3vw, 28px); font-weight: 800;
+      letter-spacing: 0.03em; margin: 0 0 10px; color: var(--ink);
+    }
+    .submit-head p {
+      font-family: var(--body); font-size: 14px; line-height: 1.6;
+      color: var(--ink-soft); margin: 0;
+    }
+
+    .rules {
+      background: var(--paper-2); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 16px 18px; margin-bottom: 28px;
+    }
+    .rules-title {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--ink-soft); margin-bottom: 10px;
+    }
+    .rules ul { margin: 0; padding-left: 18px; }
+    .rules li {
+      font-family: var(--body); font-size: 13px; line-height: 1.7; color: var(--ink-soft);
+    }
+
+    .field { margin-bottom: 20px; }
+    .field label {
+      display: block; font-family: var(--mono); font-size: 9px;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--ink-soft); margin-bottom: 6px;
+    }
+    .field .hint {
+      font-family: var(--body); font-size: 12px; color: var(--ink-mute);
+      margin-top: 5px; line-height: 1.5;
+    }
+    .field input[type="text"],
+    .field input[type="url"],
+    .field input[type="number"],
+    .field textarea {
+      width: 100%; box-sizing: border-box;
+      background: var(--paper-2); color: var(--ink);
+      border: 1px solid var(--line); border-radius: var(--radius-sm);
+      padding: 10px 12px; font-family: var(--body); font-size: 14px;
+      transition: border-color 0.15s;
+    }
+    .field input:focus, .field textarea:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .field textarea { resize: vertical; min-height: 90px; }
+    .field.required label::after { content: ' *'; color: var(--accent); }
+
+    .attest {
+      display: flex; gap: 10px; align-items: flex-start;
+      background: var(--paper-2); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 14px 16px; margin-bottom: 24px;
+    }
+    .attest input { margin-top: 3px; flex-shrink: 0; }
+    .attest span {
+      font-family: var(--body); font-size: 13px; line-height: 1.6; color: var(--ink-soft);
+    }
+
+    .submit-msg {
+      font-family: var(--body); font-size: 13px; line-height: 1.6;
+      padding: 12px 14px; border-radius: var(--radius-sm);
+      margin-bottom: 18px; display: none;
+    }
+    .submit-msg.err { display: block; background: rgba(226,54,54,0.12); border: 1px solid rgba(226,54,54,0.4); color: #ff9a9a; }
+    .submit-msg.ok  { display: block; background: rgba(59,130,246,0.12); border: 1px solid var(--accent); color: var(--ink); }
+
+    .signin-gate { text-align: center; padding: 40px 20px; }
+    .signin-gate p {
+      font-family: var(--body); font-size: 14px; color: var(--ink-soft); margin-bottom: 16px;
+    }
+
+    .my-subs { margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line); }
+    .my-subs h2 {
+      font-family: var(--display); font-size: 15px; font-weight: 600;
+      letter-spacing: 0.05em; color: var(--ink-soft); margin: 0 0 16px;
+    }
+    .sub-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 11px 0; border-bottom: 1px solid var(--line-soft);
+    }
+    .sub-row-title { font-family: var(--body); font-size: 14px; color: var(--ink); }
+    .sub-row-note  { font-family: var(--body); font-size: 12px; color: var(--ink-mute); margin-top: 3px; }
+    .status-tag {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+      border: 1px solid var(--line); color: var(--ink-mute); white-space: nowrap;
+    }
+    .status-tag.pending  { color: #e0b341; border-color: rgba(224,179,65,0.5); }
+    .status-tag.approved { color: var(--accent); border-color: var(--accent); }
+    .status-tag.rejected { color: #e07070; border-color: rgba(224,112,112,0.5); }
+
+    @media (max-width: 600px) {
+      .submit-page { padding: 20px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html" aria-label="Onyx home">
+    <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+      <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">STREAMING</text>
+    </svg>
+  </a>
+  <div class="topnav-right">
+    <a id="accountLink" href="account.html" class="btn btn-outline btn-small" hidden>Account</a>
+    <button id="signInNavBtn" type="button" class="btn btn-outline btn-small" style="display:none">Sign In</button>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<div class="submit-page">
+
+  <div class="submit-head">
+    <div class="submit-kicker">Onyx Originals</div>
+    <h1>Submit your animation</h1>
+    <p>Made something yourself? Send it here. Everything gets watched by a person before it goes up, so give it a few days.</p>
+  </div>
+
+  <div class="rules">
+    <div class="rules-title">What we can accept</div>
+    <ul>
+      <li>Original animation that you made, or that you have the creator's permission to publish here.</li>
+      <li>Anything goes for length. A twenty second loop is fine.</li>
+      <li>No AMVs, edits, compilations, reuploads, or clips taken from existing shows. Those get rejected, however good they are.</li>
+      <li>No music you do not have the rights to. That includes the soundtrack.</li>
+      <li>Nothing sexual involving minors, nothing designed to harass a real person.</li>
+    </ul>
+  </div>
+
+  <div id="gate" class="signin-gate" hidden>
+    <p>You need an account to submit, so we have a way to reach you about your work.</p>
+    <button type="button" class="btn btn-solid" id="gateSignIn">Sign in</button>
+  </div>
+
+  <div id="formWrap" hidden>
+
+    <div class="submit-msg" id="msg"></div>
+
+    <div class="field required">
+      <label for="fTitle">Title</label>
+      <input type="text" id="fTitle" maxlength="120" autocomplete="off">
+    </div>
+
+    <div class="field required">
+      <label for="fCreator">Creator name</label>
+      <input type="text" id="fCreator" maxlength="80" autocomplete="off">
+      <div class="hint">However you want to be credited on the site.</div>
+    </div>
+
+    <div class="field required">
+      <label for="fUrl">Video link</label>
+      <input type="url" id="fUrl" placeholder="https://" autocomplete="off">
+      <div class="hint">A direct link to the video file. archive.org works well and is free. Not a YouTube or Drive page link, the file itself.</div>
+    </div>
+
+    <div class="field">
+      <label for="fCover">Cover image link</label>
+      <input type="url" id="fCover" placeholder="https://" autocomplete="off">
+      <div class="hint">Optional. Portrait works best. We will use a placeholder if you skip it.</div>
+    </div>
+
+    <div class="field">
+      <label for="fRuntime">Runtime in seconds</label>
+      <input type="number" id="fRuntime" min="1" max="86400">
+    </div>
+
+    <div class="field">
+      <label for="fDesc">Description</label>
+      <textarea id="fDesc" maxlength="1200"></textarea>
+      <div class="hint">Shown on the page. A couple of sentences is plenty.</div>
+    </div>
+
+    <div class="field">
+      <label for="fContact">Contact</label>
+      <input type="text" id="fContact" maxlength="160" autocomplete="off">
+      <div class="hint">Optional. Email, Discord, wherever you would rather be reached than your account email.</div>
+    </div>
+
+    <div class="attest">
+      <input type="checkbox" id="fAttest">
+      <span>
+        This is my own work, or I have permission from the person who made it.
+        I am allowing Onyx to host and stream it, and I can ask for it to be
+        taken down at any time.
+      </span>
+    </div>
+
+    <button type="button" class="btn btn-solid" id="submitBtn">Submit for review</button>
+
+    <div class="my-subs" id="mySubs" hidden>
+      <h2>Your submissions</h2>
+      <div id="mySubsList"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="core.js"></script>
+<script>
+(function () {
+  // ---- theme, matching the rest of the site ----
+  document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
+  const tt = document.getElementById('themeToggle');
+  if (tt) {
+    tt.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+    tt.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', nowLight);
+      localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+      tt.textContent = nowLight ? '☀' : '☾';
+    });
+  }
+
+  const gate     = document.getElementById('gate');
+  const formWrap = document.getElementById('formWrap');
+  const msg      = document.getElementById('msg');
+  const btn      = document.getElementById('submitBtn');
+
+  function say(text, kind) {
+    msg.textContent = text;
+    msg.className = 'submit-msg ' + kind;
+    msg.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  document.getElementById('gateSignIn')?.addEventListener('click', () => {
+    window.location.href = 'account.html';
+  });
+
+  async function renderMine(userId) {
+    const wrap = document.getElementById('mySubs');
+    const list = document.getElementById('mySubsList');
+    try {
+      const { data, error } = await getSupabase()
+        .from('submissions')
+        .select('title, status, review_note, created_at')
+        .eq('submitter_user_id', userId)
+        .order('created_at', { ascending: false });
+      if (error || !data || !data.length) return;
+
+      wrap.hidden = false;
+      list.innerHTML = data.map(s => `
+        <div class="sub-row">
+          <div>
+            <div class="sub-row-title">${escapeHtml(s.title)}</div>
+            ${s.review_note ? `<div class="sub-row-note">${escapeHtml(s.review_note)}</div>` : ''}
+          </div>
+          <span class="status-tag ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
+        </div>
+      `).join('');
+    } catch (e) {
+      console.warn('[Submit] could not load your submissions:', e.message);
+    }
+  }
+
+  (async function init() {
+    if (typeof coreInit === 'function') { try { await coreInit(); } catch (e) {} }
+
+    const user = await getCurrentUser();
+    const signIn = document.getElementById('signInNavBtn');
+    const acct   = document.getElementById('accountLink');
+
+    if (!user) {
+      if (signIn) { signIn.style.display = ''; signIn.onclick = () => window.location.href = 'account.html'; }
+      gate.hidden = false;
+      return;
+    }
+
+    if (acct) acct.hidden = false;
+    formWrap.hidden = false;
+    renderMine(user.id);
+
+    // Prefill the credit name from their profile if there is one.
+    try {
+      const profile = await getCurrentProfile();
+      if (profile?.username) document.getElementById('fCreator').value = profile.username;
+    } catch (e) {}
+
+    btn.addEventListener('click', async () => {
+      const title   = document.getElementById('fTitle').value.trim();
+      const creator = document.getElementById('fCreator').value.trim();
+      const url     = document.getElementById('fUrl').value.trim();
+      const cover   = document.getElementById('fCover').value.trim();
+      const runtime = parseInt(document.getElementById('fRuntime').value, 10);
+      const desc    = document.getElementById('fDesc').value.trim();
+      const contact = document.getElementById('fContact').value.trim();
+      const attest  = document.getElementById('fAttest').checked;
+
+      if (!title)   return say('Give it a title.', 'err');
+      if (!creator) return say('Tell us how to credit you.', 'err');
+      if (!url)     return say('We need a link to the video.', 'err');
+      if (!/^https?:\/\//i.test(url)) return say('The video link has to start with http:// or https://', 'err');
+      if (cover && !/^https?:\/\//i.test(cover)) return say('The cover link has to start with http:// or https://', 'err');
+      if (!attest)  return say('Tick the box confirming this is yours to share.', 'err');
+
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      try {
+        const { error } = await getSupabase().from('submissions').insert({
+          submitter_user_id: user.id,
+          submitter_name:    creator,
+          contact:           contact || null,
+          title:             title,
+          description:       desc || null,
+          video_url:         url,
+          cover_url:         cover || null,
+          runtime_seconds:   Number.isFinite(runtime) ? runtime : null,
+          is_original_work:  true
+        });
+        if (error) throw error;
+
+        say('Sent. Someone will watch it and get back to you.', 'ok');
+        ['fTitle','fUrl','fCover','fRuntime','fDesc'].forEach(id => {
+          document.getElementById(id).value = '';
+        });
+        document.getElementById('fAttest').checked = false;
+        renderMine(user.id);
+      } catch (e) {
+        say('Could not send that: ' + (e.message || 'unknown error'), 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit for review';
+      }
+    });
+  })();
+})();
+</script>
+</body>
+</html>
