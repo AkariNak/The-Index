@@ -128,7 +128,7 @@
   </div>
 
   <div id="denied" class="denied" hidden>
-    <p>This page is for admins.</p>
+    <p>This page is for admins. Sending you back to the site…</p>
   </div>
 
   <div id="list"></div>
@@ -304,13 +304,17 @@
   (async function init() {
     if (typeof coreInit === 'function') { try { await coreInit(); } catch (e) {} }
 
-    const user = await getCurrentUser();
-    // Cosmetic gate only. The real enforcement is is_onyx_admin() in the
-    // RLS policies, so a non-admin who opens this page sees nothing and
-    // every action they try is refused by the database.
+    let user = null;
+    try { user = await getCurrentUser(); } catch (e) {}
+
+    // Cosmetic gate. The real enforcement is is_onyx_admin() in the RLS
+    // policies, so even if someone got past this they would see an empty
+    // list and every action would be refused by the database.
     if (!user || user.email !== ADMIN_EMAIL) {
       document.getElementById('denied').hidden = false;
       document.querySelector('.review-head').hidden = true;
+      // Send them somewhere useful rather than leaving them on a dead page.
+      setTimeout(() => { window.location.replace('index.html'); }, 1500);
       return;
     }
     load();
