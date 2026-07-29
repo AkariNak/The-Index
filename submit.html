@@ -66,6 +66,45 @@
     .field textarea { resize: vertical; min-height: 90px; }
     .field.required label::after { content: ' *'; color: var(--accent); }
 
+    .mode-switch { display: flex; gap: 6px; margin-bottom: 12px; }
+    .mode-btn {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 7px 14px; cursor: pointer;
+      background: transparent; color: var(--ink-mute);
+      border: 1px solid var(--line); border-radius: 4px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .mode-btn:hover { color: var(--ink); }
+    .mode-btn.active { color: #000; background: var(--accent); border-color: var(--accent); }
+
+    .dropzone {
+      border: 1px dashed var(--line); border-radius: var(--radius);
+      background: var(--paper-2); padding: 28px 18px; text-align: center;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .dropzone:hover, .dropzone.over { border-color: var(--accent); }
+    .dropzone-main {
+      font-family: var(--body); font-size: 14px; color: var(--ink); margin-bottom: 5px;
+    }
+    .dropzone-sub {
+      font-family: var(--body); font-size: 12px; color: var(--ink-mute);
+    }
+    .dropzone.picked { border-style: solid; border-color: var(--accent); }
+
+    .upload-bar {
+      height: 3px; background: var(--line); border-radius: 2px;
+      overflow: hidden; margin-top: 12px; display: none;
+    }
+    .upload-bar.on { display: block; }
+    .upload-bar i {
+      display: block; height: 100%; width: 40%; background: var(--accent);
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
     .attest {
       display: flex; gap: 10px; align-items: flex-start;
       background: var(--paper-2); border: 1px solid var(--line);
@@ -146,6 +185,7 @@
       <li>Anything goes for length. A twenty second loop is fine.</li>
       <li>No AMVs, edits, compilations, reuploads, or clips taken from existing shows. Those get rejected, however good they are.</li>
       <li>No music you do not have the rights to. That includes the soundtrack.</li>
+      <li>Nothing sexual involving minors, nothing designed to harass a real person.</li>
     </ul>
   </div>
 
@@ -170,9 +210,27 @@
     </div>
 
     <div class="field required">
-      <label for="fUrl">Video link</label>
-      <input type="url" id="fUrl" placeholder="https://" autocomplete="off">
-      <div class="hint">A direct link to the video file. archive.org works well and is free. Not a YouTube or Drive page link, the file itself.</div>
+      <label>Video</label>
+
+      <div class="mode-switch">
+        <button type="button" class="mode-btn active" data-mode="file">Upload a file</button>
+        <button type="button" class="mode-btn" data-mode="link">I have a link</button>
+      </div>
+
+      <div id="modeFile">
+        <div class="dropzone" id="drop">
+          <div class="dropzone-main" id="dropMain">Choose an MP4, or drag one here</div>
+          <div class="dropzone-sub" id="dropSub">Up to <span id="capLabel">50</span> MB</div>
+        </div>
+        <input type="file" id="fFile" accept="video/mp4,.mp4" hidden>
+        <div class="upload-bar" id="upBar"><i></i></div>
+        <div class="hint">MP4 only. If yours is bigger than the cap, host it somewhere and use the link option instead.</div>
+      </div>
+
+      <div id="modeLink" hidden>
+        <input type="url" id="fUrl" placeholder="https://" autocomplete="off">
+        <div class="hint">A direct link to the video file. archive.org works well and is free. Not a YouTube or Drive page link, the file itself.</div>
+      </div>
     </div>
 
     <div class="field">
@@ -299,6 +357,67 @@
       if (profile?.username) document.getElementById('fCreator').value = profile.username;
     } catch (e) {}
 
+    // ---- upload vs link ----
+    const BUCKET   = 'originals';
+    let mode       = 'file';
+    let pickedFile = null;
+    let sizeCap    = 50 * 1024 * 1024;  // fallback until the bucket tells us
+
+    const drop    = document.getElementById('drop');
+    const fileIn  = document.getElementById('fFile');
+    const upBar   = document.getElementById('upBar');
+    const dropMain = document.getElementById('dropMain');
+    const dropSub  = document.getElementById('dropSub');
+
+    // Read the real cap off the bucket so the form and the server agree.
+    (async () => {
+      try {
+        const { data } = await getSupabase().storage.getBucket(BUCKET);
+        if (data?.file_size_limit) {
+          sizeCap = data.file_size_limit;
+          document.getElementById('capLabel').textContent =
+            Math.round(sizeCap / 1024 / 1024);
+        }
+      } catch (e) { /* keep the fallback */ }
+    })();
+
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        mode = b.dataset.mode;
+        document.getElementById('modeFile').hidden = mode !== 'file';
+        document.getElementById('modeLink').hidden = mode !== 'link';
+      });
+    });
+
+    function takeFile(f) {
+      if (!f) return;
+      if (!/\.mp4$/i.test(f.name) && f.type !== 'video/mp4') {
+        return say('MP4 only, sorry. Convert it and try again.', 'err');
+      }
+      if (f.size > sizeCap) {
+        return say(
+          `That file is ${(f.size / 1024 / 1024).toFixed(0)} MB and the cap is ` +
+          `${Math.round(sizeCap / 1024 / 1024)} MB. Host it somewhere and use the link option.`,
+          'err'
+        );
+      }
+      pickedFile = f;
+      drop.classList.add('picked');
+      dropMain.textContent = f.name;
+      dropSub.textContent = (f.size / 1024 / 1024).toFixed(1) + ' MB';
+      msg.className = 'submit-msg';
+    }
+
+    drop.addEventListener('click', () => fileIn.click());
+    fileIn.addEventListener('change', () => takeFile(fileIn.files[0]));
+    ['dragenter','dragover'].forEach(ev =>
+      drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave','drop'].forEach(ev =>
+      drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => takeFile(e.dataTransfer?.files?.[0]));
+
     btn.addEventListener('click', async () => {
       const title   = document.getElementById('fTitle').value.trim();
       const creator = document.getElementById('fCreator').value.trim();
@@ -311,36 +430,93 @@
 
       if (!title)   return say('Give it a title.', 'err');
       if (!creator) return say('Tell us how to credit you.', 'err');
-      if (!url)     return say('We need a link to the video.', 'err');
-      if (!/^https?:\/\//i.test(url)) return say('The video link has to start with http:// or https://', 'err');
+
+      if (mode === 'file') {
+        if (!pickedFile) return say('Pick an MP4 to upload.', 'err');
+      } else {
+        if (!url) return say('We need a link to the video.', 'err');
+        if (!/^https?:\/\//i.test(url)) {
+          return say('The video link has to start with http:// or https://', 'err');
+        }
+      }
       if (cover && !/^https?:\/\//i.test(cover)) return say('The cover link has to start with http:// or https://', 'err');
       if (!attest)  return say('Tick the box confirming this is yours to share.', 'err');
 
+      const sb = getSupabase();
       btn.disabled = true;
-      btn.textContent = 'Sending…';
+
+      let finalUrl  = url;
+      let storagePath = null;
 
       try {
-        const { error } = await getSupabase().from('submissions').insert({
+        if (mode === 'file') {
+          // Path is namespaced by user id because the storage policy
+          // requires it, and carries a uuid so an unapproved file is
+          // not guessable from the outside.
+          const uid  = (crypto.randomUUID && crypto.randomUUID()) ||
+                       (Date.now().toString(36) + Math.random().toString(36).slice(2));
+          storagePath = `${user.id}/${uid}.mp4`;
+
+          btn.textContent = 'Uploading…';
+          upBar.classList.add('on');
+
+          const { error: upErr } = await sb.storage
+            .from(BUCKET)
+            .upload(storagePath, pickedFile, {
+              contentType: 'video/mp4',
+              upsert: false
+            });
+          if (upErr) throw upErr;
+
+          const { data: pub } = sb.storage.from(BUCKET).getPublicUrl(storagePath);
+          finalUrl = pub.publicUrl;
+          upBar.classList.remove('on');
+        }
+
+        btn.textContent = 'Sending…';
+
+        const { error } = await sb.from('submissions').insert({
           submitter_user_id: user.id,
           submitter_name:    creator,
           contact:           contact || null,
           title:             title,
           description:       desc || null,
-          video_url:         url,
+          video_url:         finalUrl,
+          storage_path:      storagePath,
           cover_url:         cover || null,
           runtime_seconds:   Number.isFinite(runtime) ? runtime : null,
           is_original_work:  true
         });
-        if (error) throw error;
+
+        // If the row fails after the file landed, bin the orphan rather
+        // than leaving it eating quota with nothing pointing at it.
+        if (error) {
+          if (storagePath) {
+            try { await sb.storage.from(BUCKET).remove([storagePath]); } catch (e) {}
+          }
+          throw error;
+        }
 
         say('Sent. Someone will watch it and get back to you.', 'ok');
         ['fTitle','fUrl','fCover','fRuntime','fDesc'].forEach(id => {
           document.getElementById(id).value = '';
         });
         document.getElementById('fAttest').checked = false;
+        pickedFile = null;
+        fileIn.value = '';
+        drop.classList.remove('picked');
+        dropMain.textContent = 'Choose an MP4, or drag one here';
+        dropSub.textContent = 'Up to ' + Math.round(sizeCap / 1024 / 1024) + ' MB';
         renderMine(user.id);
       } catch (e) {
-        say('Could not send that: ' + (e.message || 'unknown error'), 'err');
+        upBar.classList.remove('on');
+        const m = e.message || 'unknown error';
+        say(
+          /exceeded|too large|payload/i.test(m)
+            ? 'That file is over the size limit. Host it somewhere and use the link option.'
+            : 'Could not send that: ' + m,
+          'err'
+        );
       } finally {
         btn.disabled = false;
         btn.textContent = 'Submit for review';
