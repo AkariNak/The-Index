@@ -44,6 +44,38 @@ function getParams() {
   return { show: p.get('show'), ep: p.get('ep'), t: p.get('t') };
 }
 
+// ---------- Progress lookup ----------
+// Saved progress identifies an episode by TITLE. When the 'Episode N'
+// placeholders were replaced with real episode titles, every stored title
+// stopped matching anything in the collection, so resume fell through to
+// videos[0] — the "always starts at episode 1" report. Stored progress looks
+// like:
+//   { lastEpisodeTitle: 'Episode 220', timestamp: 0, episodeNumber: 220 }
+// so the episode number survives even when the title does not. Three passes,
+// cheapest first; any one of them landing gets the viewer back to the right
+// episode.
+function findVideoFromProgress(group, progress) {
+  if (!group || !progress) return null;
+  const digits = s => String(s == null ? '' : s).replace(/[^0-9.]/g, '');
+
+  // 1. exact title match — the normal path once progress is fresh again
+  let found = group.videos.find(v => v.title === progress.lastEpisodeTitle);
+
+  // 2. stored episode number — survives this rename and any future one
+  if (!found && progress.episodeNumber != null) {
+    const want = digits(progress.episodeNumber);
+    if (want) found = group.videos.find(v => digits(v.episode) === want);
+  }
+
+  // 3. an old 'Episode N' title still carries its number
+  if (!found && /^Episode\s+\d+$/i.test(progress.lastEpisodeTitle || '')) {
+    const want = digits(progress.lastEpisodeTitle);
+    if (want) found = group.videos.find(v => digits(v.episode) === want);
+  }
+
+  return found || null;
+}
+
 // ---------- Timestamp ----------
 function saveCurrentTimestamp() {
   if (!playerVideoEl || !currentVideo || !currentGroup) return;
@@ -239,14 +271,17 @@ function loadVideo(video, overrideTs) {
     return;
   }
 
-  // Use override timestamp if provided, otherwise fall back to saved progress
+  // Use override timestamp if provided, otherwise fall back to saved progress.
+  // Resolved through findVideoFromProgress rather than comparing titles
+  // directly, so a stale stored title still matches the right episode.
   let startTs = 0;
   if (typeof overrideTs === 'number' && overrideTs > 5) {
     startTs = overrideTs;
   } else {
     const saved = getLastWatched(currentGroup?.title);
-    if (saved && saved.lastEpisodeTitle === video.title && typeof saved.timestamp === 'number' && saved.timestamp > 5) {
-      startTs = saved.timestamp;
+    if (saved && typeof saved.timestamp === 'number' && saved.timestamp > 5) {
+      const savedVideo = findVideoFromProgress(currentGroup, saved);
+      if (savedVideo && savedVideo.title === video.title) startTs = saved.timestamp;
     }
   }
 
@@ -373,11 +408,23 @@ function loadVideo(video, overrideTs) {
 }
 
 // ---------- Sidebar ----------
+// Grid pills carry data-idx and no data-title, so the old title-only match
+// never hit for them: this ran right after loadVideo had set the active class
+// correctly and stripped it straight back off every pill. Any collection over
+// 12 episodes renders as a grid, which covers Naruto, Lucky Star and
+// Tsukimichi Season 2 — hence "I have to click the episode number".
 function highlightSidebarEp(video) {
-  if (!episodeSidebar) return;
+  if (!episodeSidebar || !video) return;
+  const idx = currentGroup ? currentGroup.videos.indexOf(video) : -1;
+
   episodeSidebar.querySelectorAll('.sidebar-ep, .ep-pill').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.title === video.title);
+    const btnIdx = btn.dataset.idx !== undefined ? parseInt(btn.dataset.idx, 10) : null;
+    const isActive = btnIdx !== null
+      ? btnIdx === idx                        // grid pills: match by index
+      : btn.dataset.title === video.title;    // list rows: match by title
+    btn.classList.toggle('active', isActive);
   });
+
   episodeSidebar.querySelector('.active')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
@@ -434,10 +481,10 @@ function renderSidebar(group, allGroups) {
   }
 
   if (useGrid) {
-    const lastWatchedTitle = progress?.lastEpisodeTitle;
-    const lastWatchedIdx = lastWatchedTitle
-      ? group.videos.findIndex(v => v.title === lastWatchedTitle)
-      : -1;
+    // Resolved through findVideoFromProgress so the grey "watched" shading
+    // still lands when the stored title is stale.
+    const lastWatchedVideo = findVideoFromProgress(group, progress);
+    const lastWatchedIdx   = lastWatchedVideo ? group.videos.indexOf(lastWatchedVideo) : -1;
 
     episodeSidebar.innerHTML = seasonPillsHtml + `<div class="ep-grid">${group.videos.map((video, i) => {
       const ep       = cleanEpNum(video.episode, i);
@@ -835,7 +882,7 @@ function wireFog() {
     startVideo = currentGroup.videos[epIdx];
   } else {
     const progress = getLastWatched(currentGroup.title);
-    if (progress) startVideo = currentGroup.videos.find(v => v.title === progress.lastEpisodeTitle);
+    startVideo = findVideoFromProgress(currentGroup, progress);
     if (!startVideo) startVideo = currentGroup.videos[0];
   }
 
