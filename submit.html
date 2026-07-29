@@ -197,9 +197,10 @@
 
     <div class="submit-msg" id="msg"></div>
 
-    <div class="field required">
+    <div class="field">
       <label for="fTitle">Title</label>
       <input type="text" id="fTitle" maxlength="120" autocomplete="off">
+      <div class="hint">Optional. If you leave it blank we will use the filename, or just call it Untitled.</div>
     </div>
 
     <div class="field required">
@@ -322,7 +323,7 @@
       list.innerHTML = data.map(s => `
         <div class="sub-row">
           <div>
-            <div class="sub-row-title">${escapeHtml(s.title)}</div>
+            <div class="sub-row-title">${escapeHtml(s.title || '(untitled)')}</div>
             ${s.review_note ? `<div class="sub-row-note">${escapeHtml(s.review_note)}</div>` : ''}
           </div>
           <span class="status-tag ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
@@ -427,7 +428,6 @@
       const contact = document.getElementById('fContact').value.trim();
       const attest  = document.getElementById('fAttest').checked;
 
-      if (!title)   return say('Give it a title.', 'err');
       if (!creator) return say('Tell us how to credit you.', 'err');
 
       if (mode === 'file') {
@@ -443,6 +443,14 @@
 
       const sb = getSupabase();
       btn.disabled = true;
+
+      // Title is optional. Fall back to the filename with the extension
+      // stripped, then to nothing at all, in which case approve_submission
+      // names it Untitled on the way in.
+      const fallbackTitle = pickedFile
+        ? pickedFile.name.replace(/\.mp4$/i, '').trim()
+        : '';
+      const finalTitle = title || fallbackTitle || null;
 
       let finalUrl  = url;
       let storagePath = null;
@@ -478,7 +486,7 @@
           submitter_user_id: user.id,
           submitter_name:    creator,
           contact:           contact || null,
-          title:             title,
+          title:             finalTitle,
           description:       desc || null,
           video_url:         finalUrl,
           storage_path:      storagePath,
