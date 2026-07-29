@@ -1082,3 +1082,29 @@ async function coreInit() {
   await loadBaseVideos();
   syncVideos();
 }
+
+// ---------- Submit link in the nav ----------
+// Every page hardcodes its own topnav, so this drops the link into
+// whichever one is on the current page rather than editing them all.
+(function addSubmitNavLink() {
+  function inject() {
+    const right = document.querySelector('.topnav-right');
+    if (!right || document.getElementById('submitNavLink')) return;
+    if (/submit\.html$/i.test(location.pathname)) return;      // already there
+    if (document.documentElement.classList.contains('abyss-theme')) return;
+
+    const a = document.createElement('a');
+    a.id = 'submitNavLink';
+    a.href = 'submit.html';
+    a.className = 'btn btn-outline btn-small';
+    a.textContent = 'Submit';
+
+    right.insertBefore(a, right.querySelector('#themeToggle') || null);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inject);
+  } else {
+    inject();
+  }
+})();
