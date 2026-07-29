@@ -1107,4 +1107,95 @@ async function coreInit() {
   } else {
     inject();
   }
+
+  // ============================================================
+// Onyx — nav links (Submit + Review)
+// ------------------------------------------------------------
+// PASTE THIS AT THE VERY END OF core.js
+//
+// Every page hardcodes its own topnav, so rather than editing each
+// file this injects into whichever nav is on the current page.
+//
+// Submit: everyone.
+// Review: admin only, and placed next to the stats link if one is
+//         on the page.
+// ============================================================
+
+(function onyxNavLinks() {
+  const ADMIN_EMAIL = 'lukehare1007@gmail.com';
+
+  function onAbyss() {
+    return document.documentElement.classList.contains('abyss-theme')
+        || sessionStorage.getItem('fromAbyss') === '1';
+  }
+
+  function here(name) {
+    return new RegExp(name.replace('.', '\\.') + '$', 'i').test(window.location.pathname);
+  }
+
+  function makeBtn(id, href, text, title) {
+    const a = document.createElement('a');
+    a.id = id;
+    a.href = href;
+    a.className = 'btn btn-outline btn-small';
+    a.textContent = text;
+    if (title) a.title = title;
+    return a;
+  }
+
+  // ---- Submit: visible to everyone ----
+  function injectSubmit() {
+    const right = document.querySelector('.topnav-right');
+    if (!right) return;
+    if (document.getElementById('submitNavLink')) return;
+    if (here('submit.html') || onAbyss()) return;
+
+    const a = makeBtn('submitNavLink', 'submit.html', 'Submit', 'Submit your own animation');
+    right.insertBefore(a, right.querySelector('#themeToggle') || null);
+  }
+
+  // ---- Review: admin only ----
+  // Looks for the stats link first so the two sit together, since
+  // they're both things only you use. Falls back to the nav.
+  function findStatsLink() {
+    const links = Array.from(document.querySelectorAll('a, button'));
+    return links.find(el => {
+      const href  = (el.getAttribute('href') || '').toLowerCase();
+      const label = (el.textContent || '').trim().toLowerCase();
+      return /stats|analytics|heatmap/.test(href) || label === 'stats' || label === 'analytics';
+    }) || null;
+  }
+
+  async function injectReview() {
+    if (document.getElementById('reviewNavLink')) return;
+    if (here('review.html') || onAbyss()) return;
+
+    let user = null;
+    try { user = await getCurrentUser(); } catch (e) { return; }
+    if (!user || user.email !== ADMIN_EMAIL) return;
+
+    const a = makeBtn('reviewNavLink', 'review.html', 'Review', 'Submission review queue');
+
+    const stats = findStatsLink();
+    if (stats && stats.parentNode) {
+      // Match whatever the stats control looks like so they pair up.
+      if (stats.className) a.className = stats.className;
+      stats.parentNode.insertBefore(a, stats.nextSibling);
+      return;
+    }
+
+    const right = document.querySelector('.topnav-right');
+    if (right) right.insertBefore(a, right.querySelector('#themeToggle') || null);
+  }
+
+  function run() {
+    injectSubmit();
+    injectReview();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
 })();
