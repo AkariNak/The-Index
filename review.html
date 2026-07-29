@@ -173,7 +173,7 @@
       <div class="card" data-id="${escapeHtml(s.id)}"${s.storage_path ? ` data-path="${escapeHtml(s.storage_path)}"` : ''}>
         <div class="card-top">
           <div>
-            <h3 class="card-title">${escapeHtml(s.title)}</h3>
+            <h3 class="card-title">${escapeHtml(s.title || '(untitled)')}</h3>
             <div class="card-sub">
               ${escapeHtml(s.submitter_name)}
               ${s.runtime_seconds ? ' · ' + escapeHtml(fmtRuntime(s.runtime_seconds)) : ''}
