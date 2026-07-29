@@ -232,7 +232,8 @@ async function getLastWatchedRemote(collectionName) {
       const k = slug(collectionName);
       AppState.progress[k] = {
         lastEpisodeTitle: data.last_episode_title,
-        timestamp: data.timestamp
+        timestamp: data.timestamp,
+        episodeNumber: data.episode_number || 0
       };
       saveProgress();
       return AppState.progress[k];
@@ -255,7 +256,8 @@ async function loadAllProgressFromSupabase() {
       if (!AppState.progress[k] || row.timestamp > (AppState.progress[k].timestamp || 0)) {
         AppState.progress[k] = {
           lastEpisodeTitle: row.last_episode_title,
-          timestamp: row.timestamp
+          timestamp: row.timestamp,
+          episodeNumber: row.episode_number || 0
         };
       }
     }
@@ -1083,44 +1085,16 @@ async function coreInit() {
   syncVideos();
 }
 
-// ---------- Submit link in the nav ----------
-// Every page hardcodes its own topnav, so this drops the link into
-// whichever one is on the current page rather than editing them all.
-(function addSubmitNavLink() {
-  function inject() {
-    const right = document.querySelector('.topnav-right');
-    if (!right || document.getElementById('submitNavLink')) return;
-    if (/submit\.html$/i.test(location.pathname)) return;      // already there
-    if (document.documentElement.classList.contains('abyss-theme')) return;
-
-    const a = document.createElement('a');
-    a.id = 'submitNavLink';
-    a.href = 'submit.html';
-    a.className = 'btn btn-outline btn-small';
-    a.textContent = 'Submit';
-
-    right.insertBefore(a, right.querySelector('#themeToggle') || null);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', inject);
-  } else {
-    inject();
-  }
-
-  // ============================================================
-// Onyx — nav links (Submit + Review)
+// ============================================================
+// Nav links (Submit + Review)
 // ------------------------------------------------------------
-// PASTE THIS AT THE VERY END OF core.js
-//
 // Every page hardcodes its own topnav, so rather than editing each
 // file this injects into whichever nav is on the current page.
 //
 // Submit: everyone.
-// Review: admin only, and placed next to the stats link if one is
-//         on the page.
+// Review: admin only, placed next to the stats link when one is on
+//         the page, otherwise in the nav.
 // ============================================================
-
 (function onyxNavLinks() {
   const ADMIN_EMAIL = 'lukehare1007@gmail.com';
 
@@ -1155,11 +1129,11 @@ async function coreInit() {
   }
 
   // ---- Review: admin only ----
-  // Looks for the stats link first so the two sit together, since
-  // they're both things only you use. Falls back to the nav.
+  // Looks for the stats control first so the two sit together, since
+  // they are both things only the admin uses.
   function findStatsLink() {
-    const links = Array.from(document.querySelectorAll('a, button'));
-    return links.find(el => {
+    const els = Array.from(document.querySelectorAll('a, button'));
+    return els.find(el => {
       const href  = (el.getAttribute('href') || '').toLowerCase();
       const label = (el.textContent || '').trim().toLowerCase();
       return /stats|analytics|heatmap/.test(href) || label === 'stats' || label === 'analytics';
