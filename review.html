@@ -170,7 +170,7 @@
     const isPending  = s.status === 'pending';
     const isApproved = s.status === 'approved';
     return `
-      <div class="card" data-id="${escapeHtml(s.id)}">
+      <div class="card" data-id="${escapeHtml(s.id)}"${s.storage_path ? ` data-path="${escapeHtml(s.storage_path)}"` : ''}>
         <div class="card-top">
           <div>
             <h3 class="card-title">${escapeHtml(s.title)}</h3>
@@ -178,6 +178,7 @@
               ${escapeHtml(s.submitter_name)}
               ${s.runtime_seconds ? ' · ' + escapeHtml(fmtRuntime(s.runtime_seconds)) : ''}
               · ${escapeHtml(fmtDate(s.created_at))}
+              · ${s.storage_path ? 'uploaded' : 'linked'}
               ${s.contact ? ' · ' + escapeHtml(s.contact) : ''}
             </div>
           </div>
@@ -232,13 +233,28 @@
     }
   }
 
-  async function callRpc(fn, args, card, btn) {
+  // Rejecting or unpublishing an uploaded file should free the storage
+  // too, otherwise dead files sit there eating quota forever. Runs after
+  // the RPC succeeds, and a failure here is logged rather than surfaced,
+  // since the review decision itself already went through.
+  async function dropStorage(path) {
+    if (!path) return;
+    try {
+      const { error } = await getSupabase().storage.from('originals').remove([path]);
+      if (error) console.warn('[Review] file not removed:', error.message);
+    } catch (e) {
+      console.warn('[Review] file not removed:', e.message);
+    }
+  }
+
+  async function callRpc(fn, args, card, btn, storagePath) {
     const original = btn.textContent;
     btn.disabled = true;
     btn.textContent = 'Working…';
     try {
       const { error } = await getSupabase().rpc(fn, args);
       if (error) throw error;
+      if (storagePath) await dropStorage(storagePath);
       card.remove();
       if (!listEl.querySelector('.card')) {
         listEl.innerHTML = `<div class="empty">Nothing ${escapeHtml(currentStatus)}.</div>`;
@@ -252,24 +268,26 @@
 
   function wire() {
     listEl.querySelectorAll('.card').forEach(card => {
-      const id   = card.dataset.id;
-      const note = () => card.querySelector('.note')?.value.trim() || null;
+      const id    = card.dataset.id;
+      const path  = card.dataset.path || null;   // null when they gave a link
+      const note  = () => card.querySelector('.note')?.value.trim() || null;
 
+      // Approving keeps the file, it is about to be served from there.
       card.querySelector('.act-approve')?.addEventListener('click', e => {
-        callRpc('approve_submission', { p_id: id, p_note: note() }, card, e.target);
+        callRpc('approve_submission', { p_id: id, p_note: note() }, card, e.target, null);
       });
 
       card.querySelector('.act-reject')?.addEventListener('click', e => {
         const n = note();
         if (!n) return alert('Give the creator a reason.');
-        callRpc('reject_submission', { p_id: id, p_note: n }, card, e.target);
+        callRpc('reject_submission', { p_id: id, p_note: n }, card, e.target, path);
       });
 
       card.querySelector('.act-unpublish')?.addEventListener('click', e => {
         const n = note();
         if (!n) return alert('Give a reason for taking it down.');
-        if (!confirm('Remove this from the site?')) return;
-        callRpc('unpublish_submission', { p_id: id, p_note: n }, card, e.target);
+        if (!confirm('Remove this from the site? If they uploaded the file, it gets deleted.')) return;
+        callRpc('unpublish_submission', { p_id: id, p_note: n }, card, e.target, path);
       });
     });
   }
