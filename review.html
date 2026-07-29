@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review — Onyx Originals</title>
+  <link rel="icon" type="image/png" href="favicon-256.png">
+  <link rel="apple-touch-icon" href="favicon-256.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .review-page { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    .review-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 24px;
+    }
+    .review-head h1 {
+      font-family: var(--display); font-size: 22px; font-weight: 800;
+      letter-spacing: 0.03em; margin: 0; color: var(--ink);
+    }
+    .tabs { display: flex; gap: 6px; }
+    .tab {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 6px 13px; cursor: pointer;
+      background: transparent; color: var(--ink-mute);
+      border: 1px solid var(--line); border-radius: 4px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab:hover { color: var(--ink); }
+    .tab.active { color: #000; background: var(--accent); border-color: var(--accent); }
+
+    .empty, .loading {
+      font-family: var(--body); font-size: 14px; color: var(--ink-mute);
+      text-align: center; padding: 48px 20px;
+    }
+
+    .card {
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--paper-2); padding: 18px; margin-bottom: 18px;
+    }
+    .card-top {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 14px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .card-title {
+      font-family: var(--display); font-size: 17px; font-weight: 700;
+      color: var(--ink); margin: 0 0 5px; letter-spacing: 0.02em;
+    }
+    .card-sub {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+      color: var(--ink-mute);
+    }
+    .card-desc {
+      font-family: var(--body); font-size: 13px; line-height: 1.6;
+      color: var(--ink-soft); margin: 0 0 12px;
+    }
+    .card-media { display: flex; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+    .card-media video {
+      width: 380px; max-width: 100%; border-radius: var(--radius-sm);
+      background: #000; display: block;
+    }
+    .card-media img {
+      width: 110px; height: 165px; object-fit: cover;
+      border-radius: var(--radius-sm); border: 1px solid var(--line);
+    }
+    .card-link {
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      word-break: break-all; text-decoration: none;
+    }
+    .card-link:hover { text-decoration: underline; }
+
+    .card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .card-actions input {
+      flex: 1; min-width: 190px;
+      background: var(--paper); color: var(--ink);
+      border: 1px solid var(--line); border-radius: var(--radius-sm);
+      padding: 8px 11px; font-family: var(--body); font-size: 13px;
+    }
+    .card-actions input:focus { outline: none; border-color: var(--accent); }
+
+    .status-tag {
+      font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em;
+      text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+      border: 1px solid var(--line); color: var(--ink-mute); white-space: nowrap;
+    }
+    .status-tag.pending  { color: #e0b341; border-color: rgba(224,179,65,0.5); }
+    .status-tag.approved { color: var(--accent); border-color: var(--accent); }
+    .status-tag.rejected { color: #e07070; border-color: rgba(224,112,112,0.5); }
+
+    .denied { text-align: center; padding: 60px 20px; }
+    .denied p { font-family: var(--body); font-size: 14px; color: var(--ink-soft); }
+
+    @media (max-width: 600px) {
+      .review-page { padding: 20px 14px 60px; }
+      .card-media video { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="topnav-brand" href="index.html" aria-label="Onyx home">
+    <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+      <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">STREAMING</text>
+    </svg>
+  </a>
+  <div class="topnav-right">
+    <a href="account.html" class="btn btn-outline btn-small">Account</a>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
+</nav>
+
+<div class="review-page">
+
+  <div class="review-head">
+    <h1>Submission review</h1>
+    <div class="tabs">
+      <button type="button" class="tab active" data-status="pending">Pending</button>
+      <button type="button" class="tab" data-status="approved">Approved</button>
+      <button type="button" class="tab" data-status="rejected">Rejected</button>
+    </div>
+  </div>
+
+  <div id="denied" class="denied" hidden>
+    <p>This page is for admins.</p>
+  </div>
+
+  <div id="list"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="core.js"></script>
+<script>
+(function () {
+  const ADMIN_EMAIL = 'lukehare1007@gmail.com';
+
+  document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
+  const tt = document.getElementById('themeToggle');
+  if (tt) {
+    tt.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+    tt.addEventListener('click', () => {
+      const nowLight = !document.body.classList.contains('light');
+      document.body.classList.toggle('light', nowLight);
+      localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+      tt.textContent = nowLight ? '☀' : '☾';
+    });
+  }
+
+  const listEl = document.getElementById('list');
+  let currentStatus = 'pending';
+
+  function fmtRuntime(secs) {
+    if (!secs) return '';
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+  }
+
+  function fmtDate(iso) {
+    try { return new Date(iso).toLocaleDateString(); } catch { return ''; }
+  }
+
+  function cardHtml(s) {
+    const isPending  = s.status === 'pending';
+    const isApproved = s.status === 'approved';
+    return `
+      <div class="card" data-id="${escapeHtml(s.id)}">
+        <div class="card-top">
+          <div>
+            <h3 class="card-title">${escapeHtml(s.title)}</h3>
+            <div class="card-sub">
+              ${escapeHtml(s.submitter_name)}
+              ${s.runtime_seconds ? ' · ' + escapeHtml(fmtRuntime(s.runtime_seconds)) : ''}
+              · ${escapeHtml(fmtDate(s.created_at))}
+              ${s.contact ? ' · ' + escapeHtml(s.contact) : ''}
+            </div>
+          </div>
+          <span class="status-tag ${escapeHtml(s.status)}">${escapeHtml(s.status)}</span>
+        </div>
+
+        ${s.description ? `<p class="card-desc">${escapeHtml(s.description)}</p>` : ''}
+
+        <div class="card-media">
+          <video src="${escapeHtml(s.video_url)}" controls preload="none"
+                 ${s.cover_url ? `poster="${escapeHtml(s.cover_url)}"` : ''}></video>
+          ${s.cover_url ? `<img src="${escapeHtml(s.cover_url)}" alt="">` : ''}
+        </div>
+
+        <a class="card-link" href="${escapeHtml(s.video_url)}" target="_blank" rel="noopener">${escapeHtml(s.video_url)}</a>
+
+        ${s.review_note ? `<p class="card-desc" style="margin-top:10px">Note: ${escapeHtml(s.review_note)}</p>` : ''}
+
+        <div class="card-actions">
+          ${isPending ? `
+            <input type="text" class="note" placeholder="Note to the creator (required to reject)">
+            <button type="button" class="btn btn-solid btn-small act-approve">Approve</button>
+            <button type="button" class="btn btn-outline btn-small act-reject">Reject</button>
+          ` : ''}
+          ${isApproved ? `
+            <input type="text" class="note" placeholder="Reason for taking it down">
+            <button type="button" class="btn btn-outline btn-small act-unpublish">Unpublish</button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  async function load() {
+    listEl.innerHTML = '<div class="loading">Loading…</div>';
+    try {
+      const { data, error } = await getSupabase()
+        .from('submissions')
+        .select('*')
+        .eq('status', currentStatus)
+        .order('created_at', { ascending: currentStatus === 'pending' });
+      if (error) throw error;
+
+      if (!data || !data.length) {
+        listEl.innerHTML = `<div class="empty">Nothing ${escapeHtml(currentStatus)}.</div>`;
+        return;
+      }
+      listEl.innerHTML = data.map(cardHtml).join('');
+      wire();
+    } catch (e) {
+      listEl.innerHTML = `<div class="empty">Could not load: ${escapeHtml(e.message || 'unknown error')}</div>`;
+    }
+  }
+
+  async function callRpc(fn, args, card, btn) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+    try {
+      const { error } = await getSupabase().rpc(fn, args);
+      if (error) throw error;
+      card.remove();
+      if (!listEl.querySelector('.card')) {
+        listEl.innerHTML = `<div class="empty">Nothing ${escapeHtml(currentStatus)}.</div>`;
+      }
+    } catch (e) {
+      alert('Failed: ' + (e.message || 'unknown error'));
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+
+  function wire() {
+    listEl.querySelectorAll('.card').forEach(card => {
+      const id   = card.dataset.id;
+      const note = () => card.querySelector('.note')?.value.trim() || null;
+
+      card.querySelector('.act-approve')?.addEventListener('click', e => {
+        callRpc('approve_submission', { p_id: id, p_note: note() }, card, e.target);
+      });
+
+      card.querySelector('.act-reject')?.addEventListener('click', e => {
+        const n = note();
+        if (!n) return alert('Give the creator a reason.');
+        callRpc('reject_submission', { p_id: id, p_note: n }, card, e.target);
+      });
+
+      card.querySelector('.act-unpublish')?.addEventListener('click', e => {
+        const n = note();
+        if (!n) return alert('Give a reason for taking it down.');
+        if (!confirm('Remove this from the site?')) return;
+        callRpc('unpublish_submission', { p_id: id, p_note: n }, card, e.target);
+      });
+    });
+  }
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentStatus = tab.dataset.status;
+      load();
+    });
+  });
+
+  (async function init() {
+    if (typeof coreInit === 'function') { try { await coreInit(); } catch (e) {} }
+
+    const user = await getCurrentUser();
+    // Cosmetic gate only. The real enforcement is is_onyx_admin() in the
+    // RLS policies, so a non-admin who opens this page sees nothing and
+    // every action they try is refused by the database.
+    if (!user || user.email !== ADMIN_EMAIL) {
+      document.getElementById('denied').hidden = false;
+      document.querySelector('.review-head').hidden = true;
+      return;
+    }
+    load();
+  })();
+})();
+</script>
+</body>
+</html>
