@@ -1173,3 +1173,100 @@ html, body { overflow-x: hidden; max-width: 100vw; }
 
 /* Prevent right-click save on video */
 #playerVideo { -webkit-user-select: none; user-select: none; }
+
+/* ============================================================
+   HOME LAYOUT POLISH
+   ------------------------------------------------------------
+   Added last so it overrides the rules above by cascade order.
+   Every selector below already exists earlier in this file.
+   Delete this whole block to revert.
+   ============================================================ */
+
+/* ---- search bar was 480px, unbalancing the nav ---- */
+.topnav-search { max-width: 320px; }
+
+/* ---- nav floated over the banner with no separation ----
+   The hero sits directly under a sticky, semi-transparent nav,
+   so the logo and search competed with the artwork. A short
+   scrim restores contrast without adding a visible bar. */
+.hero-slideshow::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 110px;
+  background: linear-gradient(to bottom, rgba(15,17,23,0.55), transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+body.light .hero-slideshow::before {
+  background: linear-gradient(to bottom, rgba(240,244,255,0.55), transparent);
+}
+.abyss-theme .hero-slideshow::before {
+  background: linear-gradient(to bottom, rgba(7,5,8,0.6), transparent);
+}
+
+/* ---- tab strip read as one block with the pills below ---- */
+.tabs { margin: 20px 0 4px; }
+.tab { padding: 12px 20px 14px; }
+
+/* ---- type and language pills share one line ----
+   Both rows are .filters-bar siblings. Making them inline-flex
+   lets them sit side by side in the same block, with a divider
+   drawn via ::before on the second one. */
+.filters-bar {
+  display: inline-flex;
+  vertical-align: middle;
+  padding: 10px 0 4px;
+}
+.filters-bar + .filters-bar { margin-left: 14px; position: relative; }
+.filters-bar + .filters-bar::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 20px;
+  background: var(--line);
+}
+
+/* ---- tighten the run-up to the first content row ---- */
+.status-line { margin: 2px 0 12px; }
+.genre-filters-wrap { margin: 4px 0 14px; }
+.continue-watching-section { margin: 0 0 28px; }
+
+/* ---- genre pills collapse to a single row ----
+   Fifteen chips over two rows was the largest block of chrome
+   on the page and pushed Continue Watching below the fold.
+   Needs layout-polish.js for the More/Less button. */
+.genre-filters-bar {
+  max-height: 40px;
+  overflow: hidden;
+  transition: max-height 0.22s ease;
+}
+.genre-filters-bar.expanded { max-height: 320px; }
+
+.genre-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-mute);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.genre-toggle-btn:hover { border-color: var(--accent); color: var(--accent-soft); }
+
+@media (max-width: 600px) {
+  .genre-filters-bar { max-height: 34px; }
+  .genre-toggle-btn { font-size: 11px; padding: 6px 12px; }
+  .filters-bar + .filters-bar { margin-left: 10px; }
+  .topnav-search { max-width: none; }
+}
