@@ -3,442 +3,328 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sakuga — Indie Anime</title>
+<title>Originals — Onyx</title>
 <link rel="icon" type="image/png" href="../favicon-256.png">
+<link rel="apple-touch-icon" href="../favicon-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Black&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Onyx's stylesheet. Everything below reuses its classes and tokens
+     so this page stays in step with the rest of the site. -->
+<link rel="stylesheet" href="../styles.css">
+
 <style>
-  :root {
-    --bg:        #eef1f5;
-    --surface:   #ffffff;
-    --surface-2: #e4e9ef;
-    --ink:       #0b0d10;
-    --ink-soft:  #545c68;
-    --ink-mute:  #8b94a1;
-    --line:      #d3d9e0;
-    --accent:    #1673e6;
-    --radius:    14px;
-    --radius-sm: 7px;
-    --display: 'Archivo Black', system-ui, sans-serif;
-    --body:    'Archivo', system-ui, sans-serif;
-    --mono:    'JetBrains Mono', monospace;
-  }
-  body.dark {
-    --bg:        #0c0e12;
-    --surface:   #14181e;
-    --surface-2: #1b212a;
-    --ink:       #f2f5f8;
-    --ink-soft:  #a4aeba;
-    --ink-mute:  #6b7683;
-    --line:      #262d38;
-    --accent:    #3b93ff;
+  /* Only the few things styles.css has no class for. */
+
+  .work-by {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    margin-top: 2px;
   }
 
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font-family: var(--body); -webkit-font-smoothing: antialiased;
-    transition: background .2s, color .2s;
+  .sakuga-tagline {
+    font-family: var(--body);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0 0 20px;
+    max-width: 60ch;
   }
-  a { color: inherit; text-decoration: none; }
 
-  /* ---------- nav ---------- */
-  .nav {
-    display: flex; align-items: center; gap: 18px;
-    padding: 14px 28px; background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    position: sticky; top: 0; z-index: 40;
-  }
-  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
-  .brand-mark {
-    width: 34px; height: 34px; border-radius: 9px; background: var(--accent);
-    color: #fff; font-family: var(--display); font-size: 19px;
-    display: grid; place-items: center;
-  }
-  .brand-name { font-family: var(--display); font-size: 25px; letter-spacing: -.02em; }
-  .brand-name em { font-style: normal; color: var(--accent); }
-  .nav-link { font-weight: 600; font-size: 15px; color: var(--ink); }
-  .nav-link:hover { color: var(--accent); }
-  .icon-btn {
-    background: none; border: none; cursor: pointer;
-    font-size: 17px; padding: 4px 6px; line-height: 1;
-  }
-  .btn {
-    font-family: var(--body); font-weight: 700; font-size: 14px;
-    padding: 10px 22px; border-radius: 9px; cursor: pointer;
-    border: 1px solid transparent; background: var(--accent); color: #fff;
-    transition: filter .15s;
-  }
-  .btn:hover { filter: brightness(1.08); }
-  .btn-ghost {
-    background: transparent; color: var(--ink); border-color: var(--line);
-  }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); filter: none; }
-
-  /* ---------- hero ---------- */
-  .hero {
-    position: relative; min-height: 460px;
-    display: flex; align-items: center;
-    padding: 56px 28px; overflow: hidden;
-  }
-  .hero-bg {
-    position: absolute; inset: 0; z-index: 0;
-    background-size: cover; background-position: center;
-    filter: saturate(.85);
-  }
-  .hero-bg::after {
-    content: ''; position: absolute; inset: 0;
-    background: linear-gradient(100deg, var(--bg) 0%, var(--bg) 26%, transparent 78%);
-  }
-  .hero-inner { position: relative; z-index: 1; max-width: 620px; }
-  .kicker {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
-    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
-    text-transform: uppercase; color: var(--accent);
-  }
-  .kicker::before { content: ''; width: 30px; height: 2px; background: var(--accent); }
-  .hero h1 {
-    font-family: var(--display); font-size: clamp(38px, 6.5vw, 76px);
-    line-height: .96; letter-spacing: -.03em; margin: 0 0 20px;
-  }
-  .hero p {
-    font-size: 16px; line-height: 1.65; color: var(--ink-soft);
-    margin: 0 0 26px; max-width: 460px;
-  }
-  .hero-actions { display: flex; gap: 11px; flex-wrap: wrap; }
-
-  /* ---------- filters ---------- */
-  .filters {
-    display: flex; gap: 12px; padding: 0 28px; margin: -26px auto 34px;
-    max-width: 1400px; position: relative; z-index: 5; flex-wrap: wrap;
-  }
-  .search-wrap { flex: 1; min-width: 240px; position: relative; }
-  .search-wrap svg {
-    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
-    color: var(--ink-mute); pointer-events: none;
-  }
-  .search-wrap input {
-    width: 100%; padding: 15px 16px 15px 46px;
-    background: var(--surface); color: var(--ink);
-    border: 1px solid var(--line); border-radius: var(--radius);
-    font-family: var(--body); font-size: 15px;
-  }
-  .search-wrap input:focus { outline: none; border-color: var(--accent); }
-  #tagFilter {
-    padding: 15px 18px; min-width: 176px;
-    background: var(--surface); color: var(--ink);
-    border: 1px solid var(--line); border-radius: var(--radius);
-    font-family: var(--body); font-size: 15px; cursor: pointer;
-  }
-  #tagFilter:focus { outline: none; border-color: var(--accent); }
-
-  /* ---------- grid ---------- */
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 0 28px 90px; }
-  .section-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 18px; gap: 14px;
-  }
-  .section-head h2 {
-    font-family: var(--display); font-size: 21px; letter-spacing: -.01em; margin: 0;
-  }
-  .count { font-family: var(--mono); font-size: 12px; color: var(--ink-mute); }
-
-  .grid {
-    display: grid; gap: 22px;
-    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  }
-  .card { cursor: pointer; }
-  .card-thumb {
-    position: relative; aspect-ratio: 16/10; border-radius: var(--radius);
-    overflow: hidden; background: var(--surface-2); margin-bottom: 11px;
+  .player-dialog {
+    background: var(--paper-2);
     border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 0;
+    width: min(940px, 94vw);
+    max-width: 94vw;
   }
-  .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .card-thumb .ph {
-    width: 100%; height: 100%; display: grid; place-items: center;
-    font-family: var(--display); font-size: 34px; color: var(--ink-mute);
+  .player-dialog::backdrop {
+    background: rgba(0,0,0,0.84);
+    backdrop-filter: blur(6px);
   }
-  .card-play {
-    position: absolute; inset: 0; display: grid; place-items: center;
-    background: rgba(6,10,16,.42); opacity: 0; transition: opacity .16s;
-    color: #fff; font-size: 30px;
+  .player-dialog video {
+    width: 100%;
+    display: block;
+    background: #000;
+    max-height: 72vh;
+    border-radius: var(--radius) var(--radius) 0 0;
   }
-  .card:hover .card-play { opacity: 1; }
-  .card-runtime {
-    position: absolute; right: 9px; bottom: 9px;
-    background: rgba(6,10,16,.82); color: #fff;
-    font-family: var(--mono); font-size: 11px;
-    padding: 3px 7px; border-radius: 4px;
+  .player-dialog-info { padding: 20px 24px 24px; position: relative; }
+  .player-dialog-info h2 {
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin: 0 0 4px;
+    color: var(--ink);
   }
-  .card h3 {
-    font-size: 15px; font-weight: 700; margin: 0 0 4px; line-height: 1.3;
+  .player-dialog-info .by {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-soft);
+    margin-bottom: 12px;
   }
-  .card .by { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
-  .tags { display: flex; flex-wrap: wrap; gap: 5px; }
-  .tag {
-    font-family: var(--mono); font-size: 10px; letter-spacing: .05em;
-    padding: 3px 8px; border-radius: 20px;
-    background: var(--surface-2); color: var(--ink-soft);
-  }
-
-  .empty {
-    padding: 72px 20px; text-align: center; color: var(--ink-mute);
-    font-size: 15px; grid-column: 1 / -1;
-  }
-  .empty strong { display: block; color: var(--ink); font-size: 17px; margin-bottom: 7px; }
-
-  /* ---------- player ---------- */
-  .modal {
-    position: fixed; inset: 0; z-index: 90; display: none;
-    background: rgba(4,7,11,.9); padding: 34px;
-    overflow-y: auto;
-  }
-  .modal.open { display: block; }
-  .modal-box {
-    max-width: 940px; margin: 0 auto; background: var(--surface);
-    border-radius: var(--radius); overflow: hidden;
-    border: 1px solid var(--line);
-  }
-  .modal-box video { width: 100%; display: block; background: #000; max-height: 74vh; }
-  .modal-info { padding: 22px 24px 26px; }
-  .modal-info h2 { font-family: var(--display); font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
-  .modal-info .by { color: var(--ink-soft); font-size: 14px; margin-bottom: 14px; }
-  .modal-info p { color: var(--ink-soft); font-size: 15px; line-height: 1.65; margin: 0 0 16px; }
-  .modal-close {
-    position: fixed; top: 22px; right: 26px; z-index: 91;
-    background: rgba(255,255,255,.12); color: #fff; border: none;
-    width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 19px;
-  }
-  .modal-close:hover { background: rgba(255,255,255,.24); }
-
-  @media (max-width: 700px) {
-    .nav { padding: 12px 16px; gap: 12px; }
-    .brand-name { font-size: 21px; }
-    .nav-link { display: none; }
-    .hero { min-height: 340px; padding: 40px 16px; }
-    .hero-bg::after { background: linear-gradient(180deg, transparent 0%, var(--bg) 82%); }
-    .filters, .wrap { padding-left: 16px; padding-right: 16px; }
-    .modal { padding: 0; }
-    .modal-box { border-radius: 0; }
+  .player-dialog-info p {
+    font-family: var(--body);
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
   }
 </style>
 </head>
 <body>
+<a class="skip-link" href="#worksGrid">Skip to main content</a>
 
-<nav class="nav">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">S</span>
-    <span class="brand-name">Sak<em>uga</em></span>
+<nav class="topnav">
+  <a class="topnav-brand" href="../index.html" aria-label="Onyx home">
+    <svg viewBox="0 0 110 38" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <text x="55" y="24" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="22" font-weight="900" letter-spacing="6" fill="currentColor">ONYX</text>
+      <line x1="8" y1="29" x2="102" y2="29" stroke="#3B82F6" stroke-width="1.5"/>
+      <text x="55" y="38" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="7" font-weight="400" letter-spacing="4" fill="#A0AABF">ORIGINALS</text>
+    </svg>
   </a>
-  <a class="nav-link" href="index.html">Browse</a>
-  <a class="nav-link" href="../submit.html">My Works</a>
-  <button class="icon-btn" id="themeBtn" type="button" aria-label="Toggle theme">🌙</button>
-  <a class="btn" href="../submit.html">Submit</a>
+  <div class="topnav-search">
+    <span class="topnav-search-icon">⌕</span>
+    <input id="search" type="search" aria-label="Search works" placeholder="Search titles, creators, tags…" autocomplete="off">
+  </div>
+  <div class="topnav-right">
+    <a href="../index.html" class="btn btn-outline btn-small">Back to Onyx</a>
+    <a href="../submit.html" class="btn btn-solid btn-small">Submit</a>
+    <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle theme">☾</button>
+  </div>
 </nav>
 
-<header class="hero">
-  <div class="hero-bg" id="heroBg"></div>
-  <div class="hero-inner">
-    <div class="kicker" id="heroKicker">Featured Work</div>
-    <h1 id="heroTitle">Discover<br>Indie Anime</h1>
-    <p id="heroDesc">A curated archive of original anime, indie animation, and creator-owned shorts. Every work reviewed before it goes live.</p>
-    <div class="hero-actions">
-      <button class="btn btn-ghost" id="heroWatch" type="button" hidden>▶ Watch Now</button>
-      <a class="btn btn-ghost" href="../submit.html">Submit Yours</a>
-    </div>
-  </div>
-</header>
+<div class="page">
 
-<div class="filters">
-  <div class="search-wrap">
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>
-    </svg>
-    <input type="search" id="search" placeholder="Search titles, creators, tags…" autocomplete="off">
+  <section id="heroSlideshow" class="hero-slideshow" aria-label="Featured work" hidden>
+    <div class="hero-slides">
+      <div class="hero-slide">
+        <div class="hero-slide-bg" id="heroBg"></div>
+        <div class="hero-slide-gradient"></div>
+        <div class="hero-slide-content">
+          <img class="hero-slide-poster" id="heroPoster" alt="" hidden>
+          <div class="hero-slide-info">
+            <div class="hero-slide-cat">Featured Work</div>
+            <h1 class="hero-slide-title" id="heroTitle"></h1>
+            <p class="hero-slide-desc" id="heroDesc"></p>
+            <div class="hero-slide-actions">
+              <button class="hero-slide-link" id="heroWatch" type="button">▶ Watch Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:28px">
+    <h1 class="detail-title" style="font-size:clamp(24px,3.2vw,38px);margin-bottom:10px">Onyx Originals</h1>
+    <p class="sakuga-tagline">
+      Original animation, indie shorts and creator-owned work. Everything here
+      was made by the person who sent it in, and watched by a human before it
+      went up.
+    </p>
+  </section>
+
+  <div class="genre-filters-wrap">
+    <span class="genre-filters-label">Tags</span>
+    <div class="genre-filters-bar" id="tagFilters" aria-label="Tag filters"></div>
   </div>
-  <select id="tagFilter"><option value="">All tags</option></select>
+
+  <p class="status-line"><span id="count">Loading…</span></p>
+
+  <main class="collections" aria-label="Original works">
+    <div class="poster-grid" id="worksGrid"></div>
+  </main>
+
+  <footer class="site-foot">
+    <span id="year"></span>
+    <span>Onyx Originals</span>
+  </footer>
+
 </div>
 
-<main class="wrap">
-  <div class="section-head">
-    <h2 id="sectionTitle">All Works</h2>
-    <span class="count" id="count"></span>
+<dialog id="playerDialog" class="player-dialog">
+  <video id="player" controls playsinline controlsList="nodownload noremoteplayback"></video>
+  <div class="player-dialog-info">
+    <button class="dialog-close" id="playerClose" type="button" aria-label="Close">✕</button>
+    <h2 id="mTitle"></h2>
+    <div class="by" id="mBy"></div>
+    <p id="mDesc"></p>
+    <div class="tag-list" id="mTags"></div>
   </div>
-  <div class="grid" id="grid">
-    <div class="empty">Loading…</div>
-  </div>
-</main>
-
-<div class="modal" id="modal">
-  <button class="modal-close" id="modalClose" type="button">✕</button>
-  <div class="modal-box">
-    <video id="player" controls playsinline controlsList="nodownload"></video>
-    <div class="modal-info">
-      <h2 id="mTitle"></h2>
-      <div class="by" id="mBy"></div>
-      <p id="mDesc"></p>
-      <div class="tags" id="mTags"></div>
-    </div>
-  </div>
-</div>
+</dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../core.js"></script>
 <script>
 (function () {
-  const SUPABASE_URL = 'https://eosnuxttjchckprpymnw.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_QSDQxkMRbxn1M4m5L5sB6w_auxSAZVg';
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true }
-  });
+  // core.js gives us getSupabase, escapeHtml and the theme key, so this
+  // page does not repeat any of it.
 
-  const esc = v => String(v ?? '').replace(/[&<>"']/g, c => (
-    { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]
-  ));
+  const sb = getSupabase();
+  document.body.classList.toggle('light', localStorage.getItem('aurum-theme') === 'light');
 
-  // ---- theme ----
-  const themeBtn = document.getElementById('themeBtn');
-  if (localStorage.getItem('sakuga-theme') === 'dark') document.body.classList.add('dark');
-  themeBtn.textContent = document.body.classList.contains('dark') ? '☀️' : '🌙';
-  themeBtn.addEventListener('click', () => {
-    const dark = !document.body.classList.contains('dark');
-    document.body.classList.toggle('dark', dark);
-    localStorage.setItem('sakuga-theme', dark ? 'dark' : 'light');
-    themeBtn.textContent = dark ? '☀️' : '🌙';
+  const yearEl = document.getElementById('year');
+  if (yearEl) yearEl.textContent = '© ' + new Date().getFullYear();
+
+  const tt = document.getElementById('themeToggle');
+  tt.textContent = document.body.classList.contains('light') ? '☀' : '☾';
+  tt.addEventListener('click', () => {
+    const nowLight = !document.body.classList.contains('light');
+    document.body.classList.toggle('light', nowLight);
+    localStorage.setItem('aurum-theme', nowLight ? 'light' : 'dark');
+    tt.textContent = nowLight ? '☀' : '☾';
   });
 
   let works = [];
+  let activeTag = '';
 
-  function runtime(secs) {
-    if (!secs) return '';
-    const m = Math.floor(secs / 60), s = secs % 60;
-    return m > 0 ? `${m}:${String(s).padStart(2,'0')}` : `0:${String(s).padStart(2,'0')}`;
-  }
+  const runtime = s => {
+    if (!s) return '';
+    const m = Math.floor(s / 60), sec = s % 60;
+    return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `0:${String(sec).padStart(2, '0')}`;
+  };
 
-  function tagsOf(w) {
-    const t = w.meta && w.meta.tags;
-    return Array.isArray(t) ? t : [];
-  }
+  const tagsOf = w => (w.meta && Array.isArray(w.meta.tags)) ? w.meta.tags : [];
 
   function cardHtml(w, i) {
-    const tags = tagsOf(w).slice(0, 3);
-    const rt   = runtime(w.meta && w.meta.runtime);
+    const creator = (w.meta && w.meta.creator) || '';
+    const rt = runtime(w.meta && w.meta.runtime);
     return `
-      <article class="card" data-i="${i}">
-        <div class="card-thumb">
-          ${w.cover_url
-            ? `<img src="${esc(w.cover_url)}" alt="" loading="lazy">`
-            : `<div class="ph">${esc((w.title || '?').charAt(0).toUpperCase())}</div>`}
-          <div class="card-play">▶</div>
-          ${rt ? `<span class="card-runtime">${esc(rt)}</span>` : ''}
-        </div>
-        <h3>${esc(w.title || 'Untitled')}</h3>
-        <div class="by">${esc((w.meta && w.meta.creator) || 'Unknown creator')}</div>
-        <div class="tags">${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+      <article class="poster-card">
+        <a class="poster-clickable" href="#" data-i="${i}">
+          <div class="poster-cover">
+            ${w.cover_url
+              ? `<img src="${escapeHtml(w.cover_url)}" alt="" loading="lazy">`
+              : `<div class="cover-placeholder">${escapeHtml((w.title || '?').charAt(0).toUpperCase())}</div>`}
+            <div class="poster-overlay"><span class="poster-play-icon">&#9654;</span></div>
+            ${rt ? `<span class="poster-ep-badge">${escapeHtml(rt)}</span>` : ''}
+          </div>
+          <div class="poster-info">
+            <div class="poster-cat">ORIGINAL</div>
+            <h3 class="poster-title">${escapeHtml(w.title || 'Untitled')}</h3>
+            ${creator ? `<div class="work-by">${escapeHtml(creator)}</div>` : ''}
+          </div>
+        </a>
       </article>`;
   }
 
   function render() {
-    const q   = document.getElementById('search').value.trim().toLowerCase();
-    const tag = document.getElementById('tagFilter').value;
+    const q = document.getElementById('search').value.trim().toLowerCase();
 
     const shown = works.filter(w => {
-      if (tag && !tagsOf(w).includes(tag)) return false;
+      if (activeTag && !tagsOf(w).includes(activeTag)) return false;
       if (!q) return true;
-      const hay = [
-        w.title || '',
-        (w.meta && w.meta.creator) || '',
-        tagsOf(w).join(' ')
-      ].join(' ').toLowerCase();
+      const hay = [w.title || '', (w.meta && w.meta.creator) || '', tagsOf(w).join(' ')]
+        .join(' ').toLowerCase();
       return hay.includes(q);
     });
 
     document.getElementById('count').textContent =
-      shown.length + (shown.length === 1 ? ' work' : ' works');
+      works.length
+        ? `${shown.length} ${shown.length === 1 ? 'work' : 'works'}`
+        : 'Nothing published yet';
 
-    const grid = document.getElementById('grid');
+    const grid = document.getElementById('worksGrid');
     if (!shown.length) {
+      grid.className = '';
       grid.innerHTML = works.length
-        ? `<div class="empty"><strong>Nothing matches that</strong>Try a different search or clear the tag filter.</div>`
-        : `<div class="empty"><strong>Nothing here yet</strong>Be the first to submit something.</div>`;
+        ? `<div class="empty">Nothing matches that. Try a different search or clear the tag.</div>`
+        : `<div class="empty">Nothing here yet. If you make animation, this is where it goes —
+             <a href="../submit.html" style="color:var(--accent)">send it in</a>.</div>`;
       return;
     }
-    grid.innerHTML = shown.map((w) => cardHtml(w, works.indexOf(w))).join('');
-    grid.querySelectorAll('.card').forEach(c => {
-      c.addEventListener('click', () => open(works[+c.dataset.i]));
+    grid.className = 'poster-grid';
+    grid.innerHTML = shown.map(w => cardHtml(w, works.indexOf(w))).join('');
+    grid.querySelectorAll('.poster-clickable').forEach(a => {
+      a.addEventListener('click', e => { e.preventDefault(); open(works[+a.dataset.i]); });
     });
   }
 
   // ---- player ----
-  const modal  = document.getElementById('modal');
+  const dialog = document.getElementById('playerDialog');
   const player = document.getElementById('player');
 
   function open(w) {
     if (!w) return;
     document.getElementById('mTitle').textContent = w.title || 'Untitled';
     document.getElementById('mBy').textContent =
-      'by ' + ((w.meta && w.meta.creator) || 'Unknown creator');
+      'by ' + ((w.meta && w.meta.creator) || 'unknown creator');
     const d = (w.meta && w.meta.description) || '';
-    document.getElementById('mDesc').textContent = d;
-    document.getElementById('mDesc').hidden = !d;
+    const dEl = document.getElementById('mDesc');
+    dEl.textContent = d;
+    dEl.hidden = !d;
     document.getElementById('mTags').innerHTML =
-      tagsOf(w).map(t => `<span class="tag">${esc(t)}</span>`).join('');
+      tagsOf(w).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
     player.src = w.download_url;
-    modal.classList.add('open');
-    document.body.style.overflow = 'hidden';
+    dialog.showModal();
     player.play().catch(() => {});
   }
 
   function close() {
-    modal.classList.remove('open');
     player.pause();
     player.removeAttribute('src');
     player.load();
-    document.body.style.overflow = '';
+    dialog.close();
   }
 
-  document.getElementById('modalClose').addEventListener('click', close);
-  modal.addEventListener('mousedown', e => { if (e.target === modal) close(); });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && modal.classList.contains('open')) close();
-  });
+  document.getElementById('playerClose').addEventListener('click', close);
+  dialog.addEventListener('close', () => { player.pause(); });
+  dialog.addEventListener('click', e => { if (e.target === dialog) close(); });
 
   // ---- hero ----
   function setHero(w) {
     if (!w) return;
-    document.getElementById('heroKicker').textContent = 'Featured Work';
+    const hero = document.getElementById('heroSlideshow');
     document.getElementById('heroTitle').textContent = w.title || 'Untitled';
     document.getElementById('heroDesc').textContent =
-      (w.meta && w.meta.description) ||
-      'A curated archive of original anime, indie animation, and creator-owned shorts.';
+      (w.meta && w.meta.description) || '';
     if (w.cover_url) {
       document.getElementById('heroBg').style.backgroundImage = `url('${w.cover_url}')`;
+      const p = document.getElementById('heroPoster');
+      p.src = w.cover_url;
+      p.hidden = false;
     }
-    const btn = document.getElementById('heroWatch');
-    btn.hidden = false;
-    btn.addEventListener('click', () => open(w));
+    document.getElementById('heroWatch').addEventListener('click', () => open(w));
+    hero.hidden = false;
   }
 
   // ---- load ----
   (async function init() {
     document.getElementById('search').addEventListener('input', render);
-    document.getElementById('tagFilter').addEventListener('change', render);
 
-    // tag vocabulary
+    // Tag vocabulary, editable in site_settings without a deploy.
     try {
       const { data } = await sb.from('site_settings').select('value')
         .eq('key', 'sakuga_tags').maybeSingle();
       if (Array.isArray(data?.value)) {
-        const sel = document.getElementById('tagFilter');
-        data.value.forEach(t => {
-          const o = document.createElement('option');
-          o.value = t; o.textContent = t;
-          sel.appendChild(o);
-        });
+        const bar = document.getElementById('tagFilters');
+        const mk = (label, val) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'genre-chip' + (val === '' ? ' active' : '');
+          b.textContent = label;
+          b.addEventListener('click', () => {
+            activeTag = val;
+            bar.querySelectorAll('.genre-chip').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            render();
+          });
+          return b;
+        };
+        bar.appendChild(mk('All', ''));
+        data.value.forEach(t => bar.appendChild(mk(t, t)));
       }
-    } catch (e) { console.warn('[Sakuga] tags:', e.message); }
+    } catch (e) { console.warn('[Originals] tags:', e.message); }
 
-    // published works
+    // Published works.
     try {
       const { data, error } = await sb.from('videos').select('*')
         .eq('category', 'Original')
@@ -446,14 +332,14 @@
         .order('date_added', { ascending: false });
       if (error) throw error;
       works = data || [];
-      render();
     } catch (e) {
-      document.getElementById('grid').innerHTML =
-        `<div class="empty"><strong>Could not load</strong>${esc(e.message || '')}</div>`;
+      document.getElementById('count').textContent = 'Could not load: ' + (e.message || '');
       return;
     }
 
-    // featured, falling back to the newest
+    render();
+
+    // Featured, falling back to the newest.
     try {
       const { data } = await sb.from('site_settings').select('value')
         .eq('key', 'sakuga_featured').maybeSingle();
