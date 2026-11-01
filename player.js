@@ -944,3 +944,107 @@ function wireFog() {
     renderSeriesOnPlayer(allGroups);
   }).catch(() => {});
 })();
+
+// ---------- Admin download (works on phones) ----------
+// The admin check in loadVideo strips controlsList, which gives the
+// native download item in the desktop video menu. Mobile browsers do
+// not show that menu, so this adds explicit buttons to the controls
+// bar. Only rendered for the admin account.
+(function adminDownload() {
+  const ADMIN_EMAIL = 'lukehare1007@gmail.com';
+
+  if (!document.getElementById('adminDlStyle')) {
+    const st = document.createElement('style');
+    st.id = 'adminDlStyle';
+    st.textContent = `
+      .admin-dl-wrap { display:flex; align-items:center; gap:6px; margin-right:auto; }
+      .admin-dl-btn {
+        font-family: var(--mono); font-size: 9px; letter-spacing: .14em;
+        text-transform: uppercase; color: var(--ink-mute);
+        background: transparent; border: 1px solid var(--line);
+        padding: 5px 12px; border-radius: var(--radius-sm);
+        cursor: pointer; white-space: nowrap; text-decoration: none;
+        transition: color var(--transition), border-color var(--transition);
+      }
+      .admin-dl-btn:hover { color: var(--accent); border-color: var(--accent); }
+      .admin-dl-btn.ok { color: #52c07a; border-color: #52c07a; }
+      @media (max-width: 600px) { .admin-dl-btn { font-size: 10px; padding: 7px 14px; } }
+    `;
+    document.head.appendChild(st);
+  }
+
+  function cleanName() {
+    const parts = [
+      currentGroup?.title || 'Onyx',
+      currentVideo?.episode ? 'E' + currentVideo.episode : '',
+      currentVideo?.title || ''
+    ].filter(Boolean).join(' - ');
+    return parts.replace(/[\\/:*?"<>|]+/g, '').slice(0, 120) + '.mp4';
+  }
+
+  async function build() {
+    let user = null;
+    try { user = await getCurrentUser(); } catch (e) { return; }
+    if (!user || user.email !== ADMIN_EMAIL) return;
+
+    const bar = document.querySelector('.video-controls-bar');
+    if (!bar || document.getElementById('adminDlWrap')) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'adminDlWrap';
+    wrap.className = 'admin-dl-wrap';
+
+    const dl = document.createElement('a');
+    dl.className = 'admin-dl-btn';
+    dl.textContent = '↓ Download';
+    dl.target = '_blank';
+    dl.rel = 'noopener';
+
+    const copy = document.createElement('button');
+    copy.type = 'button';
+    copy.className = 'admin-dl-btn';
+    copy.textContent = 'Copy link';
+
+    wrap.append(dl, copy);
+    bar.insertBefore(wrap, bar.firstChild);
+
+    // currentVideo changes as episodes load, so resolve at click time
+    // rather than binding one URL on setup.
+    function sync() {
+      const u = currentVideo?.downloadUrl;
+      if (!u || u === '#') { dl.removeAttribute('href'); dl.style.opacity = '.4'; return; }
+      dl.href = u;
+      dl.style.opacity = '';
+      // Ignored on cross-origin files, but correct if anything is ever
+      // served from the same domain.
+      dl.setAttribute('download', cleanName());
+    }
+
+    dl.addEventListener('click', sync);
+    playerVideoEl?.addEventListener('loadstart', sync);
+    sync();
+
+    copy.addEventListener('click', async () => {
+      const u = currentVideo?.downloadUrl;
+      if (!u) return;
+      try {
+        await navigator.clipboard.writeText(u);
+      } catch (e) {
+        // Clipboard API needs a secure context and sometimes a gesture.
+        const i = document.createElement('input');
+        i.value = u; document.body.appendChild(i); i.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        i.remove();
+      }
+      copy.textContent = 'Copied';
+      copy.classList.add('ok');
+      setTimeout(() => { copy.textContent = 'Copy link'; copy.classList.remove('ok'); }, 1600);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', build);
+  } else {
+    build();
+  }
+})();
